@@ -20,7 +20,7 @@ const Dashboard = () => {
     }
     
     loadReceipts();
-  }, [user, navigate]);
+  }, []);
 
   const loadReceipts = () => {
     if (!user) return;
