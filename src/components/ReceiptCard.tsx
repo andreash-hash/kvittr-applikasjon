@@ -71,20 +71,110 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     return Math.min(100, Math.max(0, (daysElapsed / totalDays) * 100));
   };
   
-  // Get status color for time remaining
-  const getTimeRemainingColor = () => {
-    if (!daysUntil) return 'text-muted-foreground';
-    if (receipt.type === 'warranty') {
-      if (daysUntil > 60) return 'text-green-600';
-      if (daysUntil > 30) return 'text-orange-500';
-      return 'text-red-600';
+  // Get status badge configuration
+  const getStatusBadgeConfig = () => {
+    if (!daysUntil || daysUntil < 0) {
+      if (receipt.status === 'expired') {
+        if (receipt.type === 'warranty') {
+          return {
+            text: `Garanti utløpt ${formatDate(receipt.warranty_expires!)}`,
+            bgColor: 'bg-gray-100',
+            textColor: 'text-gray-600',
+            icon: Shield,
+            showProgress: false
+          };
+        }
+        if (receipt.type === 'return_slip') {
+          return {
+            text: `Byttefrist utløpt ${formatDate(receipt.return_by!)}`,
+            bgColor: 'bg-gray-100',
+            textColor: 'text-gray-600',
+            icon: RefreshCw,
+            showProgress: false
+          };
+        }
+      }
+      return null;
     }
-    if (receipt.type === 'return_slip' || receipt.type === 'gift_card') {
-      if (daysUntil > 7) return 'text-green-600';
-      return 'text-orange-500';
+
+    if (receipt.type === 'warranty' && receipt.warranty_expires) {
+      const monthsLeft = Math.ceil(daysUntil / 30);
+      if (daysUntil > 90) {
+        return {
+          text: `Garanti til ${formatDate(receipt.warranty_expires)} (${monthsLeft} måned${monthsLeft !== 1 ? 'er' : ''} igjen)`,
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          icon: Shield,
+          showProgress: true,
+          progressColor: 'green'
+        };
+      }
+      if (daysUntil > 30) {
+        return {
+          text: `Garanti utløper ${formatDate(receipt.warranty_expires)} (${daysUntil} dager igjen)`,
+          bgColor: 'bg-orange-50',
+          textColor: 'text-orange-700',
+          icon: Shield,
+          showProgress: true,
+          progressColor: 'orange'
+        };
+      }
+      return {
+        text: `Garanti utløper snart! (${daysUntil} dager igjen)`,
+        bgColor: 'bg-red-50',
+        textColor: 'text-red-700',
+        icon: Shield,
+        showProgress: true,
+        progressColor: 'red'
+      };
     }
-    return 'text-muted-foreground';
+
+    if (receipt.type === 'return_slip' && receipt.return_by) {
+      if (daysUntil > 7) {
+        return {
+          text: `Bytte til ${formatDate(receipt.return_by)} (${daysUntil} dager igjen)`,
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          icon: RefreshCw,
+          showProgress: true,
+          progressColor: 'green'
+        };
+      }
+      if (daysUntil > 3) {
+        return {
+          text: `Bytte til ${formatDate(receipt.return_by)} (${daysUntil} dager igjen)`,
+          bgColor: 'bg-orange-50',
+          textColor: 'text-orange-700',
+          icon: RefreshCw,
+          showProgress: true,
+          progressColor: 'orange'
+        };
+      }
+      return {
+        text: `Siste sjanse! (${daysUntil} dager igjen)`,
+        bgColor: 'bg-red-50',
+        textColor: 'text-red-700',
+        icon: RefreshCw,
+        showProgress: true,
+        progressColor: 'red'
+      };
+    }
+
+    if (receipt.type === 'gift_card') {
+      const validText = expiryDate ? ` - Gyldig til ${formatDate(expiryDate)}` : '';
+      return {
+        text: `Gavekort ${formatCurrency(receipt.remaining_value || receipt.amount)}${validText}`,
+        bgColor: 'bg-green-50',
+        textColor: 'text-green-700',
+        icon: Gift,
+        showProgress: false
+      };
+    }
+
+    return null;
   };
+
+  const statusBadgeConfig = getStatusBadgeConfig();
   
   // Get expiry warning badge
   const getExpiryWarning = () => {
@@ -148,55 +238,47 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
               </p>
             </div>
             
-            {/* Status section */}
-            <div className="space-y-2">
-              {receipt.type === 'warranty' && receipt.warranty_expires && daysUntil !== null && daysUntil >= 0 && (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Garanti gyldig til {formatDate(receipt.warranty_expires)}</span>
+            {/* Prominent Status Badge */}
+            {statusBadgeConfig && (
+              <div 
+                className={`${statusBadgeConfig.bgColor} ${statusBadgeConfig.textColor} rounded-lg p-3 cursor-pointer hover:opacity-80 transition-opacity`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/item/${receipt.id}`);
+                }}
+              >
+                <div className="flex items-start gap-2">
+                  <statusBadgeConfig.icon className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold leading-tight">
+                      {statusBadgeConfig.text}
+                    </p>
+                    {statusBadgeConfig.showProgress && (
+                      <div className="mt-2 space-y-1">
+                        <Progress 
+                          value={receipt.type === 'warranty' ? getWarrantyProgress() : 
+                                 receipt.type === 'return_slip' && receipt.return_by ? 
+                                 Math.max(0, Math.min(100, (daysUntil! / 14) * 100)) : 0} 
+                          className="h-2"
+                        />
+                        <p className="text-xs opacity-75">
+                          {receipt.type === 'warranty' ? 
+                            `${Math.round(100 - getWarrantyProgress())}% garanti gjenstår` :
+                            `${Math.round((daysUntil! / 14) * 100)}% av byttefristen gjenstår`
+                          }
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <Progress value={getWarrantyProgress()} className="h-2" />
-                  <p className={`text-sm font-medium ${getTimeRemainingColor()}`}>
-                    {Math.ceil(daysUntil / 30)} måned{Math.ceil(daysUntil / 30) !== 1 ? 'er' : ''} igjen
-                  </p>
                 </div>
-              )}
-              
-              {receipt.type === 'return_slip' && receipt.return_by && daysUntil !== null && daysUntil >= 0 && (
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Byttefrist til {formatDate(receipt.return_by)}</p>
-                  <p className={`text-sm font-bold ${getTimeRemainingColor()}`}>
-                    {daysUntil} dag{daysUntil !== 1 ? 'er' : ''} igjen
-                  </p>
-                </div>
-              )}
-              
-              {receipt.type === 'gift_card' && receipt.remaining_value !== undefined && (
-                <div className="space-y-1">
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(receipt.remaining_value)}
-                  </p>
-                  {expiryDate && (
-                    <p className="text-xs text-muted-foreground">
-                      Gyldig til {formatDate(expiryDate)}
-                    </p>
-                  )}
-                  {receipt.remaining_value < receipt.amount && (
-                    <p className="text-xs text-muted-foreground">
-                      Opprinnelig: {formatCurrency(receipt.amount)}
-                    </p>
-                  )}
-                </div>
-              )}
-              
-              {receipt.status === 'expired' && (
-                <p className="text-sm text-destructive font-medium">Utløpt</p>
-              )}
-              
-              {receipt.status === 'used' && (
-                <p className="text-sm text-muted-foreground font-medium">Brukt</p>
-              )}
-            </div>
+              </div>
+            )}
+            
+            {receipt.status === 'used' && (
+              <div className="bg-gray-100 text-gray-600 rounded-lg p-3">
+                <p className="text-sm font-semibold">Brukt</p>
+              </div>
+            )}
             
             {/* Info chips */}
             <div className="flex gap-2 flex-wrap">
