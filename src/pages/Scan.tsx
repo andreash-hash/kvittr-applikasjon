@@ -1,19 +1,33 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Camera, ArrowLeft, Check, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getUser, saveReceipt } from '@/lib/storage';
+import { saveReceipt } from '@/lib/storage';
+import { supabase } from '@/integrations/supabase/client';
 
 const Scan = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const user = getUser();
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate('/login');
+    } else {
+      setUserId(session.user.id);
+    }
+  };
 
   const startCamera = async () => {
     try {
@@ -62,34 +76,40 @@ const Scan = () => {
   };
 
   const saveImage = async () => {
-    if (!capturedImage || !user) return;
+    if (!capturedImage || !userId) return;
     
     setIsLoading(true);
     
-    // Simulate upload delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newReceipt = {
-      id: crypto.randomUUID(),
-      user_id: user.id,
-      type: 'receipt' as const,
-      shop_name: 'Ny butikk',
-      product_name: 'Nytt produkt',
-      amount: 0,
-      purchase_date: new Date().toISOString(),
-      image_url: capturedImage,
-      status: 'active' as const,
-      created_at: new Date().toISOString(),
-    };
-    
-    saveReceipt(newReceipt);
-    
-    toast({
-      title: 'Suksess!',
-      description: 'Kvittering lagret!',
-    });
-    
-    navigate(`/item/${newReceipt.id}`);
+    try {
+      const newReceipt = {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        type: 'receipt' as const,
+        shop_name: 'Ny butikk',
+        product_name: 'Nytt produkt',
+        amount: 0,
+        purchase_date: new Date().toISOString(),
+        image_url: capturedImage,
+        status: 'active' as const,
+        created_at: new Date().toISOString(),
+      };
+      
+      await saveReceipt(newReceipt);
+      
+      toast({
+        title: 'Suksess!',
+        description: 'Kvittering lagret!',
+      });
+      
+      navigate(`/item/${newReceipt.id}`);
+    } catch (error) {
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke lagre kvittering',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {

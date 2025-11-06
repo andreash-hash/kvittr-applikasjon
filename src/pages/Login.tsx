@@ -5,15 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { getUser, saveUser } from '@/lib/storage';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
@@ -25,24 +26,29 @@ const Login = () => {
       return;
     }
 
-    // Simple demo login - in production this would check against backend
-    const storedUsers = localStorage.getItem('kvittr_users');
-    const users = storedUsers ? JSON.parse(storedUsers) : [];
-    const user = users.find((u: any) => u.email === email && u.password === password);
+    setIsLoading(true);
+    
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    if (user) {
-      saveUser({ id: user.id, email: user.email, created_at: user.created_at });
+    setIsLoading(false);
+
+    if (error) {
+      toast({
+        title: 'Feil',
+        description: error.message === 'Invalid login credentials' 
+          ? 'Feil e-post eller passord' 
+          : error.message,
+        variant: 'destructive',
+      });
+    } else {
       toast({
         title: 'Velkommen!',
         description: 'Du er nå logget inn',
       });
       navigate('/dashboard');
-    } else {
-      toast({
-        title: 'Feil',
-        description: 'Feil e-post eller passord',
-        variant: 'destructive',
-      });
     }
   };
 
@@ -75,8 +81,8 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Logg inn
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Logger inn...' : 'Logg inn'}
             </Button>
             <Button
               type="button"

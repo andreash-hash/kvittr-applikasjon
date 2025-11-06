@@ -5,16 +5,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { saveUser } from '@/lib/storage';
+import { supabase } from '@/integrations/supabase/client';
 
 const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password || !confirmPassword) {
@@ -44,37 +45,33 @@ const Signup = () => {
       return;
     }
 
-    // Simple demo signup
-    const storedUsers = localStorage.getItem('kvittr_users');
-    const users = storedUsers ? JSON.parse(storedUsers) : [];
+    setIsLoading(true);
     
-    if (users.find((u: any) => u.email === email)) {
-      toast({
-        title: 'Feil',
-        description: 'Denne e-posten er allerede registrert',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const newUser = {
-      id: crypto.randomUUID(),
+    const { error } = await supabase.auth.signUp({
       email,
       password,
-      created_at: new Date().toISOString(),
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('kvittr_users', JSON.stringify(users));
-    
-    saveUser({ id: newUser.id, email: newUser.email, created_at: newUser.created_at });
-    
-    toast({
-      title: 'Velkommen!',
-      description: 'Kontoen din er opprettet',
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+      },
     });
-    
-    navigate('/dashboard');
+
+    setIsLoading(false);
+
+    if (error) {
+      toast({
+        title: 'Feil',
+        description: error.message === 'User already registered' 
+          ? 'Denne e-posten er allerede registrert'
+          : error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Velkommen!',
+        description: 'Kontoen din er opprettet',
+      });
+      navigate('/dashboard');
+    }
   };
 
   return (
@@ -116,8 +113,8 @@ const Signup = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Registrer deg
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Oppretter konto...' : 'Registrer deg'}
             </Button>
             <Button
               type="button"

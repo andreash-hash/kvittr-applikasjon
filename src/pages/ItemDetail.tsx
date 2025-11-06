@@ -6,56 +6,101 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Trash2, Save } from 'lucide-react';
-import { getUser, getReceipts, saveReceipt, deleteReceipt, type Receipt } from '@/lib/storage';
-import { formatDate, formatCurrency } from '@/lib/format';
+import { getReceipts, saveReceipt, deleteReceipt, type Receipt } from '@/lib/storage';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const ItemDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const user = getUser();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || !id) {
+    loadReceipt();
+  }, [id]);
+
+  const loadReceipt = async () => {
+    if (!id) {
+      navigate('/dashboard');
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       navigate('/login');
       return;
     }
-    
-    const receipts = getReceipts(user.id);
-    const found = receipts.find(r => r.id === id);
-    if (found) {
-      setReceipt(found);
-      // Auto-edit if it's a new receipt with default values
-      if (found.shop_name === 'Ny butikk' && found.amount === 0) {
-        setIsEditing(true);
+
+    try {
+      const receipts = await getReceipts(session.user.id);
+      const found = receipts.find(r => r.id === id);
+      if (found) {
+        setReceipt(found);
+        // Auto-edit if it's a new receipt with default values
+        if (found.shop_name === 'Ny butikk' && found.amount === 0) {
+          setIsEditing(true);
+        }
+      } else {
+        navigate('/dashboard');
       }
-    } else {
+    } catch (error) {
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke laste kvittering',
+        variant: 'destructive',
+      });
       navigate('/dashboard');
+    } finally {
+      setIsLoading(false);
     }
-  }, [id, user, navigate]);
+  };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!receipt) return;
-    saveReceipt(receipt);
-    setIsEditing(false);
-    toast({
-      title: 'Lagret',
-      description: 'Endringene er lagret',
-    });
+    try {
+      await saveReceipt(receipt);
+      setIsEditing(false);
+      toast({
+        title: 'Lagret',
+        description: 'Endringene er lagret',
+      });
+    } catch (error) {
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke lagre endringer',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!receipt || !confirm('Er du sikker på at du vil slette denne?')) return;
-    deleteReceipt(receipt.id);
-    toast({
-      title: 'Slettet',
-      description: 'Kvitteringen er slettet',
-    });
-    navigate('/dashboard');
+    try {
+      await deleteReceipt(receipt.id);
+      toast({
+        title: 'Slettet',
+        description: 'Kvitteringen er slettet',
+      });
+      navigate('/dashboard');
+    } catch (error) {
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke slette kvittering',
+        variant: 'destructive',
+      });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
+        <p className="text-muted-foreground">Laster...</p>
+      </div>
+    );
+  }
 
   if (!receipt) return null;
 

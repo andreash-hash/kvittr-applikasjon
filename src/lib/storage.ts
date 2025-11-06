@@ -1,4 +1,5 @@
-// LocalStorage utilities for Kvittr app
+// Supabase database utilities for Kvittr app
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Receipt {
   id: string;
@@ -17,57 +18,66 @@ export interface Receipt {
   created_at: string;
 }
 
-export interface User {
-  id: string;
-  email: string;
-  created_at: string;
-}
-
-const STORAGE_KEYS = {
-  USER: 'kvittr_user',
-  RECEIPTS: 'kvittr_receipts',
-};
-
-// User authentication
-export const saveUser = (user: User) => {
-  localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-};
-
-export const getUser = (): User | null => {
-  const user = localStorage.getItem(STORAGE_KEYS.USER);
-  return user ? JSON.parse(user) : null;
-};
-
-export const clearUser = () => {
-  localStorage.removeItem(STORAGE_KEYS.USER);
-};
-
 // Receipt management
-export const getReceipts = (userId: string): Receipt[] => {
-  const receipts = localStorage.getItem(STORAGE_KEYS.RECEIPTS);
-  const allReceipts: Receipt[] = receipts ? JSON.parse(receipts) : [];
-  return allReceipts.filter(r => r.user_id === userId);
+export const getReceipts = async (userId: string): Promise<Receipt[]> => {
+  const { data, error } = await supabase
+    .from('receipts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  
+  // Map database fields to our interface
+  return (data || []).map(r => ({
+    id: r.id,
+    user_id: r.user_id,
+    type: r.item_type as Receipt['type'],
+    shop_name: r.shop_name || '',
+    product_name: r.product_name || '',
+    amount: Number(r.amount) || 0,
+    purchase_date: r.purchase_date || new Date().toISOString(),
+    expiry_date: r.gift_card_value ? r.purchase_date : undefined,
+    warranty_expires: r.warranty_until || undefined,
+    return_by: r.return_until || undefined,
+    remaining_value: r.gift_card_balance ? Number(r.gift_card_balance) : undefined,
+    image_url: r.image_url || '',
+    status: (r.status as Receipt['status']) || 'active',
+    created_at: r.created_at || new Date().toISOString(),
+  }));
 };
 
-export const saveReceipt = (receipt: Receipt) => {
-  const receipts = localStorage.getItem(STORAGE_KEYS.RECEIPTS);
-  const allReceipts: Receipt[] = receipts ? JSON.parse(receipts) : [];
+export const saveReceipt = async (receipt: Receipt): Promise<void> => {
+  const dbReceipt = {
+    id: receipt.id,
+    user_id: receipt.user_id,
+    item_type: receipt.type,
+    shop_name: receipt.shop_name,
+    product_name: receipt.product_name,
+    amount: receipt.amount,
+    purchase_date: receipt.purchase_date.split('T')[0],
+    warranty_until: receipt.warranty_expires?.split('T')[0] || null,
+    return_until: receipt.return_by?.split('T')[0] || null,
+    gift_card_value: receipt.type === 'gift_card' ? receipt.amount : null,
+    gift_card_balance: receipt.remaining_value || null,
+    image_url: receipt.image_url,
+    status: receipt.status,
+  };
+
+  const { error } = await supabase
+    .from('receipts')
+    .upsert(dbReceipt);
   
-  const existingIndex = allReceipts.findIndex(r => r.id === receipt.id);
-  if (existingIndex >= 0) {
-    allReceipts[existingIndex] = receipt;
-  } else {
-    allReceipts.push(receipt);
-  }
-  
-  localStorage.setItem(STORAGE_KEYS.RECEIPTS, JSON.stringify(allReceipts));
+  if (error) throw error;
 };
 
-export const deleteReceipt = (id: string) => {
-  const receipts = localStorage.getItem(STORAGE_KEYS.RECEIPTS);
-  const allReceipts: Receipt[] = receipts ? JSON.parse(receipts) : [];
-  const filtered = allReceipts.filter(r => r.id !== id);
-  localStorage.setItem(STORAGE_KEYS.RECEIPTS, JSON.stringify(filtered));
+export const deleteReceipt = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('receipts')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
 };
 
 // Calculate status based on dates

@@ -4,33 +4,60 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, LogOut } from 'lucide-react';
-import { getUser, getReceipts, calculateStatus, clearUser, type Receipt } from '@/lib/storage';
+import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import ReceiptCard from '@/components/ReceiptCard';
 
 const Dashboard = () => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-  const user = getUser();
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (!user) {
+    checkAuthAndLoadReceipts();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate('/login');
+      } else if (event === 'SIGNED_IN') {
+        loadReceipts(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAuthAndLoadReceipts = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       navigate('/login');
       return;
     }
-    
-    loadReceipts();
-  }, []);
-
-  const loadReceipts = () => {
-    if (!user) return;
-    const allReceipts = getReceipts(user.id);
-    const withStatus = allReceipts.map(r => ({ ...r, status: calculateStatus(r) }));
-    setReceipts(withStatus);
+    await loadReceipts(session.user.id);
   };
 
-  const handleLogout = () => {
-    clearUser();
+  const loadReceipts = async (userId: string) => {
+    try {
+      setIsLoading(true);
+      const allReceipts = await getReceipts(userId);
+      const withStatus = allReceipts.map(r => ({ ...r, status: calculateStatus(r) }));
+      setReceipts(withStatus);
+    } catch (error) {
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke laste kvitteringer',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate('/login');
   };
 
@@ -79,7 +106,11 @@ const Dashboard = () => {
           </TabsList>
 
           <TabsContent value="alle" className="space-y-4 mt-4">
-            {allReceipts.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>Laster...</p>
+              </div>
+            ) : allReceipts.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p>Ingen kvitteringer ennå.</p>
                 <p className="text-sm mt-2">Trykk + for å legge til.</p>
