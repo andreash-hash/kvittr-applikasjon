@@ -12,25 +12,50 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   const navigate = useNavigate();
   
   const getStatusBadge = () => {
-    const variants = {
-      active: 'default',
-      expiring_soon: 'warning',
-      expired: 'destructive',
-      used: 'secondary',
-    } as const;
+    const expiryDate = receipt.expiry_date || receipt.warranty_expires || receipt.return_by;
+    const daysUntil = expiryDate ? getDaysUntil(expiryDate) : null;
     
-    const labels = {
-      active: 'Aktiv',
-      expiring_soon: 'Utløper snart',
-      expired: 'Utløpt',
-      used: 'Brukt',
-    };
+    // For expired/used items
+    if (receipt.status === 'expired') {
+      return <Badge variant="destructive">Utløpt</Badge>;
+    }
+    if (receipt.status === 'used') {
+      return <Badge variant="secondary">Brukt</Badge>;
+    }
     
-    return (
-      <Badge variant={variants[receipt.status] || 'default'}>
-        {labels[receipt.status]}
-      </Badge>
-    );
+    // For active items with specific type labels
+    if (daysUntil !== null && daysUntil >= 0) {
+      const isExpiringSoon = 
+        (receipt.type === 'warranty' && daysUntil <= 30) ||
+        (receipt.type === 'return_slip' && daysUntil <= 14) ||
+        (receipt.type === 'gift_card' && daysUntil <= 60);
+      
+      if (isExpiringSoon) {
+        if (receipt.type === 'warranty') {
+          return <Badge variant="warning">Garanti utløper om {daysUntil} dag{daysUntil !== 1 ? 'er' : ''}</Badge>;
+        }
+        if (receipt.type === 'return_slip') {
+          return <Badge variant="warning">Byttefrist utløper om {daysUntil} dag{daysUntil !== 1 ? 'er' : ''}</Badge>;
+        }
+        if (receipt.type === 'gift_card') {
+          return <Badge variant="warning">Gavekort utløper om {daysUntil} dag{daysUntil !== 1 ? 'er' : ''}</Badge>;
+        }
+      }
+      
+      // Active with days remaining
+      if (receipt.type === 'warranty') {
+        return <Badge variant="default">Garanti aktiv ({daysUntil} dag{daysUntil !== 1 ? 'er' : ''} igjen)</Badge>;
+      }
+      if (receipt.type === 'return_slip') {
+        return <Badge variant="default">Byttefrist aktiv ({daysUntil} dag{daysUntil !== 1 ? 'er' : ''} igjen)</Badge>;
+      }
+      if (receipt.type === 'gift_card' && receipt.remaining_value) {
+        return <Badge variant="default">Gavekort {formatCurrency(receipt.remaining_value)} ({daysUntil} dag{daysUntil !== 1 ? 'er' : ''} igjen)</Badge>;
+      }
+    }
+    
+    // Default active badge
+    return <Badge variant="default">Aktiv</Badge>;
   };
 
   const expiryDate = receipt.expiry_date || receipt.warranty_expires || receipt.return_by;
@@ -78,18 +103,15 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
                 {formatCurrency(receipt.amount)}
               </p>
               
-              {receipt.type === 'gift_card' && receipt.remaining_value !== undefined && (
+              {receipt.type === 'gift_card' && receipt.remaining_value !== undefined && receipt.status !== 'used' && (
                 <p className="text-accent font-medium">
                   Restverdi: {formatCurrency(receipt.remaining_value)}
                 </p>
               )}
               
-              {daysUntil !== null && receipt.status !== 'used' && (
-                <p className={`font-medium ${
-                  daysUntil <= 7 && daysUntil >= 0 ? 'text-warning' : 
-                  daysUntil < 0 ? 'text-destructive' : 'text-success'
-                }`}>
-                  {formatDaysRemaining(daysUntil)}
+              {receipt.type === 'return_slip' && (
+                <p className="text-xs text-muted-foreground">
+                  Byttelapp
                 </p>
               )}
             </div>

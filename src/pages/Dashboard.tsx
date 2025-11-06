@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut } from 'lucide-react';
+import { Plus, Search, LogOut, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -70,10 +71,24 @@ const Dashboard = () => {
     );
   };
 
+  // Helper to check if item is expiring soon based on type
+  const isExpiringSoon = (receipt: Receipt): boolean => {
+    const expiryDate = receipt.expiry_date || receipt.warranty_expires || receipt.return_by;
+    if (!expiryDate) return false;
+    
+    const daysUntil = Math.ceil((new Date(expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (receipt.type === 'warranty' && daysUntil <= 30 && daysUntil >= 0) return true;
+    if (receipt.type === 'return_slip' && daysUntil <= 14 && daysUntil >= 0) return true;
+    if (receipt.type === 'gift_card' && daysUntil <= 60 && daysUntil >= 0) return true;
+    
+    return false;
+  };
+
   const allReceipts = filterReceipts(receipts);
-  const expiringReceipts = filterReceipts(receipts.filter(r => r.status === 'expiring_soon'));
-  const giftCards = filterReceipts(receipts.filter(r => r.type === 'gift_card' && r.status === 'active'));
-  const returnSlips = filterReceipts(receipts.filter(r => r.type === 'return_slip' && r.status === 'active'));
+  const expiringReceipts = filterReceipts(receipts.filter(r => isExpiringSoon(r)));
+  const giftCards = filterReceipts(receipts.filter(r => r.type === 'gift_card' && r.status !== 'expired' && r.status !== 'used'));
+  const returnSlips = filterReceipts(receipts.filter(r => r.type === 'return_slip' && r.status !== 'expired' && r.status !== 'used'));
   const archived = filterReceipts(receipts.filter(r => r.status === 'expired' || r.status === 'used'));
 
   return (
@@ -97,13 +112,65 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="alle" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="alle">Alle</TabsTrigger>
-            <TabsTrigger value="utloper">Utløper</TabsTrigger>
-            <TabsTrigger value="gavekort">Gavekort</TabsTrigger>
-            <TabsTrigger value="bytte">Bytte</TabsTrigger>
-            <TabsTrigger value="arkiv">Arkiv</TabsTrigger>
-          </TabsList>
+          <TooltipProvider>
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="alle" className="flex items-center gap-1">
+                Alle
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 opacity-50" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Alle kvitteringer og dokumenter</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TabsTrigger>
+              <TabsTrigger value="utloper" className="flex items-center gap-1">
+                Utløper snart
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 opacity-50" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Garantier (30d), byttefrister (14d), gavekort (60d)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TabsTrigger>
+              <TabsTrigger value="gavekort" className="flex items-center gap-1">
+                Gavekort
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 opacity-50" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Aktive gavekort med restverdi</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TabsTrigger>
+              <TabsTrigger value="bytte" className="flex items-center gap-1">
+                Byttelapper
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 opacity-50" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Byttelapper og tilgodelapper</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TabsTrigger>
+              <TabsTrigger value="arkiv" className="flex items-center gap-1">
+                Arkiv
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 opacity-50" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Utløpte garantier, brukte gavekort og gamle kvitteringer</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TabsTrigger>
+            </TabsList>
+          </TooltipProvider>
 
           <TabsContent value="alle" className="space-y-4 mt-4">
             {isLoading ? (
@@ -125,8 +192,8 @@ const Dashboard = () => {
           <TabsContent value="utloper" className="space-y-4 mt-4">
             {expiringReceipts.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <p>Alt ser bra ut!</p>
-                <p className="text-sm mt-2">Ingen kvitteringer utløper snart.</p>
+                <p className="text-lg">Ingen garantier eller byttefrister som utløper snart 👍</p>
+                <p className="text-sm mt-2">Du får beskjed når noe nærmer seg utløpsdato</p>
               </div>
             ) : (
               expiringReceipts.map(receipt => (
@@ -138,7 +205,8 @@ const Dashboard = () => {
           <TabsContent value="gavekort" className="space-y-4 mt-4">
             {giftCards.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <p>Ingen aktive gavekort</p>
+                <p className="text-lg">Ingen aktive gavekort</p>
+                <p className="text-sm mt-2">Skann ditt neste gavekort her! 🎁</p>
               </div>
             ) : (
               giftCards.map(receipt => (
@@ -150,7 +218,8 @@ const Dashboard = () => {
           <TabsContent value="bytte" className="space-y-4 mt-4">
             {returnSlips.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <p>Ingen aktive byttelapper</p>
+                <p className="text-lg">Ingen aktive byttelapper eller tilgodelapper</p>
+                <p className="text-sm mt-2">Skann kvitteringer med bytterett her</p>
               </div>
             ) : (
               returnSlips.map(receipt => (
@@ -160,6 +229,9 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="arkiv" className="space-y-4 mt-4">
+            <p className="text-sm text-muted-foreground text-center mb-4">
+              Utløpte garantier, brukte gavekort og gamle kvitteringer
+            </p>
             {archived.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p>Ingen arkiverte elementer</p>
