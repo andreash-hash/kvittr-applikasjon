@@ -57,6 +57,7 @@ export type Database = {
           image_url: string
           item_type: string
           notes: string | null
+          processing_status: string | null
           product_name: string | null
           purchase_date: string | null
           raw_ocr_data: Json | null
@@ -77,6 +78,7 @@ export type Database = {
           image_url: string
           item_type: string
           notes?: string | null
+          processing_status?: string | null
           product_name?: string | null
           purchase_date?: string | null
           raw_ocr_data?: Json | null
@@ -97,6 +99,7 @@ export type Database = {
           image_url?: string
           item_type?: string
           notes?: string | null
+          processing_status?: string | null
           product_name?: string | null
           purchase_date?: string | null
           raw_ocr_data?: Json | null

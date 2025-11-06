@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Trash2, Save, Loader2 } from 'lucide-react';
 import { getReceipts, saveReceipt, deleteReceipt, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,38 @@ const ItemDetail = () => {
 
   useEffect(() => {
     loadReceipt();
+  }, [id]);
+
+  // Setup realtime listener for receipt updates
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`receipt-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'receipts',
+          filter: `id=eq.${id}`
+        },
+        (payload) => {
+          console.log('Receipt updated:', payload);
+          if (payload.new.processing_status === 'completed') {
+            toast({
+              title: 'OCR fullført!',
+              description: 'Kvitteringen er analysert og oppdatert.',
+            });
+            loadReceipt();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
 
   const loadReceipt = async () => {
@@ -134,6 +166,16 @@ const ItemDetail = () => {
             <CardTitle>Informasjon</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {receipt.processing_status === 'pending' && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-lg flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold">Analyserer kvittering...</p>
+                  <p className="text-sm opacity-90">Dette kan ta noen sekunder. Siden oppdateres automatisk.</p>
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
               <Select 

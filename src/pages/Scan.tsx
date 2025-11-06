@@ -255,8 +255,9 @@ const Scan = () => {
         .getPublicUrl(fileName);
       
       // Create receipt with storage URL
+      const receiptId = crypto.randomUUID();
       const newReceipt = {
-        id: crypto.randomUUID(),
+        id: receiptId,
         user_id: userId,
         type: 'receipt' as const,
         shop_name: 'Ny butikk',
@@ -265,17 +266,36 @@ const Scan = () => {
         purchase_date: new Date().toISOString(),
         image_url: publicUrl,
         status: 'active' as const,
+        processing_status: 'pending' as const,
         created_at: new Date().toISOString(),
       };
       
       await saveReceipt(newReceipt);
       
-      toast({
-        title: 'Suksess!',
-        description: 'Kvittering lagret!',
+      // Trigger OCR webhook (don't await - let it process in background)
+      fetch('http://some-content.duckdns.org:5678/webhook/receipt-ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receipt_id: receiptId,
+          image_url: publicUrl,
+          user_id: userId
+        })
+      }).catch(err => {
+        console.log('OCR trigger failed:', err);
+        toast({
+          title: 'Merk',
+          description: 'Kunne ikke analysere automatisk. Du kan redigere manuelt.',
+          variant: 'default',
+        });
       });
       
-      navigate(`/item/${newReceipt.id}`);
+      toast({
+        title: 'Lagret!',
+        description: 'Kvitteringen analyseres...',
+      });
+      
+      navigate(`/item/${receiptId}`);
     } catch (error) {
       console.error('Save error:', error);
       toast({

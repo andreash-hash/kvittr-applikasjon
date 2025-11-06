@@ -31,6 +31,36 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Setup realtime listener for receipt updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('receipt-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'receipts'
+        },
+        (payload) => {
+          console.log('Receipt updated:', payload);
+          if (payload.new.processing_status === 'completed') {
+            // Refresh receipts when OCR completes
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              if (session) {
+                loadReceipts(session.user.id);
+              }
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const checkAuthAndLoadReceipts = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {

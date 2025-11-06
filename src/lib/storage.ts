@@ -15,6 +15,7 @@ export interface Receipt {
   remaining_value?: number;
   image_url: string;
   status: 'active' | 'expiring_soon' | 'expired' | 'used';
+  processing_status?: 'pending' | 'completed' | 'failed';
   created_at: string;
 }
 
@@ -43,6 +44,7 @@ export const getReceipts = async (userId: string): Promise<Receipt[]> => {
     remaining_value: r.gift_card_balance ? Number(r.gift_card_balance) : undefined,
     image_url: r.image_url || '',
     status: (r.status as Receipt['status']) || 'active',
+    processing_status: (r.processing_status as Receipt['processing_status']) || undefined,
     created_at: r.created_at || new Date().toISOString(),
   }));
 };
@@ -62,6 +64,7 @@ export const saveReceipt = async (receipt: Receipt): Promise<void> => {
     gift_card_balance: receipt.remaining_value || null,
     image_url: receipt.image_url,
     status: receipt.status,
+    processing_status: receipt.processing_status || null,
   };
 
   const { error } = await supabase

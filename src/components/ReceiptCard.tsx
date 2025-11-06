@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Receipt } from '@/lib/storage';
 import { formatDate, formatCurrency, getDaysUntil, formatDaysRemaining } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
-import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2 } from 'lucide-react';
+import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 interface ReceiptCardProps {
@@ -212,6 +212,14 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       {getExpiryWarning()}
+      
+      {/* Processing indicator */}
+      {receipt.processing_status === 'pending' && (
+        <div className="absolute top-4 left-4 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Analyserer...
+        </div>
+      )}
       
       <CardContent className="p-4">
         {/* Header with icon and type label */}
