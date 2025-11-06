@@ -228,6 +228,33 @@ const Scan = () => {
       // Use enhanced image if available, otherwise use original
       const imageToSave = enhancedImage || capturedImage;
       
+      // Convert base64 to blob
+      const response = await fetch(imageToSave);
+      const blob = await response.blob();
+      
+      // Generate unique filename
+      const fileName = `${userId}/${crypto.randomUUID()}.jpg`;
+      
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('receipt-images')
+        .upload(fileName, blob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error('Kunne ikke laste opp bilde');
+      }
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('receipt-images')
+        .getPublicUrl(fileName);
+      
+      // Create receipt with storage URL
       const newReceipt = {
         id: crypto.randomUUID(),
         user_id: userId,
@@ -236,7 +263,7 @@ const Scan = () => {
         product_name: 'Nytt produkt',
         amount: 0,
         purchase_date: new Date().toISOString(),
-        image_url: imageToSave,
+        image_url: publicUrl,
         status: 'active' as const,
         created_at: new Date().toISOString(),
       };
@@ -250,9 +277,10 @@ const Scan = () => {
       
       navigate(`/item/${newReceipt.id}`);
     } catch (error) {
+      console.error('Save error:', error);
       toast({
         title: 'Feil',
-        description: 'Kunne ikke lagre kvittering',
+        description: error instanceof Error ? error.message : 'Kunne ikke lagre kvittering',
         variant: 'destructive',
       });
       setIsLoading(false);
