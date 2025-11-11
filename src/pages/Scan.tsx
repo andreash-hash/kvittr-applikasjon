@@ -273,7 +273,7 @@ const Scan = () => {
       await saveReceipt(newReceipt);
       
       // Trigger OCR webhook (don't await - let it process in background)
-      fetch('http://some-content.duckdns.org:5678/webhook/receipt-ocr', {
+      fetch('https://diabetes-prepare-stopping-daniel.trycloudflare.com/webhook/receipt-ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
