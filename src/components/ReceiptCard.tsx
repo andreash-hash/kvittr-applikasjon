@@ -53,9 +53,11 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   };
   
   const getReturnBadge = () => {
-    if (!receipt.return_until) return null;
+    // Use return_until as primary, fall back to return_by for legacy
+    const returnDeadline = receipt.return_until || receipt.return_by;
+    if (!returnDeadline) return null;
     
-    const returnDate = new Date(receipt.return_until);
+    const returnDate = new Date(returnDeadline);
     const today = new Date();
     const daysRemaining = differenceInDays(returnDate, today);
     
@@ -68,7 +70,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     return (
       <Badge className={`${badgeColor} text-white text-xs`}>
         <RefreshCw className="h-3 w-3 mr-1" />
-        Bytterett til {format(returnDate, 'd. MMM yyyy', { locale: nb })}
+        🔄 Bytte til {format(returnDate, 'd. MMM yyyy', { locale: nb })}
       </Badge>
     );
   };
@@ -187,10 +189,15 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       };
     }
 
-    if (receipt.type === 'return_slip' && receipt.return_by) {
-      if (daysUntil > 7) {
+    // Use return_until instead of return_by
+    const returnDeadline = receipt.return_until || receipt.return_by;
+    if (receipt.type === 'return_slip' && returnDeadline) {
+      const returnDate = new Date(returnDeadline);
+      const daysRemaining = differenceInDays(returnDate, new Date());
+      
+      if (daysRemaining > 7) {
         return {
-          text: `Bytte til ${formatDate(receipt.return_by)} (${daysUntil} dager igjen)`,
+          text: `🔄 Bytte til ${formatDate(returnDeadline)} (${daysRemaining} dager igjen)`,
           bgColor: 'bg-green-50',
           textColor: 'text-green-700',
           icon: RefreshCw,
@@ -198,9 +205,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
           progressColor: 'green'
         };
       }
-      if (daysUntil > 3) {
+      if (daysRemaining > 3) {
         return {
-          text: `Bytte til ${formatDate(receipt.return_by)} (${daysUntil} dager igjen)`,
+          text: `🔄 Bytte til ${formatDate(returnDeadline)} (${daysRemaining} dager igjen)`,
           bgColor: 'bg-orange-50',
           textColor: 'text-orange-700',
           icon: RefreshCw,
@@ -209,7 +216,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
         };
       }
       return {
-        text: `Siste sjanse! (${daysUntil} dager igjen)`,
+        text: `Siste sjanse! (${daysRemaining} dager igjen)`,
         bgColor: 'bg-red-50',
         textColor: 'text-red-700',
         icon: RefreshCw,
@@ -234,11 +241,20 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
 
   const statusBadgeConfig = getStatusBadgeConfig();
   
-  // Get expiry warning badge
   const getExpiryWarning = () => {
     if (!daysUntil || daysUntil < 0) {
       if (receipt.status === 'expired') {
+        // Show specific reason for archiving
+        if (receipt.warranty_until && new Date(receipt.warranty_until) < new Date()) {
+          return <Badge variant="destructive" className="absolute top-4 right-4">GARANTI UTLØPT</Badge>;
+        }
+        if (receipt.return_until && new Date(receipt.return_until) < new Date()) {
+          return <Badge variant="destructive" className="absolute top-4 right-4">BYTTEFRIST UTLØPT</Badge>;
+        }
         return <Badge variant="destructive" className="absolute top-4 right-4">UTLØPT</Badge>;
+      }
+      if (receipt.status === 'used') {
+        return <Badge className="absolute top-4 right-4 bg-gray-500">BRUKT</Badge>;
       }
       return null;
     }

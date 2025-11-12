@@ -87,20 +87,44 @@ export const deleteReceipt = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
-// Calculate status based on dates
+// Calculate status based on dates with automatic archiving
 export const calculateStatus = (receipt: Receipt): Receipt['status'] => {
-  const expiryDate = receipt.expiry_date || receipt.warranty_expires || receipt.return_by;
-  if (!expiryDate) return 'active';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset to midnight for accurate comparison
   
+  // Check if gift card is fully used
   if (receipt.type === 'gift_card' && receipt.remaining_value === 0) {
     return 'used';
   }
   
-  const today = new Date();
-  const expiry = new Date(expiryDate);
-  const daysUntil = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  // Check warranty expiration
+  if (receipt.warranty_until) {
+    const warrantyDate = new Date(receipt.warranty_until);
+    warrantyDate.setHours(0, 0, 0, 0);
+    if (warrantyDate < today) {
+      return 'expired'; // Auto-archive expired warranties
+    }
+  }
   
-  if (daysUntil < 0) return 'expired';
-  if (daysUntil <= 7) return 'expiring_soon';
+  // Check return deadline expiration
+  if (receipt.return_until) {
+    const returnDate = new Date(receipt.return_until);
+    returnDate.setHours(0, 0, 0, 0);
+    if (returnDate < today) {
+      return 'expired'; // Auto-archive expired return periods
+    }
+  }
+  
+  // Legacy field support
+  const expiryDate = receipt.expiry_date || receipt.warranty_expires || receipt.return_by;
+  if (expiryDate) {
+    const expiry = new Date(expiryDate);
+    expiry.setHours(0, 0, 0, 0);
+    const daysUntil = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntil < 0) return 'expired';
+    if (daysUntil <= 7) return 'expiring_soon';
+  }
+  
   return 'active';
 };

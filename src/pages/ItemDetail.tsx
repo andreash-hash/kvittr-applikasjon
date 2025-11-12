@@ -533,6 +533,16 @@ const ItemDetail = () => {
               </>
             )}
 
+            {/* Bottom disclaimer */}
+            <div className="mt-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+              <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed">
+                Kvittr bruker AI for automatisk utlesing av kvitteringer. Kontroller alltid at informasjonen stemmer - OCR-analysen kan inneholde feil. Du er ansvarlig for å oppbevare original kvittering ved reklamasjon.
+              </p>
+              <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed mt-2">
+                <strong>Garanti:</strong> Automatisk 2 års reklamasjonsrett etter norsk forbrukerlovgivning, 5 år for varige forbruksvarer. Kvittr er ikke ansvarlig for feil i analysen.
+              </p>
+            </div>
+
             <div className="flex gap-3 pt-4">
               {isEditing ? (
                 <>
@@ -553,14 +563,6 @@ const ItemDetail = () => {
                   Rediger
                 </Button>
               )}
-            </div>
-
-            {/* General disclaimer */}
-            <div className="mt-4 p-3 bg-muted/50 rounded-md">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Kvittr bruker AI for å lese kvitteringer. Sjekk alltid at informasjonen er riktig. 
-                Oppbevar original kvittering for reklamasjon. Kvittr er ikke ansvarlig for feil i OCR-analysen.
-              </p>
             </div>
           </CardContent>
         </Card>

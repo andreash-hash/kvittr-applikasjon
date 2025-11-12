@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Camera, ArrowLeft, Check, RotateCcw, Upload, Zap, ZapOff, Grid3x3, ZoomIn, ZoomOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +23,11 @@ const Scan = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  
+  // Get preselected type from navigation state
+  const preselectedType = location.state?.preselectedType || 'receipt';
 
   useEffect(() => {
     checkAuth();
@@ -266,12 +270,12 @@ const Scan = () => {
         .from('receipt-images')
         .getPublicUrl(fileName);
       
-      // Create receipt with storage URL
+      // Create receipt with storage URL and preselected type
       const receiptId = crypto.randomUUID();
       const newReceipt = {
         id: receiptId,
         user_id: userId,
-        type: 'receipt' as const,
+        type: preselectedType as 'receipt' | 'gift_card' | 'return_slip',
         shop_name: 'Ny butikk',
         product_name: 'Nytt produkt',
         amount: 0,

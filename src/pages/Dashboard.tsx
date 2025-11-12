@@ -153,10 +153,18 @@ const Dashboard = () => {
     return false;
   }));
   
-  const regularReceipts = filterReceipts(receipts.filter(r => r.type === 'receipt' || !r.type));
-  const giftCards = filterReceipts(receipts.filter(r => r.type === 'gift_card' && r.status !== 'expired' && r.status !== 'used'));
-  const returnSlips = filterReceipts(receipts.filter(r => r.type === 'return_slip' && r.status !== 'expired' && r.status !== 'used'));
-  const archived = filterReceipts(receipts.filter(r => r.status === 'expired' || r.status === 'used'));
+  const regularReceipts = filterReceipts(receipts.filter(r => 
+    (r.type === 'receipt' || !r.type) && r.status !== 'expired' && r.status !== 'used'
+  ));
+  const giftCards = filterReceipts(receipts.filter(r => 
+    r.type === 'gift_card' && r.status !== 'expired' && r.status !== 'used'
+  ));
+  const returnSlips = filterReceipts(receipts.filter(r => 
+    r.type === 'return_slip' && r.status !== 'expired' && r.status !== 'used'
+  ));
+  const archived = filterReceipts(receipts.filter(r => 
+    r.status === 'expired' || r.status === 'used'
+  ));
 
   const getFilteredReceipts = () => {
     switch (selectedFilter) {
@@ -217,6 +225,10 @@ const Dashboard = () => {
     { id: 'bytte' as FilterType, label: 'Byttelapper', icon: RefreshCw },
     { id: 'arkiv' as FilterType, label: 'Arkiv', icon: Archive },
   ];
+  
+  const handleScanNew = (preselectedType?: string) => {
+    navigate('/scan', { state: { preselectedType } });
+  };
 
   const filteredReceipts = getFilteredReceipts();
 
@@ -264,32 +276,49 @@ const Dashboard = () => {
 
         {/* Alert card - Always visible with two states */}
         <Card
-          onClick={expiringReceipts.length > 0 ? () => setSelectedFilter('alle') : undefined}
-          className={`p-4 mb-4 transition-colors rounded-xl h-[60px] flex items-center ${
+          onClick={expiringReceipts.length > 0 ? () => {
+            setSelectedFilter('alle');
+            setSearchQuery(''); // Clear search to show all expiring items
+            // Scroll to first expiring item after a short delay
+            setTimeout(() => {
+              const firstCard = document.querySelector('[data-expiring="true"]');
+              if (firstCard) {
+                firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }, 100);
+          } : undefined}
+          className={`p-4 mb-4 transition-all rounded-xl h-[60px] flex items-center ${
             expiringReceipts.length > 0
-              ? 'bg-[#FF9500] text-white cursor-pointer hover:bg-[#FF9500]/90'
+              ? 'bg-[#FF9500] text-white cursor-pointer hover:bg-[#FF9500]/90 hover:scale-[1.01]'
               : 'bg-[#F3F4F6] dark:bg-gray-800 text-gray-700 dark:text-gray-300'
           }`}
         >
-          <div className="flex items-center gap-3">
-            {expiringReceipts.length > 0 ? (
-              <>
-                <span className="text-2xl">⚠️</span>
-                <div>
-                  <p className="font-semibold text-sm leading-tight">
-                    Utløper snart! {expiringCount} garantier/bytteretter utløper snart!
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <span className="text-2xl">✓</span>
-                <div>
-                  <p className="font-semibold text-xs leading-tight">
-                    Alt ser bra ut! Ingen garantier eller bytteretter utløper de neste 60 dagene
-                  </p>
-                </div>
-              </>
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-3">
+              {expiringReceipts.length > 0 ? (
+                <>
+                  <span className="text-2xl">⚠️</span>
+                  <div>
+                    <p className="font-semibold text-sm leading-tight">
+                      Utløper snart! {expiringCount} garantier/bytteretter utløper snart!
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="text-2xl">✓</span>
+                  <div>
+                    <p className="font-semibold text-xs leading-tight">
+                      Alt ser bra ut! Ingen garantier eller bytteretter utløper de neste 60 dagene
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+            {expiringReceipts.length > 0 && (
+              <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             )}
           </div>
         </Card>
@@ -306,9 +335,15 @@ const Dashboard = () => {
               <p className="text-sm mt-2">{getEmptyStateMessage().secondary}</p>
             </div>
           ) : (
-            filteredReceipts.map(receipt => (
-              <ReceiptCard key={receipt.id} receipt={receipt} />
-            ))
+            filteredReceipts.map(receipt => {
+              // Check if this receipt is expiring
+              const isExpiring = expiringReceipts.some(er => er.id === receipt.id);
+              return (
+                <div key={receipt.id} data-expiring={isExpiring}>
+                  <ReceiptCard receipt={receipt} />
+                </div>
+              );
+            })
           )}
         </div>
       </div>
@@ -318,7 +353,13 @@ const Dashboard = () => {
           <Button 
             className="w-full" 
             size="lg"
-            onClick={() => navigate('/scan')}
+            onClick={() => {
+              // Auto-select type based on current filter
+              let preselectedType = 'receipt';
+              if (selectedFilter === 'gavekort') preselectedType = 'gift_card';
+              if (selectedFilter === 'bytte') preselectedType = 'return_slip';
+              handleScanNew(preselectedType);
+            }}
           >
             <Plus className="mr-2 h-5 w-5" />
             Skann ny
