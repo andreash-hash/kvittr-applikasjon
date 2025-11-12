@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Info } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, AlertTriangle } from 'lucide-react';
 import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ReceiptCard from '@/components/ReceiptCard';
+import { Card } from '@/components/ui/card';
+
+type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv';
 
 const Dashboard = () => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>('alle');
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -117,9 +119,37 @@ const Dashboard = () => {
 
   const allReceipts = filterReceipts(receipts);
   const expiringReceipts = filterReceipts(receipts.filter(r => isExpiringSoon(r)));
+  const regularReceipts = filterReceipts(receipts.filter(r => r.type === 'receipt' || !r.type));
   const giftCards = filterReceipts(receipts.filter(r => r.type === 'gift_card' && r.status !== 'expired' && r.status !== 'used'));
   const returnSlips = filterReceipts(receipts.filter(r => r.type === 'return_slip' && r.status !== 'expired' && r.status !== 'used'));
   const archived = filterReceipts(receipts.filter(r => r.status === 'expired' || r.status === 'used'));
+
+  const getFilteredReceipts = () => {
+    switch (selectedFilter) {
+      case 'alle':
+        return allReceipts;
+      case 'kvitteringer':
+        return regularReceipts;
+      case 'gavekort':
+        return giftCards;
+      case 'bytte':
+        return returnSlips;
+      case 'arkiv':
+        return archived;
+      default:
+        return allReceipts;
+    }
+  };
+
+  const filters = [
+    { id: 'alle' as FilterType, label: 'Alle', icon: ReceiptIcon },
+    { id: 'kvitteringer' as FilterType, label: 'Kvitteringer', icon: ReceiptIcon },
+    { id: 'gavekort' as FilterType, label: 'Gavekort', icon: Gift },
+    { id: 'bytte' as FilterType, label: 'Byttelapper', icon: RefreshCw },
+    { id: 'arkiv' as FilterType, label: 'Arkiv', icon: Archive },
+  ];
+
+  const filteredReceipts = getFilteredReceipts();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -131,7 +161,7 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Søk..."
@@ -141,138 +171,63 @@ const Dashboard = () => {
           />
         </div>
 
-        <Tabs defaultValue="alle" className="w-full">
-          <TooltipProvider>
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="alle" className="flex items-center gap-1">
-                Alle
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 opacity-50" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Alle kvitteringer og dokumenter</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TabsTrigger>
-              <TabsTrigger value="utloper" className="flex items-center gap-1 text-xs sm:text-sm">
-                Utløper
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 opacity-50" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Garantier (30d), byttefrister (14d), gavekort (60d)</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TabsTrigger>
-              <TabsTrigger value="gavekort" className="flex items-center gap-1">
-                Gavekort
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 opacity-50" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Aktive gavekort med restverdi</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TabsTrigger>
-              <TabsTrigger value="bytte" className="flex items-center gap-1">
-                Byttelapper
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 opacity-50" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Byttelapper og tilgodelapper</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TabsTrigger>
-              <TabsTrigger value="arkiv" className="flex items-center gap-1">
-                Arkiv
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 opacity-50" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Utløpte garantier, brukte gavekort og gamle kvitteringer</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TabsTrigger>
-            </TabsList>
-          </TooltipProvider>
+        {/* Horizontal scrolling filter cards */}
+        <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4">
+          {filters.map((filter) => {
+            const FilterIcon = filter.icon;
+            const isSelected = selectedFilter === filter.id;
+            return (
+              <button
+                key={filter.id}
+                onClick={() => setSelectedFilter(filter.id)}
+                className={`flex-shrink-0 w-[100px] h-[80px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${
+                  isSelected
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-card text-muted-foreground border border-border'
+                }`}
+              >
+                <FilterIcon className="h-6 w-6" />
+                <span className="text-xs font-medium">{filter.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          <TabsContent value="alle" className="space-y-1.5 mt-4">
-            {isLoading ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>Laster...</p>
+        {/* Alert card for expiring items */}
+        {expiringReceipts.length > 0 && selectedFilter === 'alle' && (
+          <Card
+            onClick={() => setSelectedFilter('alle')}
+            className="bg-orange-500/10 border-orange-500/20 p-4 mb-4 cursor-pointer hover:bg-orange-500/15 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-6 w-6 text-orange-600" />
+              <div>
+                <p className="font-semibold text-orange-900 dark:text-orange-100">Utløper snart!</p>
+                <p className="text-sm text-orange-700 dark:text-orange-200">
+                  {expiringReceipts.length} {expiringReceipts.length === 1 ? 'kvittering' : 'kvitteringer'} utløper snart
+                </p>
               </div>
-            ) : allReceipts.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>Ingen kvitteringer ennå.</p>
-                <p className="text-sm mt-2">Trykk + for å legge til.</p>
-              </div>
-            ) : (
-              allReceipts.map(receipt => (
-                <ReceiptCard key={receipt.id} receipt={receipt} />
-              ))
-            )}
-          </TabsContent>
+            </div>
+          </Card>
+        )}
 
-          <TabsContent value="utloper" className="space-y-1.5 mt-4">
-            {expiringReceipts.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg">Ingen garantier eller byttefrister som utløper snart 👍</p>
-                <p className="text-sm mt-2">Du får beskjed når noe nærmer seg utløpsdato</p>
-              </div>
-            ) : (
-              expiringReceipts.map(receipt => (
-                <ReceiptCard key={receipt.id} receipt={receipt} />
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="gavekort" className="space-y-1.5 mt-4">
-            {giftCards.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg">Ingen aktive gavekort</p>
-                <p className="text-sm mt-2">Skann ditt neste gavekort her! 🎁</p>
-              </div>
-            ) : (
-              giftCards.map(receipt => (
-                <ReceiptCard key={receipt.id} receipt={receipt} />
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="bytte" className="space-y-1.5 mt-4">
-            {returnSlips.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg">Ingen aktive byttelapper eller tilgodelapper</p>
-                <p className="text-sm mt-2">Skann kvitteringer med bytterett her</p>
-              </div>
-            ) : (
-              returnSlips.map(receipt => (
-                <ReceiptCard key={receipt.id} receipt={receipt} />
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="arkiv" className="space-y-1.5 mt-4">
-            <p className="text-sm text-muted-foreground text-center mb-4">
-              Utløpte garantier, brukte gavekort og gamle kvitteringer
-            </p>
-            {archived.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>Ingen arkiverte elementer</p>
-              </div>
-            ) : (
-              archived.map(receipt => (
-                <ReceiptCard key={receipt.id} receipt={receipt} />
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
+        {/* Receipt cards list */}
+        <div className="space-y-1.5">
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Laster...</p>
+            </div>
+          ) : filteredReceipts.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Ingen kvitteringer ennå.</p>
+              <p className="text-sm mt-2">Trykk + for å legge til.</p>
+            </div>
+          ) : (
+            filteredReceipts.map(receipt => (
+              <ReceiptCard key={receipt.id} receipt={receipt} />
+            ))
+          )}
+        </div>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">
