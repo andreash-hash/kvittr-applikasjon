@@ -23,6 +23,7 @@ const ItemDetail = () => {
   const [isPolling, setIsPolling] = useState(false);
   const [processingError, setProcessingError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollStartTimeRef = useRef<number | null>(null);
 
@@ -184,6 +185,7 @@ const ItemDetail = () => {
   const handleRetry = async () => {
     if (!receipt) return;
     
+    setIsRetrying(true);
     setRetryCount(prev => prev + 1);
     
     try {
@@ -206,10 +208,15 @@ const ItemDetail = () => {
         .update({ processing_status: 'pending' })
         .eq('id', receipt.id);
       
+      // Clear error and start polling
+      setProcessingError(false);
+      setIsRetrying(false);
+      
       // Reload to trigger polling
       loadReceipt();
     } catch (error) {
       console.error('Retry error:', error);
+      setIsRetrying(false);
       toast({
         title: 'Feil',
         description: 'Kunne ikke starte analyse på nytt',
@@ -221,6 +228,7 @@ const ItemDetail = () => {
   const handleFillManually = () => {
     setProcessingError(false);
     setIsPolling(false);
+    setIsRetrying(false);
     setIsEditing(true);
   };
 
@@ -296,15 +304,30 @@ const ItemDetail = () => {
           </CardContent>
         </Card>
 
+        {/* Retry starting indicator */}
+        {isRetrying && (
+          <Card className="mb-6 bg-blue-500/10 border-blue-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div>
+                  <p className="font-medium text-foreground">Starter ny analyse...</p>
+                  <p className="text-sm text-muted-foreground">Sender forespørsel...</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Polling indicator */}
-        {isPolling && (
+        {isPolling && !isRetrying && (
           <Card className="mb-6 bg-primary/10">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 <div>
                   <p className="font-medium text-foreground">Analyserer kvittering...</p>
-                  <p className="text-sm text-muted-foreground">Dette tar vanligvis 10-20 sekunder</p>
+                  <p className="text-sm text-muted-foreground">Dette kan ta 10-20 sekunder</p>
                 </div>
               </div>
             </CardContent>
@@ -312,7 +335,7 @@ const ItemDetail = () => {
         )}
 
         {/* Processing error */}
-        {processingError && (
+        {processingError && !isRetrying && (
           <Card className="mb-6 bg-orange-500/10 border-orange-500/20">
             <CardContent className="p-4">
               <div className="space-y-3">
@@ -338,10 +361,20 @@ const ItemDetail = () => {
                     variant="outline" 
                     size="sm"
                     onClick={handleRetry}
+                    disabled={isRetrying}
                     className="flex-1"
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Prøv igjen
+                    {isRetrying ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Sender...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Prøv igjen
+                      </>
+                    )}
                   </Button>
                   <Button 
                     variant="default" 
@@ -486,8 +519,9 @@ const ItemDetail = () => {
             {/* Norwegian consumer protection info */}
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                <strong>Reklamasjonsrett:</strong> Automatisk 2 års reklamasjonsrett etter norsk lov. 5 år for varige forbruksvarer.
+              <AlertDescription className="text-sm space-y-2">
+                <p><strong>ℹ️ Reklamasjonsrett:</strong> Automatisk 2 års reklamasjonsrett etter norsk lov. 5 år for varige forbruksvarer.</p>
+                <p><strong>⚠️ Viktig:</strong> Kontroller alltid feltene selv. OCR-analysen kan inneholde feil. Du er ansvarlig for å oppbevare original kvittering.</p>
               </AlertDescription>
             </Alert>
 
@@ -536,6 +570,14 @@ const ItemDetail = () => {
                   Rediger
                 </Button>
               )}
+            </div>
+
+            {/* General disclaimer */}
+            <div className="mt-4 p-3 bg-muted/50 rounded-md">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Kvittr bruker AI for å lese kvitteringer. Sjekk alltid at informasjonen er riktig. 
+                Oppbevar original kvittering for reklamasjon. Kvittr er ikke ansvarlig for feil i OCR-analysen.
+              </p>
             </div>
           </CardContent>
         </Card>
