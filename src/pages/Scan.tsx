@@ -38,6 +38,18 @@ const Scan = () => {
     };
   }, [userId, capturedImage]);
 
+  // Prevent body scroll when camera is active
+  useEffect(() => {
+    if (!capturedImage) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [capturedImage]);
+
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -314,16 +326,19 @@ const Scan = () => {
 
   if (!capturedImage) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="p-4 flex items-center justify-between bg-card border-b">
-          <Button variant="ghost" size="icon" onClick={handleBack}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-semibold">Ta bilde av kvittering</h1>
-          <div className="w-10" />
-        </div>
+      <div className="fixed inset-0 bg-black">
+        {/* Back button - Fixed top left */}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={handleBack}
+          className="absolute top-4 left-4 z-20 bg-black/50 hover:bg-black/70 text-white"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
 
-        <div className="flex-1 relative bg-black overflow-hidden">
+        {/* Camera preview - Full viewport minus button area */}
+        <div className="absolute inset-0">
           {!cameraError ? (
             <>
               <video
@@ -346,8 +361,8 @@ const Scan = () => {
                 </div>
               )}
               
-              {/* Camera controls overlay */}
-              <div className="absolute top-4 right-4 space-y-2">
+              {/* Camera controls - Fixed top right */}
+              <div className="absolute top-4 right-4 z-20 space-y-2">
                 <Button
                   variant="secondary"
                   size="icon"
@@ -366,8 +381,8 @@ const Scan = () => {
                 </Button>
               </div>
               
-              {/* Zoom controls */}
-              <div className="absolute bottom-24 right-4 space-y-2">
+              {/* Zoom controls - Fixed right side */}
+              <div className="absolute top-1/2 right-4 -translate-y-1/2 z-20 space-y-2">
                 <Button
                   variant="secondary"
                   size="icon"
@@ -389,7 +404,7 @@ const Scan = () => {
               </div>
               
               {/* Capture instruction */}
-              <div className="absolute bottom-32 left-0 right-0 text-center">
+              <div className="absolute bottom-32 left-0 right-0 text-center z-10">
                 <p className="text-white text-sm bg-black/50 px-4 py-2 rounded-full inline-block">
                   Hold stille for best resultat
                 </p>
@@ -397,7 +412,7 @@ const Scan = () => {
             </>
           ) : (
             <div className="w-full h-full flex items-center justify-center p-8">
-              <div className="text-center text-muted-foreground">
+              <div className="text-center text-white">
                 <Camera className="h-16 w-16 mx-auto mb-4 opacity-50" />
                 <p className="text-lg mb-2">Kamera ikke tilgjengelig</p>
                 <p className="text-sm">Last opp et bilde i stedet</p>
@@ -406,34 +421,52 @@ const Scan = () => {
           )}
         </div>
 
-        <div className="p-6 bg-card border-t space-y-3">
+        {/* Capture button - Fixed at bottom */}
+        <div className="absolute bottom-6 left-0 right-0 z-20 px-6">
           {!cameraError ? (
             <Button 
-              className="w-full" 
+              className="w-full h-[70px] rounded-full text-lg shadow-lg" 
               size="lg"
               onClick={captureImage}
             >
-              <Camera className="mr-2 h-5 w-5" />
+              <Camera className="mr-2 h-6 w-6" />
               Ta bilde
             </Button>
-          ) : null}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <Button 
-            variant={cameraError ? "default" : "outline"}
-            className="w-full" 
-            size="lg"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="mr-2 h-5 w-5" />
-            Last opp bilde
-          </Button>
+          ) : (
+            <Button 
+              className="w-full h-[70px] rounded-full text-lg shadow-lg"
+              size="lg"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="mr-2 h-6 w-6" />
+              Last opp bilde
+            </Button>
+          )}
         </div>
+
+        {/* Upload input - Hidden */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileUpload}
+        />
+        
+        {/* Upload button - Secondary action when camera works */}
+        {!cameraError && (
+          <div className="absolute bottom-24 left-0 right-0 z-20 px-6">
+            <Button 
+              variant="outline"
+              className="w-full bg-black/50 hover:bg-black/70 text-white border-white/20"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Eller last opp bilde
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
