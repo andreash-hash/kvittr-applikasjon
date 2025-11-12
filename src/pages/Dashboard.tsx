@@ -141,6 +141,41 @@ const Dashboard = () => {
     }
   };
 
+  const getEmptyStateMessage = () => {
+    switch (selectedFilter) {
+      case 'alle':
+        return {
+          primary: 'Ingen kvitteringer ennå.',
+          secondary: 'Trykk + for å legge til.'
+        };
+      case 'kvitteringer':
+        return {
+          primary: 'Ingen vanlige kvitteringer.',
+          secondary: 'Skann en kvittering for å komme i gang!'
+        };
+      case 'gavekort':
+        return {
+          primary: 'Ingen gavekort registrert.',
+          secondary: 'Skann et gavekort for å holde styr på saldo!'
+        };
+      case 'bytte':
+        return {
+          primary: 'Ingen byttelapper eller tilgodelapper.',
+          secondary: 'Skann en for å holde oversikt!'
+        };
+      case 'arkiv':
+        return {
+          primary: 'Ingenting i arkivet ennå.',
+          secondary: 'Utløpte kvitteringer og brukte gavekort havner her.'
+        };
+      default:
+        return {
+          primary: 'Ingen kvitteringer ennå.',
+          secondary: 'Trykk + for å legge til.'
+        };
+    }
+  };
+
   const filters = [
     { id: 'alle' as FilterType, label: 'Alle', icon: ReceiptIcon },
     { id: 'kvitteringer' as FilterType, label: 'Kvitteringer', icon: ReceiptIcon },
@@ -238,8 +273,8 @@ const Dashboard = () => {
             </div>
           ) : filteredReceipts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <p>Ingen kvitteringer ennå.</p>
-              <p className="text-sm mt-2">Trykk + for å legge til.</p>
+              <p>{getEmptyStateMessage().primary}</p>
+              <p className="text-sm mt-2">{getEmptyStateMessage().secondary}</p>
             </div>
           ) : (
             filteredReceipts.map(receipt => (
