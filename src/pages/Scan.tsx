@@ -304,7 +304,7 @@ const Scan = () => {
       
       toast({
         title: 'Lagret!',
-        description: 'Kvitteringen analyseres...',
+        description: 'Bilde sendt til scanning!',
       });
       
       navigate(`/item/${receiptId}`);
