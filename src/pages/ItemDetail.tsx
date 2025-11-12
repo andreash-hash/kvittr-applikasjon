@@ -53,19 +53,6 @@ const ItemDetail = () => {
         (payload) => {
           console.log('Receipt updated:', payload);
           if (payload.new.processing_status === 'completed') {
-            const updated = payload.new;
-            const details = [
-              updated.shop_name && `Butikk: ${updated.shop_name}`,
-              updated.product_name && `Produkt: ${updated.product_name}`,
-              updated.amount && `Beløp: ${updated.amount} kr`,
-              updated.warranty_until && `Garanti til: ${new Date(updated.warranty_until).toLocaleDateString('nb-NO')}`,
-              updated.return_until && `Bytt innen: ${new Date(updated.return_until).toLocaleDateString('nb-NO')}`
-            ].filter(Boolean).join(' • ');
-            
-            toast({
-              title: 'Kvittering analysert! ✨',
-              description: details || 'Data ekstrahert og oppdatert.',
-            });
             loadReceipt();
           }
         }
@@ -104,6 +91,14 @@ const ItemDetail = () => {
           startPolling();
         } else if (found.processing_status === 'failed') {
           setProcessingError(true);
+        } else if (found.processing_status === 'completed') {
+          // Ensure polling is stopped if already completed
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          setIsPolling(false);
+          setProcessingError(false);
         }
       } else {
         navigate('/dashboard');
@@ -161,14 +156,12 @@ const ItemDetail = () => {
         if (found) {
           setReceipt(found);
           
+          // Stop polling if completed with valid data
           if (found.processing_status === 'completed') {
             clearInterval(pollIntervalRef.current!);
             pollIntervalRef.current = null;
             setIsPolling(false);
-            toast({
-              title: 'Ferdig!',
-              description: 'Kvitteringen er analysert',
-            });
+            setProcessingError(false);
           } else if (found.processing_status === 'failed') {
             clearInterval(pollIntervalRef.current!);
             pollIntervalRef.current = null;
@@ -395,16 +388,6 @@ const ItemDetail = () => {
             <CardTitle>Informasjon</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {receipt.processing_status === 'pending' && (
-              <div className="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-lg flex items-center gap-3">
-                <Loader2 className="h-5 w-5 animate-spin flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="font-semibold">Analyserer kvittering...</p>
-                  <p className="text-sm opacity-90">Dette kan ta noen sekunder. Siden oppdateres automatisk.</p>
-                </div>
-              </div>
-            )}
-            
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
               <Select 
