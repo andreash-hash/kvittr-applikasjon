@@ -155,8 +155,8 @@ const Dashboard = () => {
                   </TooltipContent>
                 </Tooltip>
               </TabsTrigger>
-              <TabsTrigger value="utloper" className="flex items-center gap-1">
-                Utløper snart
+              <TabsTrigger value="utloper" className="flex items-center gap-1 text-xs sm:text-sm">
+                Utløper
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-3 w-3 opacity-50" />
@@ -202,7 +202,7 @@ const Dashboard = () => {
             </TabsList>
           </TooltipProvider>
 
-          <TabsContent value="alle" className="space-y-4 mt-4">
+          <TabsContent value="alle" className="space-y-2 mt-4">
             {isLoading ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p>Laster...</p>
@@ -219,7 +219,7 @@ const Dashboard = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="utloper" className="space-y-4 mt-4">
+          <TabsContent value="utloper" className="space-y-2 mt-4">
             {expiringReceipts.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p className="text-lg">Ingen garantier eller byttefrister som utløper snart 👍</p>
@@ -232,7 +232,7 @@ const Dashboard = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="gavekort" className="space-y-4 mt-4">
+          <TabsContent value="gavekort" className="space-y-2 mt-4">
             {giftCards.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p className="text-lg">Ingen aktive gavekort</p>
@@ -245,7 +245,7 @@ const Dashboard = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="bytte" className="space-y-4 mt-4">
+          <TabsContent value="bytte" className="space-y-2 mt-4">
             {returnSlips.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p className="text-lg">Ingen aktive byttelapper eller tilgodelapper</p>
@@ -258,7 +258,7 @@ const Dashboard = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="arkiv" className="space-y-4 mt-4">
+          <TabsContent value="arkiv" className="space-y-2 mt-4">
             <p className="text-sm text-muted-foreground text-center mb-4">
               Utløpte garantier, brukte gavekort og gamle kvitteringer
             </p>
