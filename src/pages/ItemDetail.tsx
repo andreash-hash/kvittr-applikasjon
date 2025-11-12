@@ -164,7 +164,8 @@ const ItemDetail = () => {
               <img 
                 src={receipt.image_url} 
                 alt="Receipt"
-                className="w-full rounded-lg mb-4"
+                className="w-full rounded-lg object-contain"
+                style={{ maxHeight: '250px' }}
               />
             )}
           </CardContent>

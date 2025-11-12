@@ -472,7 +472,7 @@ const Scan = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="fixed inset-0 bg-background flex flex-col">
       <div className="p-4 flex items-center justify-between bg-card border-b">
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-5 w-5" />
@@ -481,20 +481,12 @@ const Scan = () => {
         <div className="w-10" />
       </div>
 
-      <div className="flex-1 bg-black flex items-center justify-center relative">
-        {isProcessing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
-            <div className="text-center text-white">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-              <p>Forbedrer bilde...</p>
-            </div>
-          </div>
-        )}
-        
+      <div className="bg-black flex items-center justify-center relative" style={{ maxHeight: '50vh' }}>
         <img 
           src={showOriginal ? capturedImage : (enhancedImage || capturedImage)} 
           alt="Captured receipt" 
           className="max-w-full max-h-full object-contain"
+          style={{ maxHeight: '50vh' }}
         />
         
         {/* Before/After toggle */}
@@ -510,17 +502,26 @@ const Scan = () => {
             </Button>
           </div>
         )}
-        
-        {/* Quality indicator */}
-        {enhancedImage && !isProcessing && (
-          <div className="absolute bottom-4 left-4 right-4">
-            <div className="bg-green-600/90 text-white px-4 py-2 rounded-lg text-center">
-              <Check className="inline h-4 w-4 mr-2" />
-              Bilde forbedret for best lesbarhet
-            </div>
-          </div>
-        )}
       </div>
+      
+      {/* Processing indicator - Below image, always visible */}
+      {isProcessing && (
+        <div className="bg-primary/10 p-6 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-foreground font-medium">Analyserer kvittering...</p>
+            <p className="text-sm text-muted-foreground mt-1">Dette tar bare noen sekunder</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Quality indicator - Below image when not processing */}
+      {enhancedImage && !isProcessing && (
+        <div className="bg-green-600 text-white px-4 py-3 flex items-center justify-center">
+          <Check className="h-4 w-4 mr-2" />
+          <span className="font-medium">Bilde forbedret for best lesbarhet</span>
+        </div>
+      )}
 
       <div className="p-4 bg-card border-t space-y-3">
         <Button 
