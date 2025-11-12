@@ -9,6 +9,8 @@ export interface Receipt {
   product_name: string;
   amount: number;
   purchase_date: string;
+  warranty_until?: string;
+  return_until?: string;
   expiry_date?: string;
   warranty_expires?: string;
   return_by?: string;
@@ -38,6 +40,8 @@ export const getReceipts = async (userId: string): Promise<Receipt[]> => {
     product_name: r.product_name || '',
     amount: Number(r.amount) || 0,
     purchase_date: r.purchase_date || new Date().toISOString(),
+    warranty_until: r.warranty_until || undefined,
+    return_until: r.return_until || undefined,
     expiry_date: r.gift_card_value ? r.purchase_date : undefined,
     warranty_expires: r.warranty_until || undefined,
     return_by: r.return_until || undefined,

@@ -4,11 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Trash2, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Save, Loader2, Info, Shield, RefreshCw } from 'lucide-react';
 import { getReceipts, saveReceipt, deleteReceipt, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { differenceInDays, differenceInMonths, format } from 'date-fns';
+import { nb } from 'date-fns/locale';
 
 const ItemDetail = () => {
   const { id } = useParams();
@@ -247,31 +250,63 @@ const ItemDetail = () => {
               />
             </div>
 
-            {receipt.type === 'warranty' && (
-              <div className="space-y-2">
-                <Label htmlFor="warranty_expires">Garanti utløper</Label>
-                <Input
-                  id="warranty_expires"
-                  type="date"
-                  value={receipt.warranty_expires?.split('T')[0] || ''}
-                  onChange={(e) => setReceipt({...receipt, warranty_expires: e.target.value})}
-                  disabled={!isEditing}
-                />
-              </div>
-            )}
+            {/* Warranty information */}
+            <div className="space-y-2">
+              <Label htmlFor="warranty_until">Garanti til</Label>
+              <Input
+                id="warranty_until"
+                type="date"
+                value={receipt.warranty_until?.split('T')[0] || ''}
+                onChange={(e) => setReceipt({...receipt, warranty_until: e.target.value})}
+                disabled={!isEditing}
+              />
+              {receipt.warranty_until && (
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  {(() => {
+                    const warrantyDate = new Date(receipt.warranty_until);
+                    const daysRemaining = differenceInDays(warrantyDate, new Date());
+                    const monthsRemaining = differenceInMonths(warrantyDate, new Date());
+                    
+                    if (daysRemaining < 0) return 'Garanti utløpt';
+                    if (monthsRemaining > 0) return `${monthsRemaining} ${monthsRemaining === 1 ? 'måned' : 'måneder'} igjen`;
+                    return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
+                  })()}
+                </div>
+              )}
+            </div>
 
-            {receipt.type === 'return_slip' && (
-              <div className="space-y-2">
-                <Label htmlFor="return_by">Bytt innen</Label>
-                <Input
-                  id="return_by"
-                  type="date"
-                  value={receipt.return_by?.split('T')[0] || ''}
-                  onChange={(e) => setReceipt({...receipt, return_by: e.target.value})}
-                  disabled={!isEditing}
-                />
-              </div>
-            )}
+            {/* Return/exchange deadline */}
+            <div className="space-y-2">
+              <Label htmlFor="return_until">Byttefrist til</Label>
+              <Input
+                id="return_until"
+                type="date"
+                value={receipt.return_until?.split('T')[0] || ''}
+                onChange={(e) => setReceipt({...receipt, return_until: e.target.value})}
+                disabled={!isEditing}
+              />
+              {receipt.return_until && (
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  {(() => {
+                    const returnDate = new Date(receipt.return_until);
+                    const daysRemaining = differenceInDays(returnDate, new Date());
+                    
+                    if (daysRemaining < 0) return 'Byttefrist utløpt';
+                    return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
+                  })()}
+                </div>
+              )}
+            </div>
+            
+            {/* Norwegian consumer protection info */}
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                <strong>Reklamasjonsrett:</strong> Automatisk 2 års reklamasjonsrett etter norsk lov. 5 år for varige forbruksvarer.
+              </AlertDescription>
+            </Alert>
 
             {receipt.type === 'gift_card' && (
               <>

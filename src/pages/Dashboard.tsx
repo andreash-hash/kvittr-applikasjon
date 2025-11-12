@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ReceiptCard from '@/components/ReceiptCard';
 import { Card } from '@/components/ui/card';
+import { differenceInDays } from 'date-fns';
 
 type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv';
 
@@ -103,22 +104,55 @@ const Dashboard = () => {
     );
   };
 
-  // Helper to check if item is expiring soon based on type
-  const isExpiringSoon = (receipt: Receipt): boolean => {
-    const expiryDate = receipt.expiry_date || receipt.warranty_expires || receipt.return_by;
-    if (!expiryDate) return false;
+  const allReceipts = filterReceipts(receipts);
+  
+  // Check for expiring items
+  const expiringCount = allReceipts.filter(receipt => {
+    // Check warranty_until within 60 days
+    if (receipt.warranty_until) {
+      const daysUntilExpiry = differenceInDays(new Date(receipt.warranty_until), new Date());
+      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
+    }
     
-    const daysUntil = Math.ceil((new Date(expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    // Check return_until within 14 days
+    if (receipt.return_until) {
+      const daysUntilExpiry = differenceInDays(new Date(receipt.return_until), new Date());
+      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 14) return true;
+    }
     
-    if (receipt.type === 'warranty' && daysUntil <= 30 && daysUntil >= 0) return true;
-    if (receipt.type === 'return_slip' && daysUntil <= 14 && daysUntil >= 0) return true;
-    if (receipt.type === 'gift_card' && daysUntil <= 60 && daysUntil >= 0) return true;
+    // Check legacy fields for backward compatibility
+    if (receipt.type === 'gift_card' && receipt.expiry_date) {
+      const daysUntilExpiry = differenceInDays(new Date(receipt.expiry_date), new Date());
+      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
+    }
+    if (receipt.type === 'warranty' && receipt.warranty_expires) {
+      const daysUntilExpiry = differenceInDays(new Date(receipt.warranty_expires), new Date());
+      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
+    }
+    if (receipt.type === 'return_slip' && receipt.return_by) {
+      const daysUntilExpiry = differenceInDays(new Date(receipt.return_by), new Date());
+      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
+    }
     
     return false;
-  };
-
-  const allReceipts = filterReceipts(receipts);
-  const expiringReceipts = filterReceipts(receipts.filter(r => isExpiringSoon(r)));
+  }).length;
+  
+  const expiringReceipts = filterReceipts(receipts.filter(receipt => {
+    // Check warranty_until within 60 days
+    if (receipt.warranty_until) {
+      const daysUntilExpiry = differenceInDays(new Date(receipt.warranty_until), new Date());
+      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
+    }
+    
+    // Check return_until within 14 days
+    if (receipt.return_until) {
+      const daysUntilExpiry = differenceInDays(new Date(receipt.return_until), new Date());
+      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 14) return true;
+    }
+    
+    return false;
+  }));
+  
   const regularReceipts = filterReceipts(receipts.filter(r => r.type === 'receipt' || !r.type));
   const giftCards = filterReceipts(receipts.filter(r => r.type === 'gift_card' && r.status !== 'expired' && r.status !== 'used'));
   const returnSlips = filterReceipts(receipts.filter(r => r.type === 'return_slip' && r.status !== 'expired' && r.status !== 'used'));
@@ -243,12 +277,7 @@ const Dashboard = () => {
                 <span className="text-2xl">⚠️</span>
                 <div>
                   <p className="font-semibold text-sm leading-tight">
-                    Utløper snart! {expiringReceipts.length} {
-                      expiringReceipts.length === 1 
-                        ? expiringReceipts[0].type === 'warranty' ? 'garanti' :
-                          expiringReceipts[0].type === 'gift_card' ? 'gavekort' : 'byttelapp'
-                        : 'garantier/gavekort/byttelapper'
-                    }
+                    Utløper snart! {expiringCount} garantier/bytteretter utløper snart!
                   </p>
                 </div>
               </>
@@ -257,7 +286,7 @@ const Dashboard = () => {
                 <span className="text-2xl">✓</span>
                 <div>
                   <p className="font-semibold text-xs leading-tight">
-                    Alt ser bra ut! Ingen garantier, gavekort eller byttelapper utløper de neste 60 dagene
+                    Alt ser bra ut! Ingen garantier eller bytteretter utløper de neste 60 dagene
                   </p>
                 </div>
               </>

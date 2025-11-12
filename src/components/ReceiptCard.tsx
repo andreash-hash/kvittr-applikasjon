@@ -7,6 +7,8 @@ import { formatDate, formatCurrency, getDaysUntil, formatDaysRemaining } from '@
 import { useNavigate } from 'react-router-dom';
 import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { differenceInDays, format } from 'date-fns';
+import { nb } from 'date-fns/locale';
 
 interface ReceiptCardProps {
   receipt: Receipt;
@@ -14,6 +16,48 @@ interface ReceiptCardProps {
 
 const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   const navigate = useNavigate();
+  
+  const getWarrantyBadge = () => {
+    if (!receipt.warranty_until) return null;
+    
+    const warrantyDate = new Date(receipt.warranty_until);
+    const today = new Date();
+    const daysRemaining = differenceInDays(warrantyDate, today);
+    
+    if (daysRemaining < 0) return null; // Expired
+    
+    let badgeColor = 'bg-green-600';
+    if (daysRemaining < 30) badgeColor = 'bg-red-600';
+    else if (daysRemaining < 90) badgeColor = 'bg-orange-500';
+    
+    return (
+      <Badge className={`${badgeColor} text-white text-xs`}>
+        <Shield className="h-3 w-3 mr-1" />
+        Garanti til {format(warrantyDate, 'd. MMM yyyy', { locale: nb })}
+      </Badge>
+    );
+  };
+  
+  const getReturnBadge = () => {
+    if (!receipt.return_until) return null;
+    
+    const returnDate = new Date(receipt.return_until);
+    const today = new Date();
+    const daysRemaining = differenceInDays(returnDate, today);
+    
+    if (daysRemaining < 0) return null; // Expired
+    
+    let badgeColor = 'bg-green-600';
+    if (daysRemaining < 3) badgeColor = 'bg-red-600';
+    else if (daysRemaining < 7) badgeColor = 'bg-orange-500';
+    
+    return (
+      <Badge className={`${badgeColor} text-white text-xs`}>
+        <RefreshCw className="h-3 w-3 mr-1" />
+        Bytterett til {format(returnDate, 'd. MMM yyyy', { locale: nb })}
+      </Badge>
+    );
+  };
   const [isHovered, setIsHovered] = useState(false);
   
   const expiryDate = receipt.expiry_date || receipt.warranty_expires || receipt.return_by;
@@ -293,6 +337,10 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
               <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 leading-[1.2]">
                 {formatCurrency(receipt.amount)}
               </Badge>
+              
+              {/* Warranty/Return badges */}
+              {getWarrantyBadge()}
+              {getReturnBadge()}
             </div>
             
             {/* Action buttons */}
