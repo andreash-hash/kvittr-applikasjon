@@ -39,9 +39,18 @@ const ItemDetail = () => {
         (payload) => {
           console.log('Receipt updated:', payload);
           if (payload.new.processing_status === 'completed') {
+            const updated = payload.new;
+            const details = [
+              updated.shop_name && `Butikk: ${updated.shop_name}`,
+              updated.product_name && `Produkt: ${updated.product_name}`,
+              updated.amount && `Beløp: ${updated.amount} kr`,
+              updated.warranty_until && `Garanti til: ${new Date(updated.warranty_until).toLocaleDateString('nb-NO')}`,
+              updated.return_until && `Bytt innen: ${new Date(updated.return_until).toLocaleDateString('nb-NO')}`
+            ].filter(Boolean).join(' • ');
+            
             toast({
-              title: 'OCR fullført!',
-              description: 'Kvitteringen er analysert og oppdatert.',
+              title: 'Kvittering analysert! ✨',
+              description: details || 'Data ekstrahert og oppdatert.',
             });
             loadReceipt();
           }
