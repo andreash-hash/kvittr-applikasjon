@@ -332,13 +332,14 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
             </div>
           </div>
           
-          {/* Thumbnail */}
-          <div className="w-[50px] h-[50px] rounded-lg bg-muted flex-shrink-0 overflow-hidden">
+          {/* Thumbnail - Fixed 50x50px */}
+          <div className="w-[50px] h-[50px] min-w-[50px] min-h-[50px] max-w-[50px] max-h-[50px] rounded-lg bg-muted flex-shrink-0 overflow-hidden">
             {receipt.image_url ? (
               <img 
                 src={receipt.image_url} 
                 alt={receipt.product_name}
                 className="w-full h-full object-cover"
+                style={{ width: '50px', height: '50px', objectFit: 'cover' }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">

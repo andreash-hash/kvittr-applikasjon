@@ -193,23 +193,42 @@ const Dashboard = () => {
           })}
         </div>
 
-        {/* Alert card for expiring items */}
-        {expiringReceipts.length > 0 && selectedFilter === 'alle' && (
-          <Card
-            onClick={() => setSelectedFilter('alle')}
-            className="bg-orange-500/10 border-orange-500/20 p-4 mb-4 cursor-pointer hover:bg-orange-500/15 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-6 w-6 text-orange-600" />
-              <div>
-                <p className="font-semibold text-orange-900 dark:text-orange-100">Utløper snart!</p>
-                <p className="text-sm text-orange-700 dark:text-orange-200">
-                  {expiringReceipts.length} {expiringReceipts.length === 1 ? 'kvittering' : 'kvitteringer'} utløper snart
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
+        {/* Alert card - Always visible with two states */}
+        <Card
+          onClick={expiringReceipts.length > 0 ? () => setSelectedFilter('alle') : undefined}
+          className={`p-4 mb-4 transition-colors rounded-xl h-[60px] flex items-center ${
+            expiringReceipts.length > 0
+              ? 'bg-[#FF9500] text-white cursor-pointer hover:bg-[#FF9500]/90'
+              : 'bg-[#F3F4F6] dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            {expiringReceipts.length > 0 ? (
+              <>
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <p className="font-semibold text-sm leading-tight">
+                    Utløper snart! {expiringReceipts.length} {
+                      expiringReceipts.length === 1 
+                        ? expiringReceipts[0].type === 'warranty' ? 'garanti' :
+                          expiringReceipts[0].type === 'gift_card' ? 'gavekort' : 'byttelapp'
+                        : 'garantier/gavekort/byttelapper'
+                    }
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="text-2xl">✓</span>
+                <div>
+                  <p className="font-semibold text-xs leading-tight">
+                    Alt ser bra ut! Ingen garantier, gavekort eller byttelapper utløper de neste 60 dagene
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
 
         {/* Receipt cards list */}
         <div className="space-y-1.5">
