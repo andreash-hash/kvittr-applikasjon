@@ -221,27 +221,27 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
         </div>
       )}
       
-      <CardContent className="p-3">
+      <CardContent className="p-2">
         {/* Header with icon and type label */}
-        <div className={`flex items-center gap-1.5 mb-2 px-1.5 py-0.5 rounded ${typeConfig.bgColor} w-fit`}>
-          <TypeIcon className={`h-3 w-3 ${typeConfig.labelColor}`} />
-          <span className={`text-[10px] font-bold tracking-wide ${typeConfig.labelColor}`}>
+        <div className={`flex items-center gap-1 mb-1.5 px-1.5 py-0.5 rounded ${typeConfig.bgColor} w-fit`}>
+          <TypeIcon className={`h-2.5 w-2.5 ${typeConfig.labelColor}`} />
+          <span className={`text-[9px] font-bold tracking-wide ${typeConfig.labelColor}`}>
             {typeConfig.label}
           </span>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           {/* Main content */}
-          <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex-1 min-w-0 space-y-1.5">
             {/* Main info */}
-            <div>
-              <h3 className="text-sm font-bold text-foreground leading-tight mb-0.5">
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-bold text-foreground leading-[1.2]">
                 {receipt.product_name}
               </h3>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-[1.2]">
                 {receipt.shop_name}
               </p>
-              <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+              <p className="text-[11px] text-muted-foreground/70 leading-[1.2]">
                 Kjøpt: {formatDate(receipt.purchase_date)}
               </p>
             </div>
@@ -249,27 +249,27 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
             {/* Prominent Status Badge */}
             {statusBadgeConfig && (
               <div 
-                className={`${statusBadgeConfig.bgColor} ${statusBadgeConfig.textColor} rounded-md p-2 cursor-pointer hover:opacity-80 transition-opacity`}
+                className={`${statusBadgeConfig.bgColor} ${statusBadgeConfig.textColor} rounded-md p-1.5 cursor-pointer hover:opacity-80 transition-opacity`}
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/item/${receipt.id}`);
                 }}
               >
-                <div className="flex items-start gap-1.5">
-                  <statusBadgeConfig.icon className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                <div className="flex items-start gap-1">
+                  <statusBadgeConfig.icon className="h-3 w-3 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold leading-tight">
+                    <p className="text-xs font-semibold leading-[1.2]">
                       {statusBadgeConfig.text}
                     </p>
                     {statusBadgeConfig.showProgress && (
-                      <div className="mt-1.5 space-y-0.5">
+                      <div className="mt-1 space-y-0.5">
                         <Progress 
                           value={receipt.type === 'warranty' ? getWarrantyProgress() : 
                                  receipt.type === 'return_slip' && receipt.return_by ? 
                                  Math.max(0, Math.min(100, (daysUntil! / 14) * 100)) : 0} 
-                          className="h-1.5"
+                          className="h-1"
                         />
-                        <p className="text-[10px] opacity-75">
+                        <p className="text-[9px] opacity-75 leading-[1.2]">
                           {receipt.type === 'warranty' ? 
                             `${Math.round(100 - getWarrantyProgress())}% garanti gjenstår` :
                             `${Math.round((daysUntil! / 14) * 100)}% av byttefristen gjenstår`
@@ -283,24 +283,24 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
             )}
             
             {receipt.status === 'used' && (
-              <div className="bg-gray-100 text-gray-600 rounded-md p-2">
-                <p className="text-xs font-semibold">Brukt</p>
+              <div className="bg-gray-100 text-gray-600 rounded-md p-1.5">
+                <p className="text-xs font-semibold leading-[1.2]">Brukt</p>
               </div>
             )}
             
             {/* Info chips */}
-            <div className="flex gap-1.5 flex-wrap">
-              <Badge variant="outline" className="text-[10px] px-2 py-0.5 h-5">
+            <div className="flex gap-1 flex-wrap">
+              <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 leading-[1.2]">
                 {formatCurrency(receipt.amount)}
               </Badge>
             </div>
             
             {/* Action buttons */}
-            <div className="flex gap-1.5 pt-1">
+            <div className="flex gap-1.5 pt-0.5">
               <Button
                 variant="default"
                 size="sm"
-                className="flex-1 h-9 text-xs"
+                className="flex-1 h-8 text-xs"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/item/${receipt.id}`);
@@ -314,7 +314,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
                 <Button
                   variant="default"
                   size="sm"
-                  className="bg-green-600 hover:bg-green-700 h-9 text-xs"
+                  className="bg-green-600 hover:bg-green-700 h-8 text-xs"
                   onClick={(e) => handleAction(e, 'use-gift-card')}
                 >
                   Bruk gavekort
@@ -324,7 +324,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 w-9 p-0"
+                className="h-8 w-8 p-0"
                 onClick={(e) => handleAction(e, 'delete')}
               >
                 <Trash2 className="h-3 w-3" />
@@ -333,7 +333,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
           </div>
           
           {/* Thumbnail */}
-          <div className="w-[60px] h-[60px] rounded-md bg-muted flex-shrink-0 overflow-hidden">
+          <div className="w-[50px] h-[50px] rounded-lg bg-muted flex-shrink-0 overflow-hidden">
             {receipt.image_url ? (
               <img 
                 src={receipt.image_url} 
@@ -342,7 +342,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <TypeIcon className="h-6 w-6 text-muted-foreground opacity-30" />
+                <TypeIcon className="h-5 w-5 text-muted-foreground opacity-30" />
               </div>
             )}
           </div>
