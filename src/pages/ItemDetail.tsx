@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,9 +20,19 @@ const ItemDetail = () => {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPolling, setIsPolling] = useState(false);
+  const [processingError, setProcessingError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     loadReceipt();
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
   }, [id]);
 
   // Setup realtime listener for receipt updates
@@ -87,6 +97,13 @@ const ItemDetail = () => {
         if (found.shop_name === 'Ny butikk' && found.amount === 0) {
           setIsEditing(true);
         }
+        
+        // Start polling if processing is pending
+        if (found.processing_status === 'pending' && !pollIntervalRef.current) {
+          startPolling();
+        } else if (found.processing_status === 'failed') {
+          setProcessingError(true);
+        }
       } else {
         navigate('/dashboard');
       }
@@ -100,6 +117,111 @@ const ItemDetail = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const startPolling = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+    
+    setIsPolling(true);
+    setProcessingError(false);
+    pollStartTimeRef.current = Date.now();
+    
+    pollIntervalRef.current = setInterval(async () => {
+      if (!id) return;
+      
+      const elapsed = Date.now() - (pollStartTimeRef.current || 0);
+      
+      // Timeout after 25 seconds
+      if (elapsed > 25000) {
+        clearInterval(pollIntervalRef.current!);
+        pollIntervalRef.current = null;
+        setIsPolling(false);
+        setProcessingError(true);
+        
+        // Mark as failed in database
+        await supabase
+          .from('receipts')
+          .update({ processing_status: 'failed' })
+          .eq('id', id);
+        
+        return;
+      }
+      
+      // Poll for updates
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        
+        const receipts = await getReceipts(session.user.id);
+        const found = receipts.find(r => r.id === id);
+        
+        if (found) {
+          setReceipt(found);
+          
+          if (found.processing_status === 'completed') {
+            clearInterval(pollIntervalRef.current!);
+            pollIntervalRef.current = null;
+            setIsPolling(false);
+            toast({
+              title: 'Ferdig!',
+              description: 'Kvitteringen er analysert',
+            });
+          } else if (found.processing_status === 'failed') {
+            clearInterval(pollIntervalRef.current!);
+            pollIntervalRef.current = null;
+            setIsPolling(false);
+            setProcessingError(true);
+          }
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 2000);
+  };
+
+  const handleRetry = async () => {
+    if (!receipt) return;
+    
+    setRetryCount(prev => prev + 1);
+    
+    try {
+      // Re-trigger OCR webhook
+      const response = await fetch('https://diabetes-prepare-stopping-daniel.trycloudflare.com/webhook/receipt-ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receipt_id: receipt.id,
+          image_url: receipt.image_url,
+          user_id: receipt.user_id
+        })
+      });
+      
+      if (!response.ok) throw new Error('Webhook failed');
+      
+      // Update status to pending
+      await supabase
+        .from('receipts')
+        .update({ processing_status: 'pending' })
+        .eq('id', receipt.id);
+      
+      // Reload to trigger polling
+      loadReceipt();
+    } catch (error) {
+      console.error('Retry error:', error);
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke starte analyse på nytt',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleFillManually = () => {
+    setProcessingError(false);
+    setIsPolling(false);
+    setIsEditing(true);
   };
 
   const handleSave = async () => {
@@ -173,6 +295,67 @@ const ItemDetail = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Polling indicator */}
+        {isPolling && (
+          <Card className="mb-6 bg-primary/10">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <div>
+                  <p className="font-medium text-foreground">Analyserer kvittering...</p>
+                  <p className="text-sm text-muted-foreground">Dette tar vanligvis 10-20 sekunder</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Processing error */}
+        {processingError && (
+          <Card className="mb-6 bg-orange-500/10 border-orange-500/20">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">
+                      {retryCount === 0 
+                        ? 'Analysen tok lengre tid enn forventet'
+                        : 'Tjenesten ser ut til å være overbelastet'
+                      }
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {retryCount === 0
+                        ? 'Dette kan skyldes høy belastning på tjenesten.'
+                        : 'Prøv igjen etter 2-3 minutter, eller fyll ut manuelt.'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleRetry}
+                    className="flex-1"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Prøv igjen
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={handleFillManually}
+                    className="flex-1"
+                  >
+                    Fyll ut manuelt
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

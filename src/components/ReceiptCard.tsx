@@ -9,6 +9,18 @@ import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2 }
 import { useState } from 'react';
 import { differenceInDays, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReceiptCardProps {
   receipt: Receipt;
@@ -16,6 +28,8 @@ interface ReceiptCardProps {
 
 const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   const getWarrantyBadge = () => {
     if (!receipt.warranty_until) return null;
@@ -242,19 +256,47 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   
   const handleAction = (e: React.MouseEvent, action: string) => {
     e.stopPropagation();
-    // Action handlers would go here
-    console.log(`Action: ${action} for receipt ${receipt.id}`);
+    if (action === 'delete') {
+      setShowDeleteDialog(true);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from('receipts')
+        .delete()
+        .eq('id', receipt.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Kvittering slettet',
+        description: 'Kvitteringen er fjernet',
+      });
+      
+      window.location.reload();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke slette kvittering',
+        variant: 'destructive',
+      });
+    }
+    setShowDeleteDialog(false);
   };
 
   return (
-    <Card 
-      className={`relative overflow-hidden border-l-4 ${typeConfig.borderColor} hover:shadow-xl transition-all duration-200 cursor-pointer rounded-xl ${
-        isHovered ? 'scale-[1.01]' : ''
-      }`}
-      onClick={() => navigate(`/item/${receipt.id}`)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <>
+      <Card 
+        className={`relative overflow-hidden border-l-4 ${typeConfig.borderColor} hover:shadow-xl transition-all duration-200 cursor-pointer rounded-xl ${
+          isHovered ? 'scale-[1.01]' : ''
+        }`}
+        onClick={() => navigate(`/item/${receipt.id}`)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
       {getExpiryWarning()}
       
       {/* Processing indicator */}
@@ -398,6 +440,27 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
         </div>
       </CardContent>
     </Card>
+
+    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Slett kvittering</AlertDialogTitle>
+          <AlertDialogDescription>
+            Er du sikker på at du vil slette denne kvitteringen?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Avbryt</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={handleConfirmDelete}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Slett
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
