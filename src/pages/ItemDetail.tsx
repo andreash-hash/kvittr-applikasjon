@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Trash2, Save, Loader2, Info, Shield, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Trash2, Save, Loader2, Info, Shield, RefreshCw, Check } from 'lucide-react';
 import { getReceipts, saveReceipt, deleteReceipt, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -239,6 +239,38 @@ const ItemDetail = () => {
         title: 'Feil',
         description: 'Kunne ikke lagre endringer',
         variant: 'destructive',
+      });
+    }
+  };
+
+  const handleMarkAsUsed = async () => {
+    if (!receipt) return;
+    
+    const itemName = receipt.type === 'gift_card' ? 'Gavekort' : 'Byttelapp';
+    
+    if (!confirm(`Marker som brukt? Dette flytter ${itemName.toLowerCase()} til arkiv.`)) {
+      return;
+    }
+    
+    try {
+      const updatedReceipt = { 
+        ...receipt, 
+        status: 'used' as const
+      };
+      await saveReceipt(updatedReceipt);
+      
+      toast({
+        title: `${itemName} arkivert`,
+        description: "Flyttet til arkiv",
+      });
+      
+      navigate('/');
+    } catch (error) {
+      console.error('Error marking as used:', error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke arkivere",
+        variant: "destructive",
       });
     }
   };
@@ -499,14 +531,6 @@ const ItemDetail = () => {
               )}
             </div>
             
-            {/* Norwegian consumer protection info */}
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm space-y-2">
-                <p><strong>ℹ️ Reklamasjonsrett:</strong> Automatisk 2 års reklamasjonsrett etter norsk lov. 5 år for varige forbruksvarer.</p>
-                <p><strong>⚠️ Viktig:</strong> Kontroller alltid feltene selv. OCR-analysen kan inneholde feil. Du er ansvarlig for å oppbevare original kvittering.</p>
-              </AlertDescription>
-            </Alert>
 
             {receipt.type === 'gift_card' && (
               <>
@@ -533,12 +557,12 @@ const ItemDetail = () => {
               </>
             )}
 
-            {/* Bottom disclaimer */}
-            <div className="mt-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-              <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed">
+            {/* Disclaimer */}
+            <div className="mt-4 bg-muted/50 rounded-lg p-4">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Kvittr bruker AI for automatisk utlesing av kvitteringer. Kontroller alltid at informasjonen stemmer - OCR-analysen kan inneholde feil. Du er ansvarlig for å oppbevare original kvittering ved reklamasjon.
               </p>
-              <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed mt-2">
+              <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
                 <strong>Garanti:</strong> Automatisk 2 års reklamasjonsrett etter norsk forbrukerlovgivning, 5 år for varige forbruksvarer. Kvittr er ikke ansvarlig for feil i analysen.
               </p>
             </div>
@@ -550,18 +574,39 @@ const ItemDetail = () => {
                     <Save className="mr-2 h-4 w-4" />
                     Lagre
                   </Button>
+                  {(receipt.type === 'gift_card' || receipt.type === 'return_slip') && receipt.status !== 'used' && (
+                    <Button 
+                      onClick={handleMarkAsUsed}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Marker som brukt
+                    </Button>
+                  )}
                   <Button 
                     variant="outline" 
-                    className="flex-1" 
                     onClick={() => setIsEditing(false)}
                   >
                     Avbryt
                   </Button>
                 </>
               ) : (
-                <Button className="w-full" onClick={() => setIsEditing(true)}>
-                  Rediger
-                </Button>
+                <>
+                  <Button className="flex-1" onClick={() => setIsEditing(true)}>
+                    Rediger
+                  </Button>
+                  {(receipt.type === 'gift_card' || receipt.type === 'return_slip') && receipt.status !== 'used' && (
+                    <Button 
+                      onClick={handleMarkAsUsed}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Marker som brukt
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </CardContent>

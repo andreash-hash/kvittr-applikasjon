@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Receipt } from '@/lib/storage';
+import { Receipt, calculateStatus } from '@/lib/storage';
 import { formatDate, formatCurrency, getDaysUntil, formatDaysRemaining } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
 import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2 } from 'lucide-react';
@@ -75,6 +75,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     );
   };
   const [isHovered, setIsHovered] = useState(false);
+  const status = calculateStatus(receipt);
   
   const expiryDate = receipt.expiry_date || receipt.warranty_expires || receipt.return_by;
   const daysUntil = expiryDate ? getDaysUntil(expiryDate) : null;
@@ -189,39 +190,69 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       };
     }
 
-    // Use return_until instead of return_by
-    const returnDeadline = receipt.return_until || receipt.return_by;
-    if (receipt.type === 'return_slip' && returnDeadline) {
-      const returnDate = new Date(returnDeadline);
-      const daysRemaining = differenceInDays(returnDate, new Date());
-      
-      if (daysRemaining > 7) {
+      // Use return_until as primary field
+      const returnDeadline = receipt.return_until || receipt.return_by;
+      if (receipt.type === 'return_slip' && returnDeadline) {
+        const returnDate = new Date(returnDeadline);
+        const daysRemaining = differenceInDays(returnDate, new Date());
+        
+        if (daysRemaining > 7) {
+          return {
+            text: `🔄 Bytte til ${formatDate(returnDeadline)}`,
+            bgColor: 'bg-green-50',
+            textColor: 'text-green-700',
+            icon: RefreshCw,
+            showProgress: true,
+            progressColor: 'green'
+          };
+        }
+        if (daysRemaining >= 3) {
+          return {
+            text: `🔄 Bytte til ${formatDate(returnDeadline)}`,
+            bgColor: 'bg-orange-50',
+            textColor: 'text-orange-700',
+            icon: RefreshCw,
+            showProgress: true,
+            progressColor: 'orange'
+          };
+        }
         return {
-          text: `🔄 Bytte til ${formatDate(returnDeadline)} (${daysRemaining} dager igjen)`,
-          bgColor: 'bg-green-50',
-          textColor: 'text-green-700',
-          icon: RefreshCw,
-          showProgress: true,
-          progressColor: 'green'
-        };
-      }
-      if (daysRemaining > 3) {
-        return {
-          text: `🔄 Bytte til ${formatDate(returnDeadline)} (${daysRemaining} dager igjen)`,
-          bgColor: 'bg-orange-50',
-          textColor: 'text-orange-700',
-          icon: RefreshCw,
-          showProgress: true,
-          progressColor: 'orange'
-        };
-      }
-      return {
-        text: `Siste sjanse! (${daysRemaining} dager igjen)`,
+          text: `🔄 Bytte til ${formatDate(returnDeadline)}`,
         bgColor: 'bg-red-50',
         textColor: 'text-red-700',
         icon: RefreshCw,
         showProgress: true,
         progressColor: 'red'
+      };
+    }
+
+    // Show archived status
+    if (status === 'expired') {
+      const returnDeadline = receipt.return_until || receipt.return_by;
+      let reason = 'UTLØPT';
+      if (receipt.warranty_until && new Date(receipt.warranty_until) < new Date()) {
+        reason = 'GARANTI UTLØPT';
+      } else if (returnDeadline && new Date(returnDeadline) < new Date()) {
+        reason = 'BYTTEFRIST UTLØPT';
+      }
+      return {
+        text: reason,
+        bgColor: 'bg-muted',
+        textColor: 'text-muted-foreground',
+        icon: Shield,
+        showProgress: false,
+        progressColor: 'gray'
+      };
+    }
+
+    if (status === 'used') {
+      return {
+        text: 'BRUKT',
+        bgColor: 'bg-muted',
+        textColor: 'text-muted-foreground',
+        icon: Gift,
+        showProgress: false,
+        progressColor: 'gray'
       };
     }
 
@@ -243,18 +274,19 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   
   const getExpiryWarning = () => {
     if (!daysUntil || daysUntil < 0) {
-      if (receipt.status === 'expired') {
+      if (status === 'expired') {
+        const returnDeadline = receipt.return_until || receipt.return_by;
         // Show specific reason for archiving
         if (receipt.warranty_until && new Date(receipt.warranty_until) < new Date()) {
-          return <Badge variant="destructive" className="absolute top-4 right-4">GARANTI UTLØPT</Badge>;
+          return <Badge variant="secondary" className="absolute top-4 right-4 bg-muted">GARANTI UTLØPT</Badge>;
         }
-        if (receipt.return_until && new Date(receipt.return_until) < new Date()) {
-          return <Badge variant="destructive" className="absolute top-4 right-4">BYTTEFRIST UTLØPT</Badge>;
+        if (returnDeadline && new Date(returnDeadline) < new Date()) {
+          return <Badge variant="secondary" className="absolute top-4 right-4 bg-muted">BYTTEFRIST UTLØPT</Badge>;
         }
-        return <Badge variant="destructive" className="absolute top-4 right-4">UTLØPT</Badge>;
+        return <Badge variant="secondary" className="absolute top-4 right-4 bg-muted">UTLØPT</Badge>;
       }
-      if (receipt.status === 'used') {
-        return <Badge className="absolute top-4 right-4 bg-gray-500">BRUKT</Badge>;
+      if (status === 'used') {
+        return <Badge variant="secondary" className="absolute top-4 right-4 bg-muted">BRUKT</Badge>;
       }
       return null;
     }
