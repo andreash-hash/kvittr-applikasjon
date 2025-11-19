@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, AlertTriangle } from 'lucide-react';
+import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, AlertTriangle, ArrowRight } from 'lucide-react';
 import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -10,7 +10,7 @@ import ReceiptCard from '@/components/ReceiptCard';
 import { Card } from '@/components/ui/card';
 import { differenceInDays } from 'date-fns';
 
-type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv';
+type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv' | 'expiring';
 
 const Dashboard = () => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -95,13 +95,54 @@ const Dashboard = () => {
     navigate('/login');
   };
 
+  const handleExpiringClick = () => {
+    setSelectedFilter('expiring');
+    setTimeout(() => {
+      const firstCard = document.querySelector('[data-expiring="true"]');
+      if (firstCard) {
+        firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
+
   const filterReceipts = (receipts: Receipt[]) => {
-    if (!searchQuery) return receipts;
-    const query = searchQuery.toLowerCase();
-    return receipts.filter(r => 
-      r.shop_name.toLowerCase().includes(query) ||
-      r.product_name.toLowerCase().includes(query)
-    );
+    let filtered = receipts;
+
+    // Apply category filter first
+    if (selectedFilter === 'kvitteringer') {
+      filtered = filtered.filter(r => r.type === 'receipt');
+    } else if (selectedFilter === 'gavekort') {
+      filtered = filtered.filter(r => r.type === 'gift_card');
+    } else if (selectedFilter === 'bytte') {
+      filtered = filtered.filter(r => r.type === 'return_slip');
+    } else if (selectedFilter === 'arkiv') {
+      filtered = filtered.filter(r => {
+        const status = calculateStatus(r);
+        return status === 'expired' || status === 'used';
+      });
+    } else if (selectedFilter === 'expiring') {
+      filtered = filtered.filter(r => {
+        const status = calculateStatus(r);
+        if (status !== 'expiring_soon' && status !== 'active') return false;
+        
+        const expiryDate = r.warranty_until || r.return_until || r.expiry_date || r.warranty_expires || r.return_by;
+        if (!expiryDate) return false;
+        
+        const daysUntil = differenceInDays(new Date(expiryDate), new Date());
+        return daysUntil >= 0 && daysUntil <= 60;
+      });
+    }
+
+    // Then apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(r => 
+        r.shop_name.toLowerCase().includes(query) ||
+        r.product_name.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
   };
 
   const allReceipts = filterReceipts(receipts);
@@ -277,9 +318,8 @@ const Dashboard = () => {
         {/* Alert card - Always visible with two states */}
         <Card
           onClick={expiringReceipts.length > 0 ? () => {
-            setSelectedFilter('alle');
-            setSearchQuery(''); // Clear search to show all expiring items
-            // Scroll to first expiring item after a short delay
+            setSelectedFilter('expiring');
+            setSearchQuery('');
             setTimeout(() => {
               const firstCard = document.querySelector('[data-expiring="true"]');
               if (firstCard) {
@@ -303,6 +343,7 @@ const Dashboard = () => {
                       Utløper snart! {expiringCount} garantier/bytteretter utløper snart!
                     </p>
                   </div>
+                  <ArrowRight className="w-5 h-5 text-orange-600 dark:text-orange-400 ml-auto" />
                 </>
               ) : (
                 <>
