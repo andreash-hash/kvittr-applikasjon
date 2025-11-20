@@ -114,7 +114,7 @@ const Dashboard = () => {
       filtered = filtered.filter(r => !(r.is_used === true));
     }
 
-    // Apply category filter first
+    // Apply category filter first (but NOT for expiring - that's handled in getFilteredReceipts)
     if (selectedFilter === 'kvitteringer') {
       filtered = filtered.filter(r => r.type === 'receipt');
     } else if (selectedFilter === 'gavekort') {
@@ -126,11 +126,8 @@ const Dashboard = () => {
         const status = calculateStatus(r);
         return status === 'expired' || status === 'used' || r.is_used === true;
       });
-    } else if (selectedFilter === 'expiring') {
-      // Expiring filter is handled directly in getFilteredReceipts()
-      // Don't pre-filter here to allow proper date-based filtering
-      return filtered;
     }
+    // Note: 'expiring' filter is NOT handled here - it's handled in getFilteredReceipts()
 
     // Then apply search filter
     if (searchQuery) {
