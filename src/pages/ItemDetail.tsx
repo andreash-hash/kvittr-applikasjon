@@ -445,7 +445,6 @@ const ItemDetail = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="receipt">Kvittering</SelectItem>
-                  <SelectItem value="warranty">Garantibevis</SelectItem>
                   <SelectItem value="return_slip">Byttelapp</SelectItem>
                   <SelectItem value="gift_card">Gavekort</SelectItem>
                 </SelectContent>
@@ -486,7 +485,7 @@ const ItemDetail = () => {
             {/* Conditional fields based on receipt type */}
             {receipt.type === 'return_slip' ? (
               <>
-                {/* For byttelapper: Show issue date instead of purchase date */}
+                {/* For byttelapper: Show issue date and expiry */}
                 <div className="space-y-2">
                   <Label htmlFor="issue_date">Utstedelsesdato</Label>
                   <Input
@@ -498,7 +497,6 @@ const ItemDetail = () => {
                   />
                 </div>
 
-                {/* For byttelapper: Show expiry date */}
                 <div className="space-y-2">
                   <Label htmlFor="byttelapp_expiry">Gyldig til</Label>
                   <Input
@@ -522,9 +520,46 @@ const ItemDetail = () => {
                   )}
                 </div>
               </>
+            ) : receipt.type === 'gift_card' ? (
+              <>
+                {/* For gavekort: Show issue date, expiry, and remaining value */}
+                <div className="space-y-2">
+                  <Label htmlFor="issue_date">Utstedelsesdato</Label>
+                  <Input
+                    id="issue_date"
+                    type="date"
+                    value={receipt.purchase_date.split('T')[0]}
+                    onChange={(e) => setReceipt({...receipt, purchase_date: e.target.value})}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="expiry_date">Gyldig til</Label>
+                  <Input
+                    id="expiry_date"
+                    type="date"
+                    value={receipt.expiry_date?.split('T')[0] || ''}
+                    onChange={(e) => setReceipt({...receipt, expiry_date: e.target.value})}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="remaining_value">Restverdi (kr)</Label>
+                  <Input
+                    id="remaining_value"
+                    type="number"
+                    value={receipt.remaining_value || receipt.amount}
+                    onChange={(e) => setReceipt({...receipt, remaining_value: Number(e.target.value)})}
+                    disabled={!isEditing}
+                    placeholder="0"
+                  />
+                </div>
+              </>
             ) : (
               <>
-                {/* For regular receipts: Show purchase date */}
+                {/* For regular receipts: Show purchase date and warranty */}
                 <div className="space-y-2">
                   <Label htmlFor="purchase_date">Kjøpsdato</Label>
                   <Input
@@ -536,7 +571,6 @@ const ItemDetail = () => {
                   />
                 </div>
 
-                {/* Warranty information - NOT shown for byttelapper */}
                 <div className="space-y-2">
                   <Label htmlFor="warranty_until">Garanti til</Label>
                   <Input
@@ -562,60 +596,30 @@ const ItemDetail = () => {
                   )}
                 </div>
 
-                {/* Return/exchange deadline - only for regular receipts, not byttelapper */}
-                {receipt.type !== 'gift_card' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="return_until">Byttefrist til</Label>
-                    <Input
-                      id="return_until"
-                      type="date"
-                      value={receipt.return_until?.split('T')[0] || ''}
-                      onChange={(e) => setReceipt({...receipt, return_until: e.target.value})}
-                      disabled={!isEditing}
-                    />
-                    {receipt.return_until && (
-                      <div className="text-sm text-muted-foreground flex items-center gap-2">
-                        <RefreshCw className="h-4 w-4" />
-                        {(() => {
-                          const returnDate = new Date(receipt.return_until);
-                          const daysRemaining = differenceInDays(returnDate, new Date());
-                          
-                          if (daysRemaining < 0) return 'Byttefrist utløpt';
-                          return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-            
-
-            {receipt.type === 'gift_card' && (
-              <>
                 <div className="space-y-2">
-                  <Label htmlFor="expiry_date">Gyldig til</Label>
+                  <Label htmlFor="return_until">Byttefrist til</Label>
                   <Input
-                    id="expiry_date"
+                    id="return_until"
                     type="date"
-                    value={receipt.expiry_date?.split('T')[0] || ''}
-                    onChange={(e) => setReceipt({...receipt, expiry_date: e.target.value})}
+                    value={receipt.return_until?.split('T')[0] || ''}
+                    onChange={(e) => setReceipt({...receipt, return_until: e.target.value})}
                     disabled={!isEditing}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="remaining_value">Restverdi (kr)</Label>
-                  <Input
-                    id="remaining_value"
-                    type="number"
-                    value={receipt.remaining_value || receipt.amount}
-                    onChange={(e) => setReceipt({...receipt, remaining_value: Number(e.target.value)})}
-                    disabled={!isEditing}
-                  />
+                  {receipt.return_until && (
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      {(() => {
+                        const returnDate = new Date(receipt.return_until);
+                        const daysRemaining = differenceInDays(returnDate, new Date());
+                        
+                        if (daysRemaining < 0) return 'Byttefrist utløpt';
+                        return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
+                      })()}
+                    </div>
+                  )}
                 </div>
               </>
             )}
-
             {/* Disclaimer */}
             <div className="mt-4 bg-muted/50 rounded-lg p-4">
               <p className="text-[11px] text-muted-foreground leading-relaxed">
