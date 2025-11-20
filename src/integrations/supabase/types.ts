@@ -50,17 +50,20 @@ export type Database = {
         Row: {
           amount: number | null
           created_at: string | null
+          expiry_date: string | null
           gift_card_balance: number | null
           gift_card_code: string | null
           gift_card_value: number | null
           id: string
           image_url: string
+          is_used: boolean | null
           item_type: string
           notes: string | null
           processing_status: string | null
           product_name: string | null
           purchase_date: string | null
           raw_ocr_data: Json | null
+          receipt_type: string | null
           return_until: string | null
           shop_name: string | null
           status: string | null
@@ -71,17 +74,20 @@ export type Database = {
         Insert: {
           amount?: number | null
           created_at?: string | null
+          expiry_date?: string | null
           gift_card_balance?: number | null
           gift_card_code?: string | null
           gift_card_value?: number | null
           id?: string
           image_url: string
+          is_used?: boolean | null
           item_type: string
           notes?: string | null
           processing_status?: string | null
           product_name?: string | null
           purchase_date?: string | null
           raw_ocr_data?: Json | null
+          receipt_type?: string | null
           return_until?: string | null
           shop_name?: string | null
           status?: string | null
@@ -92,17 +98,20 @@ export type Database = {
         Update: {
           amount?: number | null
           created_at?: string | null
+          expiry_date?: string | null
           gift_card_balance?: number | null
           gift_card_code?: string | null
           gift_card_value?: number | null
           id?: string
           image_url?: string
+          is_used?: boolean | null
           item_type?: string
           notes?: string | null
           processing_status?: string | null
           product_name?: string | null
           purchase_date?: string | null
           raw_ocr_data?: Json | null
+          receipt_type?: string | null
           return_until?: string | null
           shop_name?: string | null
           status?: string | null

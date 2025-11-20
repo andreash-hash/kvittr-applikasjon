@@ -470,66 +470,112 @@ const ItemDetail = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="purchase_date">Kjøpsdato</Label>
-              <Input
-                id="purchase_date"
-                type="date"
-                value={receipt.purchase_date.split('T')[0]}
-                onChange={(e) => setReceipt({...receipt, purchase_date: e.target.value})}
-                disabled={!isEditing}
-              />
-            </div>
-
-            {/* Warranty information */}
-            <div className="space-y-2">
-              <Label htmlFor="warranty_until">Garanti til</Label>
-              <Input
-                id="warranty_until"
-                type="date"
-                value={receipt.warranty_until?.split('T')[0] || ''}
-                onChange={(e) => setReceipt({...receipt, warranty_until: e.target.value})}
-                disabled={!isEditing}
-              />
-              {receipt.warranty_until && (
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  {(() => {
-                    const warrantyDate = new Date(receipt.warranty_until);
-                    const daysRemaining = differenceInDays(warrantyDate, new Date());
-                    const monthsRemaining = differenceInMonths(warrantyDate, new Date());
-                    
-                    if (daysRemaining < 0) return 'Garanti utløpt';
-                    if (monthsRemaining > 0) return `${monthsRemaining} ${monthsRemaining === 1 ? 'måned' : 'måneder'} igjen`;
-                    return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
-                  })()}
+            {/* Conditional fields based on receipt type */}
+            {receipt.type === 'return_slip' ? (
+              <>
+                {/* For byttelapper: Show issue date instead of purchase date */}
+                <div className="space-y-2">
+                  <Label htmlFor="issue_date">Utstedelsesdato</Label>
+                  <Input
+                    id="issue_date"
+                    type="date"
+                    value={receipt.purchase_date.split('T')[0]}
+                    onChange={(e) => setReceipt({...receipt, purchase_date: e.target.value})}
+                    disabled={!isEditing}
+                  />
                 </div>
-              )}
-            </div>
 
-            {/* Return/exchange deadline */}
-            <div className="space-y-2">
-              <Label htmlFor="return_until">Byttefrist til</Label>
-              <Input
-                id="return_until"
-                type="date"
-                value={receipt.return_until?.split('T')[0] || ''}
-                onChange={(e) => setReceipt({...receipt, return_until: e.target.value})}
-                disabled={!isEditing}
-              />
-              {receipt.return_until && (
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  {(() => {
-                    const returnDate = new Date(receipt.return_until);
-                    const daysRemaining = differenceInDays(returnDate, new Date());
-                    
-                    if (daysRemaining < 0) return 'Byttefrist utløpt';
-                    return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
-                  })()}
+                {/* For byttelapper: Show expiry date */}
+                <div className="space-y-2">
+                  <Label htmlFor="byttelapp_expiry">Gyldig til</Label>
+                  <Input
+                    id="byttelapp_expiry"
+                    type="date"
+                    value={receipt.return_until?.split('T')[0] || ''}
+                    onChange={(e) => setReceipt({...receipt, return_until: e.target.value})}
+                    disabled={!isEditing}
+                  />
+                  {receipt.return_until && (
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      {(() => {
+                        const expiryDate = new Date(receipt.return_until);
+                        const daysRemaining = differenceInDays(expiryDate, new Date());
+                        
+                        if (daysRemaining < 0) return 'Utløpt';
+                        return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
+                      })()}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            ) : (
+              <>
+                {/* For regular receipts: Show purchase date */}
+                <div className="space-y-2">
+                  <Label htmlFor="purchase_date">Kjøpsdato</Label>
+                  <Input
+                    id="purchase_date"
+                    type="date"
+                    value={receipt.purchase_date.split('T')[0]}
+                    onChange={(e) => setReceipt({...receipt, purchase_date: e.target.value})}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                {/* Warranty information - NOT shown for byttelapper */}
+                <div className="space-y-2">
+                  <Label htmlFor="warranty_until">Garanti til</Label>
+                  <Input
+                    id="warranty_until"
+                    type="date"
+                    value={receipt.warranty_until?.split('T')[0] || ''}
+                    onChange={(e) => setReceipt({...receipt, warranty_until: e.target.value})}
+                    disabled={!isEditing}
+                  />
+                  {receipt.warranty_until && (
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      {(() => {
+                        const warrantyDate = new Date(receipt.warranty_until);
+                        const daysRemaining = differenceInDays(warrantyDate, new Date());
+                        const monthsRemaining = differenceInMonths(warrantyDate, new Date());
+                        
+                        if (daysRemaining < 0) return 'Garanti utløpt';
+                        if (monthsRemaining > 0) return `${monthsRemaining} ${monthsRemaining === 1 ? 'måned' : 'måneder'} igjen`;
+                        return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Return/exchange deadline - only for regular receipts, not byttelapper */}
+                {receipt.type !== 'gift_card' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="return_until">Byttefrist til</Label>
+                    <Input
+                      id="return_until"
+                      type="date"
+                      value={receipt.return_until?.split('T')[0] || ''}
+                      onChange={(e) => setReceipt({...receipt, return_until: e.target.value})}
+                      disabled={!isEditing}
+                    />
+                    {receipt.return_until && (
+                      <div className="text-sm text-muted-foreground flex items-center gap-2">
+                        <RefreshCw className="h-4 w-4" />
+                        {(() => {
+                          const returnDate = new Date(receipt.return_until);
+                          const daysRemaining = differenceInDays(returnDate, new Date());
+                          
+                          if (daysRemaining < 0) return 'Byttefrist utløpt';
+                          return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
             
 
             {receipt.type === 'gift_card' && (
@@ -560,10 +606,13 @@ const ItemDetail = () => {
             {/* Disclaimer */}
             <div className="mt-4 bg-muted/50 rounded-lg p-4">
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Kvittr bruker AI for automatisk utlesing av kvitteringer. Kontroller alltid at informasjonen stemmer - OCR-analysen kan inneholde feil. Du er ansvarlig for å oppbevare original kvittering ved reklamasjon.
+                Kvittr bruker AI for automatisk utlesing av kvitteringer. Kontroller alltid at informasjonen stemmer. Du er ansvarlig for å oppbevare original kvittering.
               </p>
               <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
-                <strong>Garanti:</strong> Automatisk 2 års reklamasjonsrett etter norsk forbrukerlovgivning, 5 år for varige forbruksvarer. Kvittr er ikke ansvarlig for feil i analysen.
+                <strong>Garanti:</strong> Automatisk 2 års reklamasjonsrett etter norsk lov, 5 år for varige varer. For byttelapper gjelder butikkens vilkår.
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed mt-2">
+                Kvittr er ikke ansvarlig for feil i AI-analysen.
               </p>
             </div>
 
