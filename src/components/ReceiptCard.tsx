@@ -62,8 +62,8 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   };
   
   const getWarrantyBadge = () => {
-    // Don't show warranty for byttelapper
-    if (receipt.type === 'return_slip') return null;
+    // Don't show warranty for byttelapper or gavekort
+    if (receipt.type === 'return_slip' || receipt.type === 'gift_card') return null;
     if (!receipt.warranty_until) return null;
     
     const warrantyDate = new Date(receipt.warranty_until);
@@ -85,6 +85,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   };
   
   const getReturnBadge = () => {
+    // Don't show exchange date for gavekort
+    if (receipt.type === 'gift_card') return null;
+    
     // Use return_until as primary, fall back to return_by for legacy
     const returnDeadline = receipt.return_until || receipt.return_by;
     if (!returnDeadline) return null;
@@ -106,6 +109,30 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       </Badge>
     );
   };
+  
+  const getValidUntilBadge = () => {
+    // Only show for gavekort
+    if (receipt.type !== 'gift_card') return null;
+    if (!receipt.expiry_date) return null;
+    
+    const expiryDate = new Date(receipt.expiry_date);
+    const today = new Date();
+    const daysRemaining = differenceInDays(expiryDate, today);
+    
+    if (daysRemaining < 0) return null; // Expired
+    
+    let badgeColor = 'bg-green-600';
+    if (daysRemaining < 30) badgeColor = 'bg-red-600';
+    else if (daysRemaining < 90) badgeColor = 'bg-orange-500';
+    
+    return (
+      <Badge className={`${badgeColor} text-white text-xs`}>
+        <Gift className="h-3 w-3 mr-1" />
+        Gyldig til {format(expiryDate, 'd. MMM yyyy', { locale: nb })}
+      </Badge>
+    );
+  };
+  
   const [isHovered, setIsHovered] = useState(false);
   const status = calculateStatus(receipt);
   
@@ -384,9 +411,10 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
                 {formatCurrency(receipt.amount)}
               </Badge>
               
-              {/* Warranty/Return badges */}
+              {/* Warranty/Return/Valid Until badges */}
               {getWarrantyBadge()}
               {getReturnBadge()}
+              {getValidUntilBadge()}
             </div>
             
             {/* Action buttons */}
