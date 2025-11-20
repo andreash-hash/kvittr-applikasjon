@@ -127,14 +127,9 @@ const Dashboard = () => {
         return status === 'expired' || status === 'used' || r.is_used === true;
       });
     } else if (selectedFilter === 'expiring') {
-      // Show only receipts expiring within 30 days
-      filtered = filtered.filter(r => {
-        const expiryDate = r.warranty_until || r.return_until || r.expiry_date || r.warranty_expires || r.return_by;
-        if (!expiryDate) return false;
-        
-        const daysUntil = differenceInDays(new Date(expiryDate), new Date());
-        return daysUntil >= 0 && daysUntil <= 30;
-      });
+      // Expiring filter is handled directly in getFilteredReceipts()
+      // Don't pre-filter here to allow proper date-based filtering
+      return filtered;
     }
 
     // Then apply search filter
@@ -222,14 +217,35 @@ const Dashboard = () => {
       case 'arkiv':
         return archived;
       case 'expiring':
-        // Filter receipts expiring within 30 days
-        const expiringFiltered = receipts.filter(r => {
-          const expiryDate = r.warranty_until || r.return_until || r.expiry_date || r.warranty_expires || r.return_by;
-          if (!expiryDate) return false;
+        // Use the same logic as counting - filter receipts expiring soon
+        const expiringFiltered = allReceipts.filter(receipt => {
+          // Check warranty_until within 60 days
+          if (receipt.warranty_until) {
+            const daysUntilExpiry = differenceInDays(new Date(receipt.warranty_until), new Date());
+            console.log(`Receipt ${receipt.id} - ${receipt.shop_name}: warranty_until=${receipt.warranty_until}, daysUntil=${daysUntilExpiry}`);
+            if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
+          }
           
-          const daysUntil = differenceInDays(new Date(expiryDate), new Date());
-          console.log(`Receipt ${r.id} - ${r.shop_name}: expiryDate=${expiryDate}, daysUntil=${daysUntil}`);
-          return daysUntil >= 0 && daysUntil <= 30;
+          // Check return_until within 14 days
+          if (receipt.return_until) {
+            const daysUntilExpiry = differenceInDays(new Date(receipt.return_until), new Date());
+            console.log(`Receipt ${receipt.id} - ${receipt.shop_name}: return_until=${receipt.return_until}, daysUntil=${daysUntilExpiry}`);
+            if (daysUntilExpiry >= 0 && daysUntilExpiry <= 14) return true;
+          }
+          
+          // Check legacy fields for backward compatibility
+          if (receipt.type === 'gift_card' && receipt.expiry_date) {
+            const daysUntilExpiry = differenceInDays(new Date(receipt.expiry_date), new Date());
+            console.log(`Receipt ${receipt.id} - ${receipt.shop_name}: gift_card expiry_date=${receipt.expiry_date}, daysUntil=${daysUntilExpiry}`);
+            if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
+          }
+          if (receipt.type === 'return_slip' && receipt.return_by) {
+            const daysUntilExpiry = differenceInDays(new Date(receipt.return_by), new Date());
+            console.log(`Receipt ${receipt.id} - ${receipt.shop_name}: return_slip return_by=${receipt.return_by}, daysUntil=${daysUntilExpiry}`);
+            if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
+          }
+          
+          return false;
         });
         console.log(`Found ${expiringFiltered.length} expiring receipts`);
         return expiringFiltered;
