@@ -212,6 +212,8 @@ const Dashboard = () => {
   ));
 
   const getFilteredReceipts = () => {
+    console.log('getFilteredReceipts called with filter:', selectedFilter);
+    
     switch (selectedFilter) {
       case 'alle':
         return allReceipts;
@@ -223,6 +225,18 @@ const Dashboard = () => {
         return returnSlips;
       case 'arkiv':
         return archived;
+      case 'expiring':
+        // Filter receipts expiring within 30 days
+        const expiringFiltered = receipts.filter(r => {
+          const expiryDate = r.warranty_until || r.return_until || r.expiry_date || r.warranty_expires || r.return_by;
+          if (!expiryDate) return false;
+          
+          const daysUntil = differenceInDays(new Date(expiryDate), new Date());
+          console.log(`Receipt ${r.id} - ${r.shop_name}: expiryDate=${expiryDate}, daysUntil=${daysUntil}`);
+          return daysUntil >= 0 && daysUntil <= 30;
+        });
+        console.log(`Found ${expiringFiltered.length} expiring receipts`);
+        return expiringFiltered;
       default:
         return allReceipts;
     }

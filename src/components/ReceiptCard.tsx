@@ -409,7 +409,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
                 {receipt.shop_name}
               </p>
               <p className="text-[11px] text-muted-foreground/70 leading-[1.2]">
-                {receipt.type === 'return_slip' ? 'Utstedt: ' : 'Kjøpt: '}{formatDate(receipt.purchase_date)}
+                {receipt.type === 'return_slip' || receipt.type === 'gift_card' ? 'Utstedt: ' : 'Kjøpt: '}{formatDate(receipt.purchase_date)}
               </p>
               {isUsed && (
                 <Badge variant="secondary" className="mt-1 bg-muted">
