@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, AlertTriangle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,7 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('alle');
+  const [showUsedReceipts, setShowUsedReceipts] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -108,6 +109,11 @@ const Dashboard = () => {
   const filterReceipts = (receipts: Receipt[]) => {
     let filtered = receipts;
 
+    // Filter out used receipts unless showUsedReceipts is true or we're in arkiv view
+    if (!showUsedReceipts && selectedFilter !== 'arkiv') {
+      filtered = filtered.filter(r => !(r.is_used === true));
+    }
+
     // Apply category filter first
     if (selectedFilter === 'kvitteringer') {
       filtered = filtered.filter(r => r.type === 'receipt');
@@ -118,18 +124,16 @@ const Dashboard = () => {
     } else if (selectedFilter === 'arkiv') {
       filtered = filtered.filter(r => {
         const status = calculateStatus(r);
-        return status === 'expired' || status === 'used';
+        return status === 'expired' || status === 'used' || r.is_used === true;
       });
     } else if (selectedFilter === 'expiring') {
+      // Show only receipts expiring within 30 days
       filtered = filtered.filter(r => {
-        const status = calculateStatus(r);
-        if (status !== 'expiring_soon' && status !== 'active') return false;
-        
         const expiryDate = r.warranty_until || r.return_until || r.expiry_date || r.warranty_expires || r.return_by;
         if (!expiryDate) return false;
         
         const daysUntil = differenceInDays(new Date(expiryDate), new Date());
-        return daysUntil >= 0 && daysUntil <= 60;
+        return daysUntil >= 0 && daysUntil <= 30;
       });
     }
 
@@ -291,6 +295,15 @@ const Dashboard = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
           />
+          <Button
+            variant={showUsedReceipts ? "default" : "ghost"}
+            size="icon"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
+            onClick={() => setShowUsedReceipts(!showUsedReceipts)}
+            title={showUsedReceipts ? "Skjul brukte kvitteringer" : "Vis brukte kvitteringer"}
+          >
+            {showUsedReceipts ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </Button>
         </div>
 
         {/* Horizontal scrolling filter cards */}

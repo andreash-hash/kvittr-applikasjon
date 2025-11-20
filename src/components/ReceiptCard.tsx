@@ -2,10 +2,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Receipt, calculateStatus } from '@/lib/storage';
+import { Receipt, calculateStatus, saveReceipt } from '@/lib/storage';
 import { formatDate, formatCurrency, getDaysUntil, formatDaysRemaining } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
-import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2 } from 'lucide-react';
+import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2, Check } from 'lucide-react';
 import { useState } from 'react';
 import { differenceInDays, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
@@ -30,6 +30,36 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isMarkingUsed, setIsMarkingUsed] = useState(false);
+  
+  const handleMarkAsUsed = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMarkingUsed(true);
+    try {
+      // Update is_used in database
+      const { error } = await supabase
+        .from('receipts')
+        .update({ is_used: true })
+        .eq('id', receipt.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Markert som brukt',
+        description: 'Kvitteringen er flyttet til arkiv',
+      });
+      
+      window.location.reload();
+    } catch (error) {
+      console.error('Mark as used error:', error);
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke markere som brukt',
+        variant: 'destructive',
+      });
+    }
+    setIsMarkingUsed(false);
+  };
   
   const getWarrantyBadge = () => {
     if (!receipt.warranty_until) return null;
@@ -335,12 +365,15 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     setShowDeleteDialog(false);
   };
 
+  // Check if receipt is marked as used
+  const isUsed = (receipt as any).is_used === true;
+  
   return (
     <>
       <Card 
         className={`relative overflow-hidden border-l-4 ${typeConfig.borderColor} hover:shadow-xl transition-all duration-200 cursor-pointer rounded-xl ${
           isHovered ? 'scale-[1.01]' : ''
-        }`}
+        } ${isUsed ? 'opacity-60 bg-muted/50' : ''}`}
         onClick={() => navigate(`/item/${receipt.id}`)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -376,8 +409,14 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
                 {receipt.shop_name}
               </p>
               <p className="text-[11px] text-muted-foreground/70 leading-[1.2]">
-                Kjøpt: {formatDate(receipt.purchase_date)}
+                {receipt.type === 'return_slip' ? 'Utstedt: ' : 'Kjøpt: '}{formatDate(receipt.purchase_date)}
               </p>
+              {isUsed && (
+                <Badge variant="secondary" className="mt-1 bg-muted">
+                  <Check className="h-3 w-3 mr-1" />
+                  BRUKT
+                </Badge>
+              )}
             </div>
             
             {/* Prominent Status Badge */}
@@ -448,14 +487,16 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
                 Se detaljer
               </Button>
               
-              {receipt.type === 'gift_card' && receipt.status !== 'used' && (
+              {!isUsed && (
                 <Button
-                  variant="default"
+                  variant="outline"
                   size="sm"
-                  className="bg-green-600 hover:bg-green-700 h-8 text-xs"
-                  onClick={(e) => handleAction(e, 'use-gift-card')}
+                  className="h-8 px-2 text-xs"
+                  onClick={handleMarkAsUsed}
+                  disabled={isMarkingUsed}
                 >
-                  Bruk gavekort
+                  <Check className="h-3 w-3 mr-1" />
+                  Brukt
                 </Button>
               )}
               

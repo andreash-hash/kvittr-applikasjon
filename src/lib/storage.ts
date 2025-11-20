@@ -18,6 +18,7 @@ export interface Receipt {
   image_url: string;
   status: 'active' | 'expiring_soon' | 'expired' | 'used';
   processing_status?: 'pending' | 'completed' | 'failed';
+  is_used?: boolean;
   created_at: string;
 }
 
@@ -49,6 +50,7 @@ export const getReceipts = async (userId: string): Promise<Receipt[]> => {
     image_url: r.image_url || '',
     status: (r.status as Receipt['status']) || 'active',
     processing_status: (r.processing_status as Receipt['processing_status']) || undefined,
+    is_used: r.is_used || false,
     created_at: r.created_at || new Date().toISOString(),
   }));
 };
@@ -91,6 +93,11 @@ export const deleteReceipt = async (id: string): Promise<void> => {
 export const calculateStatus = (receipt: Receipt): Receipt['status'] => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Reset to midnight for accurate comparison
+  
+  // Check if marked as used
+  if (receipt.is_used === true) {
+    return 'used';
+  }
   
   // Check if gift card is fully used
   if (receipt.type === 'gift_card' && receipt.remaining_value === 0) {
