@@ -62,6 +62,8 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   };
   
   const getWarrantyBadge = () => {
+    // Don't show warranty for byttelapper
+    if (receipt.type === 'return_slip') return null;
     if (!receipt.warranty_until) return null;
     
     const warrantyDate = new Date(receipt.warranty_until);
@@ -171,41 +173,10 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       return null;
     }
 
-      // Use return_until as primary field
-      const returnDeadline = receipt.return_until || receipt.return_by;
-      if (receipt.type === 'return_slip' && returnDeadline) {
-        const returnDate = new Date(returnDeadline);
-        const daysRemaining = differenceInDays(returnDate, new Date());
-        
-        if (daysRemaining > 7) {
-          return {
-            text: `🔄 Bytte til ${formatDate(returnDeadline)}`,
-            bgColor: 'bg-green-50',
-            textColor: 'text-green-700',
-            icon: RefreshCw,
-            showProgress: true,
-            progressColor: 'green'
-          };
-        }
-        if (daysRemaining >= 3) {
-          return {
-            text: `🔄 Bytte til ${formatDate(returnDeadline)}`,
-            bgColor: 'bg-orange-50',
-            textColor: 'text-orange-700',
-            icon: RefreshCw,
-            showProgress: true,
-            progressColor: 'orange'
-          };
-        }
-        return {
-          text: `🔄 Bytte til ${formatDate(returnDeadline)}`,
-        bgColor: 'bg-red-50',
-        textColor: 'text-red-700',
-        icon: RefreshCw,
-        showProgress: true,
-        progressColor: 'red'
-      };
-    }
+      // Don't show progress bar badge for byttelapper - they use simple badge below
+      if (receipt.type === 'return_slip') {
+        return null;
+      }
 
     // Show archived status
     if (status === 'expired') {
