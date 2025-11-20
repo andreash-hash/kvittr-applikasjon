@@ -550,10 +550,10 @@ const ItemDetail = () => {
                   <Input
                     id="remaining_value"
                     type="number"
-                    value={receipt.remaining_value || receipt.amount}
-                    onChange={(e) => setReceipt({...receipt, remaining_value: Number(e.target.value)})}
+                    value={receipt.remaining_value ?? ''}
+                    onChange={(e) => setReceipt({...receipt, remaining_value: e.target.value ? Number(e.target.value) : undefined})}
                     disabled={!isEditing}
-                    placeholder="0"
+                    placeholder="Valgfritt"
                   />
                 </div>
               </>
