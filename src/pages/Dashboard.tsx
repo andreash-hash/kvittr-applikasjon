@@ -170,10 +170,6 @@ const Dashboard = () => {
       const daysUntilExpiry = differenceInDays(new Date(receipt.expiry_date), new Date());
       if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
     }
-    if (receipt.type === 'warranty' && receipt.warranty_expires) {
-      const daysUntilExpiry = differenceInDays(new Date(receipt.warranty_expires), new Date());
-      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
-    }
     if (receipt.type === 'return_slip' && receipt.return_by) {
       const daysUntilExpiry = differenceInDays(new Date(receipt.return_by), new Date());
       if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;

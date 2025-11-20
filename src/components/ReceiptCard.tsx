@@ -113,14 +113,6 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   // Get type-specific styling and config
   const getTypeConfig = () => {
     switch (receipt.type) {
-      case 'warranty':
-        return {
-          borderColor: 'border-l-blue-500',
-          icon: Shield,
-          label: 'GARANTI',
-          labelColor: 'text-blue-600',
-          bgColor: 'bg-blue-50',
-        };
       case 'return_slip':
         return {
           borderColor: 'border-l-orange-500',
@@ -153,7 +145,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   
   // Calculate progress for warranties (based on purchase to expiry)
   const getWarrantyProgress = () => {
-    if (receipt.type !== 'warranty' || !receipt.warranty_expires) return 0;
+    if (!receipt.warranty_expires) return 0;
     const purchaseDate = new Date(receipt.purchase_date);
     const expiryDate = new Date(receipt.warranty_expires);
     const today = new Date();
@@ -166,15 +158,6 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   const getStatusBadgeConfig = () => {
     if (!daysUntil || daysUntil < 0) {
       if (receipt.status === 'expired') {
-        if (receipt.type === 'warranty') {
-          return {
-            text: `Garanti utløpt ${formatDate(receipt.warranty_expires!)}`,
-            bgColor: 'bg-gray-100',
-            textColor: 'text-gray-600',
-            icon: Shield,
-            showProgress: false
-          };
-        }
         if (receipt.type === 'return_slip') {
           return {
             text: `Byttefrist utløpt ${formatDate(receipt.return_by!)}`,
@@ -186,38 +169,6 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
         }
       }
       return null;
-    }
-
-    if (receipt.type === 'warranty' && receipt.warranty_expires) {
-      const monthsLeft = Math.ceil(daysUntil / 30);
-      if (daysUntil > 90) {
-        return {
-          text: `Garanti til ${formatDate(receipt.warranty_expires)} (${monthsLeft} måned${monthsLeft !== 1 ? 'er' : ''} igjen)`,
-          bgColor: 'bg-green-50',
-          textColor: 'text-green-700',
-          icon: Shield,
-          showProgress: true,
-          progressColor: 'green'
-        };
-      }
-      if (daysUntil > 30) {
-        return {
-          text: `Garanti utløper ${formatDate(receipt.warranty_expires)} (${daysUntil} dager igjen)`,
-          bgColor: 'bg-orange-50',
-          textColor: 'text-orange-700',
-          icon: Shield,
-          showProgress: true,
-          progressColor: 'orange'
-        };
-      }
-      return {
-        text: `Garanti utløper snart! (${daysUntil} dager igjen)`,
-        bgColor: 'bg-red-50',
-        textColor: 'text-red-700',
-        icon: Shield,
-        showProgress: true,
-        progressColor: 'red'
-      };
     }
 
       // Use return_until as primary field
@@ -322,7 +273,6 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     }
     
     const shouldWarn = 
-      (receipt.type === 'warranty' && daysUntil <= 30) ||
       (receipt.type === 'return_slip' && daysUntil <= 7) ||
       (receipt.type === 'gift_card' && daysUntil <= 30);
     
@@ -437,16 +387,12 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
                     {statusBadgeConfig.showProgress && (
                       <div className="mt-1 space-y-0.5">
                         <Progress 
-                          value={receipt.type === 'warranty' ? getWarrantyProgress() : 
-                                 receipt.type === 'return_slip' && receipt.return_by ? 
+                          value={receipt.type === 'return_slip' && receipt.return_by ? 
                                  Math.max(0, Math.min(100, (daysUntil! / 14) * 100)) : 0} 
                           className="h-1"
                         />
                         <p className="text-[9px] opacity-75 leading-[1.2]">
-                          {receipt.type === 'warranty' ? 
-                            `${Math.round(100 - getWarrantyProgress())}% garanti gjenstår` :
-                            `${Math.round((daysUntil! / 14) * 100)}% av byttefristen gjenstår`
-                          }
+                          {`${Math.round((daysUntil! / 14) * 100)}% av byttefristen gjenstår`}
                         </p>
                       </div>
                     )}
