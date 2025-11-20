@@ -311,9 +311,22 @@ const ItemDetail = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-semibold">Detaljer</h1>
-          <Button variant="ghost" size="icon" onClick={handleDelete}>
-            <Trash2 className="h-5 w-5 text-destructive" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {(receipt.type === 'gift_card' || receipt.type === 'return_slip') && receipt.status !== 'used' && (
+              <Button 
+                onClick={handleMarkAsUsed}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Check className="w-4 h-4" />
+                Marker som brukt
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={handleDelete}>
+              <Trash2 className="h-5 w-5 text-destructive" />
+            </Button>
+          </div>
         </div>
 
         <Card className="mb-6">
@@ -623,16 +636,6 @@ const ItemDetail = () => {
                     <Save className="mr-2 h-4 w-4" />
                     Lagre
                   </Button>
-                  {(receipt.type === 'gift_card' || receipt.type === 'return_slip') && receipt.status !== 'used' && (
-                    <Button 
-                      onClick={handleMarkAsUsed}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <Check className="w-4 h-4" />
-                      Marker som brukt
-                    </Button>
-                  )}
                   <Button 
                     variant="outline" 
                     onClick={() => setIsEditing(false)}
@@ -641,21 +644,9 @@ const ItemDetail = () => {
                   </Button>
                 </>
               ) : (
-                <>
-                  <Button className="flex-1" onClick={() => setIsEditing(true)}>
-                    Rediger
-                  </Button>
-                  {(receipt.type === 'gift_card' || receipt.type === 'return_slip') && receipt.status !== 'used' && (
-                    <Button 
-                      onClick={handleMarkAsUsed}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <Check className="w-4 h-4" />
-                      Marker som brukt
-                    </Button>
-                  )}
-                </>
+                <Button className="flex-1" onClick={() => setIsEditing(true)}>
+                  Rediger
+                </Button>
               )}
             </div>
           </CardContent>
