@@ -83,10 +83,6 @@ const ItemDetail = () => {
       const receipts = await getReceipts(session.user.id);
       const found = receipts.find(r => r.id === id);
       if (found) {
-        // Initialize has_warranty if null based on shop type
-        if (found.has_warranty === null || found.has_warranty === undefined) {
-          found.has_warranty = !isGroceryStore(found.shop_name || '');
-        }
         setReceipt(found);
         // Auto-edit if it's a new receipt with default values
         if (found.shop_name === 'Ny butikk' && found.amount === 0) {
@@ -161,10 +157,6 @@ const ItemDetail = () => {
         const found = receipts.find(r => r.id === id);
         
         if (found) {
-          // Initialize has_warranty if null based on shop type
-          if (found.has_warranty === null || found.has_warranty === undefined) {
-            found.has_warranty = !isGroceryStore(found.shop_name || '');
-          }
           setReceipt(found);
           
           // Stop polling if completed with valid data
