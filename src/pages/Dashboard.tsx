@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, AlertTriangle, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, AlertTriangle, ArrowRight, Eye, EyeOff, Settings } from 'lucide-react';
 import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -305,9 +305,14 @@ const Dashboard = () => {
       <div className="container max-w-2xl mx-auto p-4 pb-24">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-primary">Kvittr</h1>
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+              <Settings className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
         <div className="relative mb-4">
