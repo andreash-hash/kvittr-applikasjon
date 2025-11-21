@@ -12,8 +12,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { differenceInDays, differenceInMonths, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
-import { isGroceryStore } from '@/lib/utils';
+import { isGroceryStore, shouldShowWarranty } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 
 const ItemDetail = () => {
   const { id } = useParams();
@@ -473,6 +474,26 @@ const ItemDetail = () => {
               />
             </div>
 
+            {/* Warranty toggle - only for regular receipts */}
+            {receipt.type === 'receipt' && (
+              <div className="flex items-center justify-between space-x-2 rounded-lg border p-3 bg-muted/30">
+                <div className="flex-1 space-y-0.5">
+                  <Label htmlFor="has-warranty" className="text-sm font-medium cursor-pointer">
+                    Har garanti / Varig forbruksvare
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Aktiver for varer med garanti (elektronikk, hvitevarer, etc.)
+                  </p>
+                </div>
+                <Switch
+                  id="has-warranty"
+                  checked={receipt.has_warranty ?? !isGroceryStore(receipt.shop_name)}
+                  onCheckedChange={(checked) => setReceipt({...receipt, has_warranty: checked})}
+                  disabled={!isEditing}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="amount">Beløp (kr)</Label>
               <Input
@@ -574,17 +595,8 @@ const ItemDetail = () => {
                   />
                 </div>
 
-                {/* Grocery store badge - no warranty/return fields */}
-                {isGroceryStore(receipt.shop_name) ? (
-                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                    <Badge variant="secondary" className="w-fit">
-                      Dagligvare - ingen garanti
-                    </Badge>
-                    <p className="text-sm text-muted-foreground">
-                      Dagligvarer har normalt ikke garanti eller bytterett.
-                    </p>
-                  </div>
-                ) : (
+                {/* Show warranty fields based on has_warranty toggle */}
+                {shouldShowWarranty(receipt.has_warranty, receipt.shop_name, receipt.type) ? (
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="warranty_until">Garanti til</Label>
@@ -634,6 +646,15 @@ const ItemDetail = () => {
                       )}
                     </div>
                   </>
+                ) : (
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    <Badge variant="secondary" className="w-fit">
+                      Dagligvare - ingen garanti
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">
+                      Dagligvarer har normalt ikke garanti eller bytterett. Aktiver bryteren over hvis denne varen har garanti.
+                    </p>
+                  </div>
                 )}
               </>
             )}

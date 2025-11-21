@@ -57,6 +57,7 @@ export type Database = {
           gift_card_balance: number | null
           gift_card_code: string | null
           gift_card_value: number | null
+          has_warranty: boolean | null
           id: string
           image_url: string
           is_used: boolean | null
@@ -81,6 +82,7 @@ export type Database = {
           gift_card_balance?: number | null
           gift_card_code?: string | null
           gift_card_value?: number | null
+          has_warranty?: boolean | null
           id?: string
           image_url: string
           is_used?: boolean | null
@@ -105,6 +107,7 @@ export type Database = {
           gift_card_balance?: number | null
           gift_card_code?: string | null
           gift_card_value?: number | null
+          has_warranty?: boolean | null
           id?: string
           image_url?: string
           is_used?: boolean | null
