@@ -47,9 +47,14 @@ const Settings = () => {
     if (enabled) {
       // Request push notification permission via OneSignal
       try {
-        const OneSignal = (window as any).OneSignal;
-        if (OneSignal) {
-          await OneSignal.showSlidedownPrompt();
+        // Wait for OneSignal to be initialized
+        if (typeof (window as any).OneSignalDeferred === 'undefined') {
+          throw new Error('OneSignal not loaded');
+        }
+        
+        (window as any).OneSignalDeferred.push(async function(OneSignal: any) {
+          // Request permission using v16 API
+          await OneSignal.Slidedown.promptPush();
           
           // Get subscription ID
           const subscriptionId = await OneSignal.User.PushSubscription.id;
@@ -69,22 +74,22 @@ const Settings = () => {
               description: "Du vil nå motta varsler om utløpende kvitteringer",
             });
           }
-        }
+        });
       } catch (error) {
         console.error('OneSignal error:', error);
+        setPushEnabled(false);
         toast({
           title: "Kunne ikke aktivere varsler",
-          description: "Vennligst prøv igjen senere",
+          description: "Vennligst prøv igjen eller sjekk nettleserinnstillingene",
           variant: "destructive"
         });
       }
     } else {
       // Disable notifications and unsubscribe from OneSignal
       try {
-        const OneSignal = (window as any).OneSignal;
-        if (OneSignal) {
+        (window as any).OneSignalDeferred.push(async function(OneSignal: any) {
           await OneSignal.User.PushSubscription.optOut();
-        }
+        });
       } catch (error) {
         console.error('OneSignal unsubscribe error:', error);
       }
