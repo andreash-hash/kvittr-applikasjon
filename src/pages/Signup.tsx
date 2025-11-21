@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Check, X } from 'lucide-react';
 
 const Signup = () => {
   const [email, setEmail] = useState('');
@@ -14,6 +15,15 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const passwordRequirements = {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+  };
+
+  const isPasswordValid = Object.values(passwordRequirements).every(Boolean);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,10 +46,10 @@ const Signup = () => {
       return;
     }
 
-    if (password.length < 6) {
+    if (!isPasswordValid) {
       toast({
         title: 'Feil',
-        description: 'Passordet må være minst 6 tegn',
+        description: 'Passordet oppfyller ikke alle kravene',
         variant: 'destructive',
       });
       return;
@@ -102,6 +112,26 @@ const Signup = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              {password && (
+                <div className="space-y-1 text-xs">
+                  <div className={`flex items-center gap-1 ${passwordRequirements.minLength ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    {passwordRequirements.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                    <span>Minst 8 tegn</span>
+                  </div>
+                  <div className={`flex items-center gap-1 ${passwordRequirements.hasUppercase ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    {passwordRequirements.hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                    <span>Minst én stor bokstav</span>
+                  </div>
+                  <div className={`flex items-center gap-1 ${passwordRequirements.hasLowercase ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    {passwordRequirements.hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                    <span>Minst én liten bokstav</span>
+                  </div>
+                  <div className={`flex items-center gap-1 ${passwordRequirements.hasNumber ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    {passwordRequirements.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                    <span>Minst ett tall</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Bekreft passord</Label>

@@ -21,6 +21,7 @@ export type Database = {
           receipt_id: string | null
           sent_at: string | null
           status: string | null
+          user_id: string
         }
         Insert: {
           id?: string
@@ -28,6 +29,7 @@ export type Database = {
           receipt_id?: string | null
           sent_at?: string | null
           status?: string | null
+          user_id: string
         }
         Update: {
           id?: string
@@ -35,6 +37,7 @@ export type Database = {
           receipt_id?: string | null
           sent_at?: string | null
           status?: string | null
+          user_id?: string
         }
         Relationships: [
           {
