@@ -440,7 +440,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
                 Se detaljer
               </Button>
               
-              {!isUsed && (
+              {!isUsed && (receipt.type === 'gift_card' || receipt.type === 'return_slip') && (
                 <Button
                   variant="outline"
                   size="sm"
