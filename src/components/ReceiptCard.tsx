@@ -9,6 +9,7 @@ import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2, 
 import { useState } from 'react';
 import { differenceInDays, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
+import { isGroceryStore } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,8 +63,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   };
   
   const getWarrantyBadge = () => {
-    // Don't show warranty for byttelapper or gavekort
+    // Don't show warranty for byttelapper, gavekort, or grocery stores
     if (receipt.type === 'return_slip' || receipt.type === 'gift_card') return null;
+    if (isGroceryStore(receipt.shop_name)) return null;
     if (!receipt.warranty_until) return null;
     
     const warrantyDate = new Date(receipt.warranty_until);
@@ -85,8 +87,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   };
   
   const getReturnBadge = () => {
-    // Don't show exchange date for gavekort
+    // Don't show exchange date for gavekort or grocery stores
     if (receipt.type === 'gift_card') return null;
+    if (isGroceryStore(receipt.shop_name)) return null;
     
     // Use return_until as primary, fall back to return_by for legacy
     const returnDeadline = receipt.return_until || receipt.return_by;
@@ -410,6 +413,13 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
               <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 leading-[1.2]">
                 {formatCurrency(receipt.amount)}
               </Badge>
+              
+              {/* Grocery store badge */}
+              {isGroceryStore(receipt.shop_name) && (
+                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 leading-[1.2]">
+                  Dagligvare - ingen garanti
+                </Badge>
+              )}
               
               {/* Warranty/Return/Valid Until badges */}
               {getWarrantyBadge()}
