@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Scan from "./pages/Scan";
 import ItemDetail from "./pages/ItemDetail";
 import Settings from "./pages/Settings";
+import Success from "./pages/Success";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/scan" element={<Scan />} />
           <Route path="/item/:id" element={<ItemDetail />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/success" element={<Success />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

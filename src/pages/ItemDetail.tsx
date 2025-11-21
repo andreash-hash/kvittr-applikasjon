@@ -233,10 +233,8 @@ const ItemDetail = () => {
     try {
       await saveReceipt(receipt);
       setIsEditing(false);
-      toast({
-        title: 'Lagret',
-        description: 'Endringene er lagret',
-      });
+      // Navigate to success screen with receipt type
+      navigate(`/success?type=${receipt.type}`);
     } catch (error) {
       toast({
         title: 'Feil',
