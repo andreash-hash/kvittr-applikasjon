@@ -8,13 +8,13 @@ export function cn(...inputs: ClassValue[]) {
 export function isGroceryStore(shopName: string | undefined): boolean {
   if (!shopName) return false;
   
-  const groceryStores = [
+  const foodKeywords = [
     'rema', 'kiwi', 'coop', 'meny', 'bunnpris', 'joker', 'spar', 'europris',
-    'extra', 'mega', 'prix', 'marked'
+    'extra', 'mega', 'prix', 'marked', 'big bite', 'restaurant', 'cafe', 'mat'
   ];
   
   const normalizedShop = shopName.toLowerCase();
-  return groceryStores.some(store => normalizedShop.includes(store));
+  return foodKeywords.some(keyword => normalizedShop.includes(keyword));
 }
 
 // Check if receipt should show warranty info
