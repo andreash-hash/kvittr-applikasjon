@@ -53,25 +53,35 @@ const Settings = () => {
         }
         
         (window as any).OneSignalDeferred.push(async function(OneSignal: any) {
-          // Request permission using v16 API
-          await OneSignal.Slidedown.promptPush();
+          // Request native browser permission
+          const permission = await OneSignal.Notifications.requestPermission();
           
-          // Get subscription ID
-          const subscriptionId = await OneSignal.User.PushSubscription.id;
-          
-          if (subscriptionId) {
-            // Save to database
-            await supabase
-              .from('user_settings')
-              .upsert({
-                user_id: userId,
-                notification_enabled: true,
-                push_token: subscriptionId
-              });
+          if (permission) {
+            // User accepted - get subscription ID
+            const subscriptionId = await OneSignal.User.PushSubscription.id;
             
+            if (subscriptionId) {
+              // Save to database
+              await supabase
+                .from('user_settings')
+                .upsert({
+                  user_id: userId,
+                  notification_enabled: true,
+                  push_token: subscriptionId
+                });
+              
+              toast({
+                title: "Push-varsler aktivert",
+                description: "Du vil nå motta varsler om utløpende kvitteringer",
+              });
+            }
+          } else {
+            // User denied permission
+            setPushEnabled(false);
             toast({
-              title: "Push-varsler aktivert",
-              description: "Du vil nå motta varsler om utløpende kvitteringer",
+              title: "Tillatelse nektet",
+              description: "Du må tillate varsler i nettleseren",
+              variant: "destructive"
             });
           }
         });
