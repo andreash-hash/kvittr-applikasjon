@@ -74,8 +74,8 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     if (daysRemaining < 0) return null; // Expired
     
     let badgeColor = 'bg-green-600';
-    if (daysRemaining < 30) badgeColor = 'bg-red-600';
-    else if (daysRemaining < 90) badgeColor = 'bg-orange-500';
+    if (daysRemaining < 7) badgeColor = 'bg-red-600';
+    else if (daysRemaining <= 30) badgeColor = 'bg-orange-500';
     
     return (
       <Badge className={`${badgeColor} text-white text-xs`}>
@@ -100,8 +100,8 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     if (daysRemaining < 0) return null; // Expired
     
     let badgeColor = 'bg-green-600';
-    if (daysRemaining < 3) badgeColor = 'bg-red-600';
-    else if (daysRemaining < 7) badgeColor = 'bg-orange-500';
+    if (daysRemaining < 7) badgeColor = 'bg-red-600';
+    else if (daysRemaining <= 30) badgeColor = 'bg-orange-500';
     
     return (
       <Badge className={`${badgeColor} text-white text-xs`}>
@@ -123,8 +123,8 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     if (daysRemaining < 0) return null; // Expired
     
     let badgeColor = 'bg-green-600';
-    if (daysRemaining < 30) badgeColor = 'bg-red-600';
-    else if (daysRemaining < 90) badgeColor = 'bg-orange-500';
+    if (daysRemaining < 7) badgeColor = 'bg-red-600';
+    else if (daysRemaining <= 30) badgeColor = 'bg-orange-500';
     
     return (
       <Badge className={`${badgeColor} text-white text-xs`}>

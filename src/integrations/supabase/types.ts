@@ -61,7 +61,6 @@ export type Database = {
           id: string
           image_url: string
           is_used: boolean | null
-          item_type: string
           notes: string | null
           processing_status: string | null
           product_name: string | null
@@ -86,7 +85,6 @@ export type Database = {
           id?: string
           image_url: string
           is_used?: boolean | null
-          item_type: string
           notes?: string | null
           processing_status?: string | null
           product_name?: string | null
@@ -111,7 +109,6 @@ export type Database = {
           id?: string
           image_url?: string
           is_used?: boolean | null
-          item_type?: string
           notes?: string | null
           processing_status?: string | null
           product_name?: string | null

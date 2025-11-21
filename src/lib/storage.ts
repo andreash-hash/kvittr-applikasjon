@@ -37,7 +37,7 @@ export const getReceipts = async (userId: string): Promise<Receipt[]> => {
   return (data || []).map(r => ({
     id: r.id,
     user_id: r.user_id,
-    type: r.item_type as Receipt['type'],
+    type: r.receipt_type as Receipt['type'],
     shop_name: r.shop_name || '',
     product_name: r.product_name || '',
     amount: Number(r.amount) || 0,
@@ -61,7 +61,7 @@ export const saveReceipt = async (receipt: Receipt): Promise<void> => {
   const dbReceipt = {
     id: receipt.id,
     user_id: receipt.user_id,
-    item_type: receipt.type,
+    receipt_type: receipt.type,
     shop_name: receipt.shop_name,
     product_name: receipt.product_name,
     amount: receipt.amount,
