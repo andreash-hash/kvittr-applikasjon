@@ -4,12 +4,94 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState(true);
   const [emailReminders, setEmailReminders] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get current user and load settings
+    const loadSettings = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        
+        // Load user settings from database
+        const { data: settings } = await supabase
+          .from('user_settings')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (settings) {
+          setNotifications(settings.notification_enabled ?? true);
+        }
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const handleNotificationToggle = async (enabled: boolean) => {
+    setNotifications(enabled);
+    
+    if (!userId) return;
+
+    if (enabled) {
+      // Request push notification permission via OneSignal
+      try {
+        const OneSignal = (window as any).OneSignal;
+        if (OneSignal) {
+          await OneSignal.showSlidedownPrompt();
+          
+          // Get subscription ID
+          const subscriptionId = await OneSignal.User.PushSubscription.id;
+          
+          if (subscriptionId) {
+            // Save to database
+            await supabase
+              .from('user_settings')
+              .upsert({
+                user_id: userId,
+                notification_enabled: true,
+                push_token: subscriptionId
+              });
+            
+            toast({
+              title: "Push-varsler aktivert",
+              description: "Du vil nå motta varsler om utløpende kvitteringer",
+            });
+          }
+        }
+      } catch (error) {
+        console.error('OneSignal error:', error);
+        toast({
+          title: "Kunne ikke aktivere varsler",
+          description: "Vennligst prøv igjen senere",
+          variant: "destructive"
+        });
+      }
+    } else {
+      // Disable notifications in database
+      await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: userId,
+          notification_enabled: false,
+          push_token: null
+        });
+      
+      toast({
+        title: "Push-varsler deaktivert",
+        description: "Du vil ikke lenger motta varsler",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
@@ -39,7 +121,7 @@ const Settings = () => {
               <Switch
                 id="notifications"
                 checked={notifications}
-                onCheckedChange={setNotifications}
+                onCheckedChange={handleNotificationToggle}
               />
             </div>
 
