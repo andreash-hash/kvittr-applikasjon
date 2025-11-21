@@ -12,6 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { differenceInDays, differenceInMonths, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
+import { isGroceryStore } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const ItemDetail = () => {
   const { id } = useParams();
@@ -572,53 +574,67 @@ const ItemDetail = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="warranty_until">Garanti til</Label>
-                  <Input
-                    id="warranty_until"
-                    type="date"
-                    value={receipt.warranty_until?.split('T')[0] || ''}
-                    onChange={(e) => setReceipt({...receipt, warranty_until: e.target.value})}
-                    disabled={!isEditing}
-                  />
-                  {receipt.warranty_until && (
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      {(() => {
-                        const warrantyDate = new Date(receipt.warranty_until);
-                        const daysRemaining = differenceInDays(warrantyDate, new Date());
-                        const monthsRemaining = differenceInMonths(warrantyDate, new Date());
-                        
-                        if (daysRemaining < 0) return 'Garanti utløpt';
-                        if (monthsRemaining > 0) return `${monthsRemaining} ${monthsRemaining === 1 ? 'måned' : 'måneder'} igjen`;
-                        return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
-                      })()}
+                {/* Grocery store badge - no warranty/return fields */}
+                {isGroceryStore(receipt.shop_name) ? (
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    <Badge variant="secondary" className="w-fit">
+                      Dagligvare - ingen garanti
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">
+                      Dagligvarer har normalt ikke garanti eller bytterett.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="warranty_until">Garanti til</Label>
+                      <Input
+                        id="warranty_until"
+                        type="date"
+                        value={receipt.warranty_until?.split('T')[0] || ''}
+                        onChange={(e) => setReceipt({...receipt, warranty_until: e.target.value})}
+                        disabled={!isEditing}
+                      />
+                      {receipt.warranty_until && (
+                        <div className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          {(() => {
+                            const warrantyDate = new Date(receipt.warranty_until);
+                            const daysRemaining = differenceInDays(warrantyDate, new Date());
+                            const monthsRemaining = differenceInMonths(warrantyDate, new Date());
+                            
+                            if (daysRemaining < 0) return 'Garanti utløpt';
+                            if (monthsRemaining > 0) return `${monthsRemaining} ${monthsRemaining === 1 ? 'måned' : 'måneder'} igjen`;
+                            return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
+                          })()}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="return_until">Byttefrist til</Label>
-                  <Input
-                    id="return_until"
-                    type="date"
-                    value={receipt.return_until?.split('T')[0] || ''}
-                    onChange={(e) => setReceipt({...receipt, return_until: e.target.value})}
-                    disabled={!isEditing}
-                  />
-                  {receipt.return_until && (
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4" />
-                      {(() => {
-                        const returnDate = new Date(receipt.return_until);
-                        const daysRemaining = differenceInDays(returnDate, new Date());
-                        
-                        if (daysRemaining < 0) return 'Byttefrist utløpt';
-                        return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
-                      })()}
+                    <div className="space-y-2">
+                      <Label htmlFor="return_until">Byttefrist til</Label>
+                      <Input
+                        id="return_until"
+                        type="date"
+                        value={receipt.return_until?.split('T')[0] || ''}
+                        onChange={(e) => setReceipt({...receipt, return_until: e.target.value})}
+                        disabled={!isEditing}
+                      />
+                      {receipt.return_until && (
+                        <div className="text-sm text-muted-foreground flex items-center gap-2">
+                          <RefreshCw className="h-4 w-4" />
+                          {(() => {
+                            const returnDate = new Date(receipt.return_until);
+                            const daysRemaining = differenceInDays(returnDate, new Date());
+                            
+                            if (daysRemaining < 0) return 'Byttefrist utløpt';
+                            return `${daysRemaining} ${daysRemaining === 1 ? 'dag' : 'dager'} igjen`;
+                          })()}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </>
             )}
             {/* Disclaimer */}
