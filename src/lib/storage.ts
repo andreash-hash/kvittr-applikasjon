@@ -19,6 +19,7 @@ export interface Receipt {
   status: 'active' | 'expiring_soon' | 'expired' | 'used';
   processing_status?: 'pending' | 'completed' | 'failed';
   is_used?: boolean;
+  has_warranty?: boolean | null;
   created_at: string;
 }
 
@@ -51,6 +52,7 @@ export const getReceipts = async (userId: string): Promise<Receipt[]> => {
     status: (r.status as Receipt['status']) || 'active',
     processing_status: (r.processing_status as Receipt['processing_status']) || undefined,
     is_used: r.is_used || false,
+    has_warranty: r.has_warranty,
     created_at: r.created_at || new Date().toISOString(),
   }));
 };
@@ -71,6 +73,7 @@ export const saveReceipt = async (receipt: Receipt): Promise<void> => {
     image_url: receipt.image_url,
     status: receipt.status,
     processing_status: receipt.processing_status || null,
+    has_warranty: receipt.has_warranty,
   };
 
   const { error } = await supabase
