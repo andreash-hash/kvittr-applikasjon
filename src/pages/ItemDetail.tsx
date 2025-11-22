@@ -186,7 +186,7 @@ const ItemDetail = () => {
     
     try {
       // Re-trigger OCR webhook
-      const response = await fetch('https://diabetes-prepare-stopping-daniel.trycloudflare.com/webhook/receipt-ocr', {
+      const response = await fetch('https://api.kvittr.app/webhook/receipt-ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

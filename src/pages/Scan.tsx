@@ -289,7 +289,7 @@ const Scan = () => {
       await saveReceipt(newReceipt);
       
       // Trigger OCR webhook (don't await - let it process in background)
-      fetch('https://diabetes-prepare-stopping-daniel.trycloudflare.com/webhook/receipt-ocr', {
+      fetch('https://api.kvittr.app/webhook/receipt-ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
