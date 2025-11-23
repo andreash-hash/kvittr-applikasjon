@@ -54,78 +54,112 @@ const Settings = () => {
     
     try {
       if (enabled) {
-        // Initialize OneSignal and request push permission
-        if (window.OneSignalDeferred) {
-          window.OneSignalDeferred.push(async function(OneSignal: any) {
-            await OneSignal.init({
-              appId: "289fa2eb-ba97-45e8-8328-08a11095772c",
-              allowLocalhostAsSecureOrigin: true
+        // Initialize OneSignal and enable push notifications
+        await new Promise<void>((resolve, reject) => {
+          if (window.OneSignalDeferred) {
+            window.OneSignalDeferred.push(async function(OneSignal: any) {
+              try {
+                await OneSignal.init({
+                  appId: "289fa2eb-ba97-45e8-8328-08a11095772c",
+                  allowLocalhostAsSecureOrigin: true
+                });
+                
+                // Set external user ID
+                await OneSignal.login(userId);
+                
+                // Opt in to push notifications
+                await OneSignal.User.PushSubscription.optIn();
+                
+                // Request permission
+                const permission = await OneSignal.Notifications.requestPermission();
+                
+                if (!permission) {
+                  reject(new Error('Push notification permission denied'));
+                  return;
+                }
+                
+                // Get player ID
+                const playerId = await OneSignal.User.PushSubscription.id;
+                
+                if (playerId) {
+                  // Save to push_tokens table
+                  await supabase.from('push_tokens').upsert({
+                    user_id: userId,
+                    token: playerId,
+                    platform: 'web',
+                    enabled: true
+                  });
+                  
+                  // Update user_settings
+                  const { error } = await supabase
+                    .from('user_settings')
+                    .upsert({
+                      user_id: userId,
+                      notification_enabled: true,
+                      push_token: playerId
+                    });
+                  
+                  if (error) {
+                    reject(error);
+                    return;
+                  }
+                }
+                
+                resolve();
+              } catch (err) {
+                reject(err);
+              }
             });
-            
-            // Set external user ID
-            await OneSignal.login(userId);
-            
-            // Request permission
-            const permission = await OneSignal.Notifications.requestPermission();
-            
-            if (!permission) {
-              throw new Error('Push notification permission denied');
-            }
-            
-            // Get player ID
-            const playerId = await OneSignal.User.PushSubscription.id;
-            
-            if (playerId) {
-              // Save to push_tokens table
-              await supabase.from('push_tokens').upsert({
-                user_id: userId,
-                token: playerId,
-                platform: 'web',
-                enabled: true
-              });
-            }
-            
-            // Update user_settings
-            const { error } = await supabase
-              .from('user_settings')
-              .upsert({
-                user_id: userId,
-                notification_enabled: true,
-                push_token: playerId
-              });
-            
-            if (error) throw error;
-            
-            setPushEnabled(true);
-            
-            toast({
-              title: "Push-varsler aktivert",
-              description: "Du vil motta varsler om utløpende kvitteringer"
-            });
-          });
-        }
+          } else {
+            reject(new Error('OneSignal not loaded'));
+          }
+        });
+        
+        setPushEnabled(true);
+        
+        toast({
+          title: "Push-varsler aktivert",
+          description: "Du vil motta varsler om utløpende kvitteringer"
+        });
+        
       } else {
         // Disable notifications
-        if (window.OneSignal) {
-          await window.OneSignal.User.PushSubscription.optOut();
-          
-          // Update push_tokens to disabled
-          await supabase
-            .from('push_tokens')
-            .update({ enabled: false })
-            .eq('user_id', userId);
-        }
-        
-        // Update user_settings
-        const { error } = await supabase
-          .from('user_settings')
-          .upsert({
-            user_id: userId,
-            notification_enabled: false,
-            push_token: null
-          });
-        
-        if (error) throw error;
+        await new Promise<void>((resolve, reject) => {
+          if (window.OneSignalDeferred) {
+            window.OneSignalDeferred.push(async function(OneSignal: any) {
+              try {
+                // Opt out of push notifications
+                await OneSignal.User.PushSubscription.optOut();
+                
+                // Update push_tokens to disabled
+                await supabase
+                  .from('push_tokens')
+                  .update({ enabled: false })
+                  .eq('user_id', userId);
+                
+                // Update user_settings
+                const { error } = await supabase
+                  .from('user_settings')
+                  .upsert({
+                    user_id: userId,
+                    notification_enabled: false,
+                    push_token: null
+                  });
+                
+                if (error) {
+                  reject(error);
+                  return;
+                }
+                
+                resolve();
+              } catch (err) {
+                reject(err);
+              }
+            });
+          } else {
+            reject(new Error('OneSignal not loaded'));
+          }
+        });
         
         setPushEnabled(false);
         
@@ -141,6 +175,8 @@ const Settings = () => {
         description: error instanceof Error ? error.message : "Vennligst prøv igjen",
         variant: "destructive"
       });
+      // Revert the toggle state on error
+      setPushEnabled(!enabled);
     } finally {
       setIsLoading(false);
     }
