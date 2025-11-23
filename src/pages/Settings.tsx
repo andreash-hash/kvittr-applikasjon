@@ -9,6 +9,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+declare global {
+  interface Window {
+    OneSignalDeferred?: any[];
+    OneSignal?: any;
+  }
+}
+
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -46,29 +53,92 @@ const Settings = () => {
     setIsLoading(true);
     
     try {
-      // Update database
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: userId,
-          notification_enabled: enabled
+      if (enabled) {
+        // Initialize OneSignal and request push permission
+        if (window.OneSignalDeferred) {
+          window.OneSignalDeferred.push(async function(OneSignal: any) {
+            await OneSignal.init({
+              appId: "289fa2eb-ba97-45e8-8328-08a11095772c",
+              allowLocalhostAsSecureOrigin: true
+            });
+            
+            // Set external user ID
+            await OneSignal.login(userId);
+            
+            // Request permission
+            const permission = await OneSignal.Notifications.requestPermission();
+            
+            if (!permission) {
+              throw new Error('Push notification permission denied');
+            }
+            
+            // Get player ID
+            const playerId = await OneSignal.User.PushSubscription.id;
+            
+            if (playerId) {
+              // Save to push_tokens table
+              await supabase.from('push_tokens').upsert({
+                user_id: userId,
+                token: playerId,
+                platform: 'web',
+                enabled: true
+              });
+            }
+            
+            // Update user_settings
+            const { error } = await supabase
+              .from('user_settings')
+              .upsert({
+                user_id: userId,
+                notification_enabled: true,
+                push_token: playerId
+              });
+            
+            if (error) throw error;
+            
+            setPushEnabled(true);
+            
+            toast({
+              title: "Push-varsler aktivert",
+              description: "Du vil motta varsler om utløpende kvitteringer"
+            });
+          });
+        }
+      } else {
+        // Disable notifications
+        if (window.OneSignal) {
+          await window.OneSignal.User.PushSubscription.optOut();
+          
+          // Update push_tokens to disabled
+          await supabase
+            .from('push_tokens')
+            .update({ enabled: false })
+            .eq('user_id', userId);
+        }
+        
+        // Update user_settings
+        const { error } = await supabase
+          .from('user_settings')
+          .upsert({
+            user_id: userId,
+            notification_enabled: false,
+            push_token: null
+          });
+        
+        if (error) throw error;
+        
+        setPushEnabled(false);
+        
+        toast({
+          title: "Push-varsler deaktivert",
+          description: "Du vil ikke lenger motta varsler"
         });
-      
-      if (error) throw error;
-      
-      setPushEnabled(enabled);
-      
-      toast({
-        title: enabled ? "Push-varsler aktivert" : "Push-varsler deaktivert",
-        description: enabled 
-          ? "Du vil motta varsler om utløpende kvitteringer" 
-          : "Du vil ikke lenger motta varsler"
-      });
+      }
     } catch (error) {
       console.error('Settings update error:', error);
       toast({
         title: "Kunne ikke oppdatere innstillinger",
-        description: "Vennligst prøv igjen",
+        description: error instanceof Error ? error.message : "Vennligst prøv igjen",
         variant: "destructive"
       });
     } finally {
