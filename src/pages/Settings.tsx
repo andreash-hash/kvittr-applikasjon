@@ -53,59 +53,57 @@ const Settings = () => {
     setIsLoading(true);
     
     try {
-      // Update state immediately for responsive UI
+      // Update UI immediately
       setPushEnabled(enabled);
       
-      if (enabled) {
-        // Request permission and opt-in to push notifications
-        if (window.OneSignal) {
-          const permission = await window.OneSignal.Notifications.requestPermission();
-          console.log('OneSignal permission:', permission);
-          
-          if (permission) {
-            await window.OneSignal.User.PushSubscription.optIn();
-            
-            // Wait for subscription to be ready
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            const playerId = window.OneSignal.User.PushSubscription.id;
-            console.log('OneSignal player_id:', playerId);
-            
-            if (playerId) {
-              const { error: tokenError } = await supabase.from('push_tokens').upsert({
-                user_id: userId,
-                token: playerId,
-                platform: 'web',
-                enabled: true
-              });
-              
-              if (tokenError) {
-                console.error('Error saving push token:', tokenError);
-              } else {
-                console.log('Push token saved successfully');
-              }
-            }
-          }
-        }
-      } else {
-        // Opt-out of push notifications
-        if (window.OneSignal) {
-          await window.OneSignal.User.PushSubscription.optOut();
-        }
-        
-        // Update push_tokens to disabled
-        await supabase.from('push_tokens').update({ enabled: false }).eq('user_id', userId);
-      }
-      
-      // Always save to database regardless of ON or OFF
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: userId,
-          notification_enabled: enabled
-        });
+      // Save to database first
+      const { error } = await supabase.from('user_settings').upsert({
+        user_id: userId,
+        notification_enabled: enabled
+      });
       
       if (error) throw error;
+      
+      // Then try OneSignal operations (don't fail if this errors)
+      if (window.OneSignal) {
+        try {
+          if (enabled) {
+            const permission = await window.OneSignal.Notifications.requestPermission();
+            console.log('OneSignal permission:', permission);
+            
+            if (permission) {
+              await window.OneSignal.User.PushSubscription.optIn();
+              
+              // Wait for subscription to be ready
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
+              const playerId = window.OneSignal.User.PushSubscription.id;
+              console.log('OneSignal player_id:', playerId);
+              
+              if (playerId) {
+                const { error: tokenError } = await supabase.from('push_tokens').upsert({
+                  user_id: userId,
+                  token: playerId,
+                  platform: 'web',
+                  enabled: true
+                });
+                
+                if (tokenError) {
+                  console.error('Error saving push token:', tokenError);
+                } else {
+                  console.log('Push token saved successfully');
+                }
+              }
+            }
+          } else {
+            await window.OneSignal.User.PushSubscription.optOut();
+            await supabase.from('push_tokens').update({ enabled: false }).eq('user_id', userId);
+          }
+        } catch (oneSignalError) {
+          console.error('OneSignal operation error:', oneSignalError);
+          // Continue anyway - database is updated
+        }
+      }
       
       toast({
         title: enabled ? "Push-varsler aktivert" : "Push-varsler deaktivert",
@@ -116,13 +114,12 @@ const Settings = () => {
       
     } catch (error) {
       console.error('Settings update error:', error);
-      // Revert on error
-      setPushEnabled(!enabled);
       toast({
         title: "Kunne ikke oppdatere innstillinger",
         description: error instanceof Error ? error.message : "Vennligst prøv igjen",
         variant: "destructive"
       });
+      // Don't revert toggle - user can try again
     } finally {
       setIsLoading(false);
     }
