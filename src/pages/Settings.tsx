@@ -57,46 +57,44 @@ const Settings = () => {
       setPushEnabled(enabled);
       
       if (enabled) {
-        // Initialize OneSignal on first enable
-        window.OneSignalDeferred = window.OneSignalDeferred || [];
-        window.OneSignalDeferred.push(async function(OneSignal: any) {
-          try {
-            await OneSignal.init({
-              appId: "289fa2eb-ba97-45e8-8328-08a11095772c",
-              allowLocalhostAsSecureOrigin: true
-            });
+        // Request permission and opt-in to push notifications
+        if (window.OneSignal) {
+          const permission = await window.OneSignal.Notifications.requestPermission();
+          console.log('OneSignal permission:', permission);
+          
+          if (permission) {
+            await window.OneSignal.User.PushSubscription.optIn();
             
-            await OneSignal.login(userId);
+            // Wait for subscription to be ready
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
-            const permission = await OneSignal.Notifications.requestPermission();
-            console.log('OneSignal permission:', permission);
+            const playerId = window.OneSignal.User.PushSubscription.id;
+            console.log('OneSignal player_id:', playerId);
             
-            if (permission) {
-              // Wait for subscription to be ready
-              await new Promise(resolve => setTimeout(resolve, 1000));
+            if (playerId) {
+              const { error: tokenError } = await supabase.from('push_tokens').upsert({
+                user_id: userId,
+                token: playerId,
+                platform: 'web',
+                enabled: true
+              });
               
-              const playerId = OneSignal.User.PushSubscription.id;
-              console.log('OneSignal player_id:', playerId);
-              
-              if (playerId) {
-                const { error: tokenError } = await supabase.from('push_tokens').upsert({
-                  user_id: userId,
-                  token: playerId,
-                  platform: 'web',
-                  enabled: true
-                });
-                
-                if (tokenError) {
-                  console.error('Error saving push token:', tokenError);
-                } else {
-                  console.log('Push token saved successfully');
-                }
+              if (tokenError) {
+                console.error('Error saving push token:', tokenError);
+              } else {
+                console.log('Push token saved successfully');
               }
             }
-          } catch (error) {
-            console.error('OneSignal initialization error:', error);
           }
-        });
+        }
+      } else {
+        // Opt-out of push notifications
+        if (window.OneSignal) {
+          await window.OneSignal.User.PushSubscription.optOut();
+        }
+        
+        // Update push_tokens to disabled
+        await supabase.from('push_tokens').update({ enabled: false }).eq('user_id', userId);
       }
       
       // Always save to database regardless of ON or OFF
