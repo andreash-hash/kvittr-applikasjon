@@ -60,26 +60,41 @@ const Settings = () => {
         // Initialize OneSignal on first enable
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         window.OneSignalDeferred.push(async function(OneSignal: any) {
-          await OneSignal.init({
-            appId: "289fa2eb-ba97-45e8-8328-08a11095772c",
-            allowLocalhostAsSecureOrigin: true
-          });
-          
-          await OneSignal.login(userId);
-          
-          const permission = await OneSignal.Notifications.requestPermission();
-          
-          if (permission) {
-            const playerId = await OneSignal.User.PushSubscription.id;
+          try {
+            await OneSignal.init({
+              appId: "289fa2eb-ba97-45e8-8328-08a11095772c",
+              allowLocalhostAsSecureOrigin: true
+            });
             
-            if (playerId) {
-              await supabase.from('push_tokens').upsert({
-                user_id: userId,
-                token: playerId,
-                platform: 'web',
-                enabled: true
-              });
+            await OneSignal.login(userId);
+            
+            const permission = await OneSignal.Notifications.requestPermission();
+            console.log('OneSignal permission:', permission);
+            
+            if (permission) {
+              // Wait for subscription to be ready
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
+              const playerId = OneSignal.User.PushSubscription.id;
+              console.log('OneSignal player_id:', playerId);
+              
+              if (playerId) {
+                const { error: tokenError } = await supabase.from('push_tokens').upsert({
+                  user_id: userId,
+                  token: playerId,
+                  platform: 'web',
+                  enabled: true
+                });
+                
+                if (tokenError) {
+                  console.error('Error saving push token:', tokenError);
+                } else {
+                  console.log('Push token saved successfully');
+                }
+              }
             }
+          } catch (error) {
+            console.error('OneSignal initialization error:', error);
           }
         });
       }
