@@ -16,18 +16,19 @@ const Settings = () => {
   const [notify30Days, setNotify30Days] = useState(true);
   const [notify7Days, setNotify7Days] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Get current user and load settings
+    // Load settings from database on mount
     const loadSettings = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
         
-        // Load user settings from database
+        // Fetch current notification setting
         const { data: settings } = await supabase
           .from('user_settings')
-          .select('*')
+          .select('notification_enabled')
           .eq('user_id', user.id)
           .maybeSingle();
         
@@ -41,110 +42,37 @@ const Settings = () => {
 
   const handlePushToggle = async (enabled: boolean) => {
     if (!userId) return;
-
-    if (enabled) {
-      // Request push notification permission via OneSignal
-      try {
-        // Wait for OneSignal to be initialized
-        if (typeof (window as any).OneSignalDeferred === 'undefined') {
-          throw new Error('OneSignal not loaded');
-        }
-        
-        (window as any).OneSignalDeferred.push(async function(OneSignal: any) {
-          // Request native browser permission
-          const permission = await OneSignal.Notifications.requestPermission();
-          
-          if (permission) {
-            // User accepted - get subscription ID
-            const subscriptionId = await OneSignal.User.PushSubscription.id;
-            
-            if (subscriptionId) {
-              // Save to user_settings table
-              const { error: settingsError } = await supabase
-                .from('user_settings')
-                .upsert({
-                  user_id: userId,
-                  notification_enabled: true,
-                  push_token: subscriptionId
-                });
-              
-              if (settingsError) throw settingsError;
-              
-              // Save to push_tokens table
-              const { error: tokenError } = await supabase
-                .from('push_tokens')
-                .upsert({
-                  user_id: userId,
-                  token: subscriptionId,
-                  platform: 'web',
-                  enabled: true
-                });
-              
-              if (tokenError) throw tokenError;
-              
-              setPushEnabled(true);
-              
-              toast({
-                title: "Push-varsler aktivert",
-                description: "Du vil nå motta varsler om utløpende kvitteringer",
-              });
-            }
-          } else {
-            // User denied permission
-            toast({
-              title: "Tillatelse nektet",
-              description: "Du må tillate varsler i nettleseren",
-              variant: "destructive"
-            });
-          }
-        });
-      } catch (error) {
-        console.error('OneSignal error:', error);
-        toast({
-          title: "Kunne ikke aktivere varsler",
-          description: "Vennligst prøv igjen eller sjekk nettleserinnstillingene",
-          variant: "destructive"
-        });
-      }
-    } else {
-      // Disable notifications and unsubscribe from OneSignal
-      try {
-        (window as any).OneSignalDeferred.push(async function(OneSignal: any) {
-          await OneSignal.User.PushSubscription.optOut();
-        });
-      } catch (error) {
-        console.error('OneSignal unsubscribe error:', error);
-      }
-      
-      // Update user_settings table
-      const { error: settingsError } = await supabase
+    
+    setIsLoading(true);
+    
+    try {
+      // Update database
+      const { error } = await supabase
         .from('user_settings')
         .upsert({
           user_id: userId,
-          notification_enabled: false,
-          push_token: null
+          notification_enabled: enabled
         });
       
-      if (settingsError) {
-        console.error('Settings update error:', settingsError);
-      }
+      if (error) throw error;
       
-      // Disable in push_tokens table
-      const { error: tokenError } = await supabase
-        .from('push_tokens')
-        .update({ enabled: false })
-        .eq('user_id', userId);
-      
-      if (tokenError) {
-        console.error('Push token update error:', tokenError);
-      }
-      
-      setPushEnabled(false);
+      setPushEnabled(enabled);
       
       toast({
-        title: "Push-varsler deaktivert",
-        description: "Du vil ikke lenger motta varsler",
+        title: enabled ? "Push-varsler aktivert" : "Push-varsler deaktivert",
+        description: enabled 
+          ? "Du vil motta varsler om utløpende kvitteringer" 
+          : "Du vil ikke lenger motta varsler"
       });
+    } catch (error) {
+      console.error('Settings update error:', error);
+      toast({
+        title: "Kunne ikke oppdatere innstillinger",
+        description: "Vennligst prøv igjen",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -178,6 +106,7 @@ const Settings = () => {
                 id="push-notifications"
                 checked={pushEnabled}
                 onCheckedChange={handlePushToggle}
+                disabled={isLoading}
               />
             </div>
           </CardContent>
