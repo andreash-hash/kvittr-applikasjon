@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      guides: {
+        Row: {
+          affiliate_links: Json | null
+          brand: string | null
+          clicks: number | null
+          content: string | null
+          conversions: number | null
+          created_at: string | null
+          id: string
+          product_category: string
+          product_name: string | null
+          views: number | null
+        }
+        Insert: {
+          affiliate_links?: Json | null
+          brand?: string | null
+          clicks?: number | null
+          content?: string | null
+          conversions?: number | null
+          created_at?: string | null
+          id?: string
+          product_category: string
+          product_name?: string | null
+          views?: number | null
+        }
+        Update: {
+          affiliate_links?: Json | null
+          brand?: string | null
+          clicks?: number | null
+          content?: string | null
+          conversions?: number | null
+          created_at?: string | null
+          id?: string
+          product_category?: string
+          product_name?: string | null
+          views?: number | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           id: string
@@ -21,6 +60,7 @@ export type Database = {
           receipt_id: string | null
           sent_at: string | null
           status: string | null
+          type: string | null
           user_id: string
         }
         Insert: {
@@ -29,6 +69,7 @@ export type Database = {
           receipt_id?: string | null
           sent_at?: string | null
           status?: string | null
+          type?: string | null
           user_id: string
         }
         Update: {
@@ -37,6 +78,7 @@ export type Database = {
           receipt_id?: string | null
           sent_at?: string | null
           status?: string | null
+          type?: string | null
           user_id?: string
         }
         Relationships: [
@@ -49,18 +91,50 @@ export type Database = {
           },
         ]
       }
+      push_tokens: {
+        Row: {
+          created_at: string | null
+          enabled: boolean | null
+          id: string
+          platform: string | null
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          platform?: string | null
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          platform?: string | null
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       receipts: {
         Row: {
           amount: number | null
+          archived: boolean | null
+          category: string | null
           created_at: string | null
           expiry_date: string | null
           gift_card_balance: number | null
           gift_card_code: string | null
           gift_card_value: number | null
+          guide_generated: boolean | null
+          guide_url: string | null
           has_warranty: boolean | null
           id: string
           image_url: string
           is_used: boolean | null
+          maintenance_priority: string | null
           notes: string | null
           processing_status: string | null
           product_name: string | null
@@ -71,20 +145,28 @@ export type Database = {
           shop_name: string | null
           status: string | null
           updated_at: string | null
+          used_date: string | null
           user_id: string
+          warranty_notified_30d: boolean | null
+          warranty_notified_7d: boolean | null
           warranty_until: string | null
         }
         Insert: {
           amount?: number | null
+          archived?: boolean | null
+          category?: string | null
           created_at?: string | null
           expiry_date?: string | null
           gift_card_balance?: number | null
           gift_card_code?: string | null
           gift_card_value?: number | null
+          guide_generated?: boolean | null
+          guide_url?: string | null
           has_warranty?: boolean | null
           id?: string
           image_url: string
           is_used?: boolean | null
+          maintenance_priority?: string | null
           notes?: string | null
           processing_status?: string | null
           product_name?: string | null
@@ -95,20 +177,28 @@ export type Database = {
           shop_name?: string | null
           status?: string | null
           updated_at?: string | null
+          used_date?: string | null
           user_id: string
+          warranty_notified_30d?: boolean | null
+          warranty_notified_7d?: boolean | null
           warranty_until?: string | null
         }
         Update: {
           amount?: number | null
+          archived?: boolean | null
+          category?: string | null
           created_at?: string | null
           expiry_date?: string | null
           gift_card_balance?: number | null
           gift_card_code?: string | null
           gift_card_value?: number | null
+          guide_generated?: boolean | null
+          guide_url?: string | null
           has_warranty?: boolean | null
           id?: string
           image_url?: string
           is_used?: boolean | null
+          maintenance_priority?: string | null
           notes?: string | null
           processing_status?: string | null
           product_name?: string | null
@@ -119,7 +209,10 @@ export type Database = {
           shop_name?: string | null
           status?: string | null
           updated_at?: string | null
+          used_date?: string | null
           user_id?: string
+          warranty_notified_30d?: boolean | null
+          warranty_notified_7d?: boolean | null
           warranty_until?: string | null
         }
         Relationships: []
