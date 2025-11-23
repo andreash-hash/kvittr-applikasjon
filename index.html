@@ -6,6 +6,26 @@
     <title>kvitter-meg</title>
     <meta name="description" content="Lovable Generated Project" />
     <meta name="author" content="Lovable" />
+    
+    <!-- Firebase Cloud Messaging CDN -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+    
+    <!-- Firebase Initialization -->
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyDuWM-puru4dAVUnQjKeEHYQvtViix8tBU",
+        projectId: "kvittr-push",
+        messagingSenderId: "191789668682",
+        appId: "1:191789668682:web:1c793c0e8e7c03c13749b3"
+      };
+      
+      firebase.initializeApp(firebaseConfig);
+      
+      // Make messaging available globally
+      window.firebaseMessaging = firebase.messaging();
+      window.FIREBASE_VAPID_KEY = "BPM6Gw7dCaWS9-7_0_naLbiXJJLjTSVYVFDDc_bw4P4fz0ktGCkKl0k9LGrS5oVwHr1R83bVa8kVWjCiBiZNZ80";
+    </script>
 
     <meta property="og:title" content="kvitter-meg" />
     <meta property="og:description" content="Lovable Generated Project" />

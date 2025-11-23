@@ -9,6 +9,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+declare global {
+  interface Window {
+    firebaseMessaging?: any;
+    FIREBASE_VAPID_KEY?: string;
+  }
+}
+
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -48,7 +55,53 @@ const Settings = () => {
     try {
       setPushEnabled(enabled);
       
-      // Save preference to database
+      if (enabled) {
+        // Check if Firebase is loaded
+        if (!window.firebaseMessaging) {
+          throw new Error('Firebase not loaded');
+        }
+
+        // Request notification permission
+        const permission = await Notification.requestPermission();
+        console.log('Notification permission:', permission);
+        
+        if (permission !== 'granted') {
+          throw new Error('Notification permission denied');
+        }
+
+        // Get FCM token
+        const token = await window.firebaseMessaging.getToken({
+          vapidKey: window.FIREBASE_VAPID_KEY
+        });
+        
+        console.log('FCM token:', token);
+        
+        if (!token) {
+          throw new Error('Failed to get FCM token');
+        }
+        
+        // Save token to Supabase
+        const { error: tokenError } = await supabase.from('push_tokens').upsert({
+          user_id: userId,
+          token: token,
+          platform: 'web',
+          enabled: true
+        });
+        
+        if (tokenError) {
+          console.error('Error saving push token:', tokenError);
+          throw tokenError;
+        }
+        
+        console.log('Push token saved successfully');
+      } else {
+        // Disable push notifications
+        await supabase.from('push_tokens')
+          .update({ enabled: false })
+          .eq('user_id', userId);
+      }
+      
+      // Save preference to user_settings
       const { error } = await supabase.from('user_settings').upsert({
         user_id: userId,
         notification_enabled: enabled
@@ -59,7 +112,7 @@ const Settings = () => {
       toast({
         title: enabled ? "Push-varsler aktivert" : "Push-varsler deaktivert",
         description: enabled 
-          ? "Firebase implementering venter på Lovable bugfix" 
+          ? "Du vil motta varsler om utløpende kvitteringer" 
           : "Du vil ikke lenger motta varsler"
       });
       
