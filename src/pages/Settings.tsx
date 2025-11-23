@@ -56,9 +56,14 @@ const Settings = () => {
       setPushEnabled(enabled);
       
       if (enabled) {
+        // Check if Notification API is supported
+        if (!('Notification' in window)) {
+          throw new Error('Push-varsler støttes ikke i denne nettleseren');
+        }
+
         // Check if Firebase is loaded
         if (!window.firebaseMessaging) {
-          throw new Error('Firebase not loaded');
+          throw new Error('Firebase ikke lastet');
         }
 
         // Request notification permission
@@ -66,7 +71,7 @@ const Settings = () => {
         console.log('Notification permission:', permission);
         
         if (permission !== 'granted') {
-          throw new Error('Notification permission denied');
+          throw new Error('Push-varsler ble avvist');
         }
 
         // Get FCM token
@@ -77,7 +82,7 @@ const Settings = () => {
         console.log('FCM token:', token);
         
         if (!token) {
-          throw new Error('Failed to get FCM token');
+          throw new Error('Kunne ikke hente FCM token');
         }
         
         // Save token to Supabase
@@ -90,7 +95,7 @@ const Settings = () => {
         
         if (tokenError) {
           console.error('Error saving push token:', tokenError);
-          throw tokenError;
+          throw new Error('Kunne ikke lagre push token');
         }
         
         console.log('Push token saved successfully');
@@ -101,13 +106,16 @@ const Settings = () => {
           .eq('user_id', userId);
       }
       
-      // Save preference to user_settings
+      // Always save preference to user_settings regardless of Firebase success
       const { error } = await supabase.from('user_settings').upsert({
         user_id: userId,
         notification_enabled: enabled
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error saving user settings:', error);
+        throw error;
+      }
       
       toast({
         title: enabled ? "Push-varsler aktivert" : "Push-varsler deaktivert",
