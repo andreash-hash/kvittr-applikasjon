@@ -9,13 +9,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-declare global {
-  interface Window {
-    OneSignalDeferred?: any[];
-    OneSignal?: any;
-  }
-}
-
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -56,7 +49,7 @@ const Settings = () => {
       // Update UI immediately
       setPushEnabled(enabled);
       
-      // Save to database first
+      // Save to database
       const { error } = await supabase.from('user_settings').upsert({
         user_id: userId,
         notification_enabled: enabled
@@ -64,51 +57,10 @@ const Settings = () => {
       
       if (error) throw error;
       
-      // Then try OneSignal operations (don't fail if this errors)
-      if (window.OneSignal) {
-        try {
-          if (enabled) {
-            const permission = await window.OneSignal.Notifications.requestPermission();
-            console.log('OneSignal permission:', permission);
-            
-            if (permission) {
-              await window.OneSignal.User.PushSubscription.optIn();
-              
-              // Wait for subscription to be ready
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              
-              const playerId = window.OneSignal.User.PushSubscription.id;
-              console.log('OneSignal player_id:', playerId);
-              
-              if (playerId) {
-                const { error: tokenError } = await supabase.from('push_tokens').upsert({
-                  user_id: userId,
-                  token: playerId,
-                  platform: 'web',
-                  enabled: true
-                });
-                
-                if (tokenError) {
-                  console.error('Error saving push token:', tokenError);
-                } else {
-                  console.log('Push token saved successfully');
-                }
-              }
-            }
-          } else {
-            await window.OneSignal.User.PushSubscription.optOut();
-            await supabase.from('push_tokens').update({ enabled: false }).eq('user_id', userId);
-          }
-        } catch (oneSignalError) {
-          console.error('OneSignal operation error:', oneSignalError);
-          // Continue anyway - database is updated
-        }
-      }
-      
       toast({
         title: enabled ? "Push-varsler aktivert" : "Push-varsler deaktivert",
         description: enabled 
-          ? "Du vil motta varsler om utløpende kvitteringer" 
+          ? "Firebase Cloud Messaging vil konfigureres snart" 
           : "Du vil ikke lenger motta varsler"
       });
       
@@ -119,7 +71,6 @@ const Settings = () => {
         description: error instanceof Error ? error.message : "Vennligst prøv igjen",
         variant: "destructive"
       });
-      // Don't revert toggle - user can try again
     } finally {
       setIsLoading(false);
     }
