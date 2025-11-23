@@ -40,8 +40,6 @@ const Settings = () => {
   }, []);
 
   const handlePushToggle = async (enabled: boolean) => {
-    setPushEnabled(enabled);
-    
     if (!userId) return;
 
     if (enabled) {
@@ -61,14 +59,30 @@ const Settings = () => {
             const subscriptionId = await OneSignal.User.PushSubscription.id;
             
             if (subscriptionId) {
-              // Save to database
-              await supabase
+              // Save to user_settings table
+              const { error: settingsError } = await supabase
                 .from('user_settings')
                 .upsert({
                   user_id: userId,
                   notification_enabled: true,
                   push_token: subscriptionId
                 });
+              
+              if (settingsError) throw settingsError;
+              
+              // Save to push_tokens table
+              const { error: tokenError } = await supabase
+                .from('push_tokens')
+                .upsert({
+                  user_id: userId,
+                  token: subscriptionId,
+                  platform: 'web',
+                  enabled: true
+                });
+              
+              if (tokenError) throw tokenError;
+              
+              setPushEnabled(true);
               
               toast({
                 title: "Push-varsler aktivert",
@@ -77,7 +91,6 @@ const Settings = () => {
             }
           } else {
             // User denied permission
-            setPushEnabled(false);
             toast({
               title: "Tillatelse nektet",
               description: "Du må tillate varsler i nettleseren",
@@ -87,7 +100,6 @@ const Settings = () => {
         });
       } catch (error) {
         console.error('OneSignal error:', error);
-        setPushEnabled(false);
         toast({
           title: "Kunne ikke aktivere varsler",
           description: "Vennligst prøv igjen eller sjekk nettleserinnstillingene",
@@ -104,13 +116,30 @@ const Settings = () => {
         console.error('OneSignal unsubscribe error:', error);
       }
       
-      await supabase
+      // Update user_settings table
+      const { error: settingsError } = await supabase
         .from('user_settings')
         .upsert({
           user_id: userId,
           notification_enabled: false,
           push_token: null
         });
+      
+      if (settingsError) {
+        console.error('Settings update error:', settingsError);
+      }
+      
+      // Disable in push_tokens table
+      const { error: tokenError } = await supabase
+        .from('push_tokens')
+        .update({ enabled: false })
+        .eq('user_id', userId);
+      
+      if (tokenError) {
+        console.error('Push token update error:', tokenError);
+      }
+      
+      setPushEnabled(false);
       
       toast({
         title: "Push-varsler deaktivert",
