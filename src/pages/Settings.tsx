@@ -46,10 +46,9 @@ const Settings = () => {
     setIsLoading(true);
     
     try {
-      // Update UI immediately
       setPushEnabled(enabled);
       
-      // Save to database
+      // Save preference to database
       const { error } = await supabase.from('user_settings').upsert({
         user_id: userId,
         notification_enabled: enabled
@@ -60,12 +59,13 @@ const Settings = () => {
       toast({
         title: enabled ? "Push-varsler aktivert" : "Push-varsler deaktivert",
         description: enabled 
-          ? "Firebase Cloud Messaging vil konfigureres snart" 
+          ? "Firebase implementering venter på Lovable bugfix" 
           : "Du vil ikke lenger motta varsler"
       });
       
     } catch (error) {
       console.error('Settings update error:', error);
+      setPushEnabled(!enabled);
       toast({
         title: "Kunne ikke oppdatere innstillinger",
         description: error instanceof Error ? error.message : "Vennligst prøv igjen",
