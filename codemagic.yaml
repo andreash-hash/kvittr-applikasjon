@@ -30,11 +30,15 @@
         script: |
           cd ios/App
           pod install
+      - name: Set up provisioning profiles
+        script: |
+          app-store-connect fetch-signing-files app.kvittr \
+            --type IOS_APP_DEVELOPMENT \
+            --create
       - name: Build iOS
         script: |
           xcode-project build-ipa \
             --workspace ios/App/App.xcworkspace \
-            --scheme App \
-            --archive-xcargs "-allowProvisioningUpdates"
+            --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
