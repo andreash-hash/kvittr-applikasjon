@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { PushNotificationService } from "@/services/pushNotificationService";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -19,7 +20,7 @@ const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
-    // Register Firebase Cloud Messaging service worker
+    // Register Firebase Cloud Messaging service worker (for web)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/firebase-messaging-sw.js')
@@ -30,6 +31,21 @@ const App = () => {
           console.error('Service Worker registration failed:', error);
         });
     }
+
+    // Initialize native push notifications on auth state change
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        // Initialize push notifications when user signs in
+        PushNotificationService.initialize();
+      } else if (event === 'SIGNED_OUT') {
+        // Clean up push token when user signs out
+        PushNotificationService.removePushToken();
+      }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
   }, []);
 
   return (
