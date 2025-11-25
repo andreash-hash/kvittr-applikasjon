@@ -43,6 +43,9 @@
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
-      app_store_connect:
-        api_key: Codemagic
-        submit_to_testflight: true
+      email:
+        recipients:
+          - con_anha@consto.no
+        notify:
+          success: true
+          failure: true
