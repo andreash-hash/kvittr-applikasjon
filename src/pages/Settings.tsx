@@ -56,9 +56,19 @@ const Settings = () => {
       setPushEnabled(enabled);
       
       if (enabled) {
-        // Request notification permission first
-        const permission = await Notification.requestPermission();
-        console.log('Notification permission:', permission);
+        console.log('Current Notification.permission:', Notification.permission);
+        console.log('Notification in window:', 'Notification' in window, typeof Notification);
+        
+        // Check current permission status
+        let permission = Notification.permission;
+        
+        // Only request if permission hasn't been decided yet
+        if (permission === 'default') {
+          console.log('Requesting permission...');
+          permission = await Notification.requestPermission();
+        }
+        
+        console.log('Final permission:', permission);
         
         if (permission !== 'granted') {
           setPushEnabled(false);
