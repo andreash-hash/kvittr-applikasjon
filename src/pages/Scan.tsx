@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Camera as CameraIcon, ArrowLeft, Check, RotateCcw, Image as ImageIcon } from 'lucide-react';
+import { Camera as CameraIcon, ArrowLeft, Check, RotateCcw, Upload, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveReceipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { Filesystem } from '@capacitor/filesystem';
 import imageCompression from 'browser-image-compression';
 
 const Scan = () => {
@@ -16,6 +14,8 @@ const Scan = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [isNative, setIsNative] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -25,7 +25,18 @@ const Scan = () => {
 
   useEffect(() => {
     checkAuth();
+    checkPlatform();
   }, []);
+
+  const checkPlatform = async () => {
+    try {
+      // @ts-ignore - Capacitor may not be available
+      const { Capacitor } = await import('@capacitor/core');
+      setIsNative(Capacitor.isNativePlatform());
+    } catch {
+      setIsNative(false);
+    }
+  };
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -84,84 +95,122 @@ const Scan = () => {
   };
 
   const takePhoto = async () => {
-    try {
-      const image = await Camera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.Uri,
-        source: CameraSource.Camera,
-        saveToGallery: false,
-        correctOrientation: true,
-      });
-      
-      if (image.webPath) {
-        // Convert image to base64 data URL for display
-        const base64Data = await Filesystem.readFile({
-          path: image.path!
+    // Native Capacitor camera
+    if (isNative) {
+      try {
+        // @ts-ignore - Capacitor modules loaded dynamically
+        const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+        // @ts-ignore
+        const { Filesystem } = await import('@capacitor/filesystem');
+        
+        const image = await Camera.getPhoto({
+          quality: 90,
+          allowEditing: false,
+          resultType: CameraResultType.Uri,
+          source: CameraSource.Camera,
+          saveToGallery: false,
+          correctOrientation: true,
         });
         
-        const imageDataUrl = `data:image/jpeg;base64,${base64Data.data}`;
-        setCapturedImage(imageDataUrl);
+        if (image.webPath) {
+          // Convert image to base64 data URL for display
+          const base64Data = await Filesystem.readFile({
+            path: image.path!
+          });
+          
+          const imageDataUrl = `data:image/jpeg;base64,${base64Data.data}`;
+          setCapturedImage(imageDataUrl);
+          
+          // Automatically enhance the image
+          const enhanced = await enhanceImage(imageDataUrl);
+          setEnhancedImage(enhanced);
+        }
+      } catch (error: any) {
+        console.error('Camera error:', error);
         
-        // Automatically enhance the image
-        const enhanced = await enhanceImage(imageDataUrl);
-        setEnhancedImage(enhanced);
+        if (error.message === 'User cancelled photos app') {
+          toast({
+            title: 'Avbrutt',
+            description: 'Du avbrøt bildeopplastingen',
+          });
+        } else {
+          toast({
+            title: 'Kamera feil',
+            description: 'Kunne ikke ta bilde. Prøv igjen.',
+            variant: 'destructive',
+          });
+        }
       }
-    } catch (error: any) {
-      console.error('Camera error:', error);
-      
-      if (error.message === 'User cancelled photos app') {
-        toast({
-          title: 'Avbrutt',
-          description: 'Du avbrøt bildeopplastingen',
-        });
-      } else {
-        toast({
-          title: 'Kamera feil',
-          description: 'Kunne ikke ta bilde. Prøv igjen.',
-          variant: 'destructive',
-        });
-      }
+    } else {
+      // Web fallback - trigger file input
+      fileInputRef.current?.click();
     }
   };
 
   const pickFromGallery = async () => {
-    try {
-      const image = await Camera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.Uri,
-        source: CameraSource.Photos,
-      });
-      
-      if (image.webPath) {
-        // Convert image to base64 data URL for display
-        const base64Data = await Filesystem.readFile({
-          path: image.path!
+    // Native Capacitor photo picker
+    if (isNative) {
+      try {
+        // @ts-ignore - Capacitor modules loaded dynamically
+        const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+        // @ts-ignore
+        const { Filesystem } = await import('@capacitor/filesystem');
+        
+        const image = await Camera.getPhoto({
+          quality: 90,
+          allowEditing: false,
+          resultType: CameraResultType.Uri,
+          source: CameraSource.Photos,
         });
         
-        const imageDataUrl = `data:image/jpeg;base64,${base64Data.data}`;
-        setCapturedImage(imageDataUrl);
+        if (image.webPath) {
+          // Convert image to base64 data URL for display
+          const base64Data = await Filesystem.readFile({
+            path: image.path!
+          });
+          
+          const imageDataUrl = `data:image/jpeg;base64,${base64Data.data}`;
+          setCapturedImage(imageDataUrl);
+          
+          // Automatically enhance the image
+          const enhanced = await enhanceImage(imageDataUrl);
+          setEnhancedImage(enhanced);
+        }
+      } catch (error: any) {
+        console.error('Gallery picker error:', error);
         
-        // Automatically enhance the image
-        const enhanced = await enhanceImage(imageDataUrl);
+        if (error.message === 'User cancelled photos app') {
+          toast({
+            title: 'Avbrutt',
+            description: 'Du avbrøt bildeopplastingen',
+          });
+        } else {
+          toast({
+            title: 'Galleri feil',
+            description: 'Kunne ikke velge bilde. Prøv igjen.',
+            variant: 'destructive',
+          });
+        }
+      }
+    } else {
+      // Web fallback - trigger file input
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const imageData = e.target?.result as string;
+        setCapturedImage(imageData);
+        
+        // Enhance uploaded image as well
+        const enhanced = await enhanceImage(imageData);
         setEnhancedImage(enhanced);
-      }
-    } catch (error: any) {
-      console.error('Gallery picker error:', error);
-      
-      if (error.message === 'User cancelled photos app') {
-        toast({
-          title: 'Avbrutt',
-          description: 'Du avbrøt bildeopplastingen',
-        });
-      } else {
-        toast({
-          title: 'Galleri feil',
-          description: 'Kunne ikke velge bilde. Prøv igjen.',
-          variant: 'destructive',
-        });
-      }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -310,6 +359,16 @@ const Scan = () => {
             <p>Tips: Sørg for god belysning og hold kameraet rett over kvitteringen for best resultat</p>
           </div>
         </div>
+
+        {/* Hidden file input for web fallback */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleFileUpload}
+        />
       </div>
     );
   }
