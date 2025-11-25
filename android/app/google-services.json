@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "191789668682",
+    "project_id": "kvittr-push",
+    "storage_bucket": "kvittr-push.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:191789668682:android:a24f6640616d25863749b3",
+        "android_client_info": {
+          "package_name": "app.kvittr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCE8FC-3b_GKO0F06hbSUmgT-3cu5Ve9Ug"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
