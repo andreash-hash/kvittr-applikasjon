@@ -1,0 +1,13 @@
+﻿workflows:
+  ios-workflow:
+    name: iOS Workflow
+    instance_type: mac_mini_m1
+    environment:
+      xcode: latest
+      node: 18
+    scripts:
+      - npm ci
+      - npm install -g @capacitor/cli
+      - npm run build
+      - cap sync ios
+      - cd ios/App && pod install
