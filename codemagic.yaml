@@ -3,11 +3,15 @@
     name: iOS Workflow
     max_build_duration: 120
     instance_type: mac_mini_m1
+    integrations:
+      app_store_connect: codemagic
     environment:
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: app.kvittr
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-        BUNDLE_ID: "app.kvittr"
       node: 18
       xcode: latest
       cocoapods: default
@@ -28,6 +32,9 @@
           pod install
       - name: Build iOS
         script: |
-          xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
+          xcode-project build-ipa \
+            --workspace ios/App/App.xcworkspace \
+            --scheme App \
+            --archive-xcargs "-allowProvisioningUpdates"
     artifacts:
       - build/ios/ipa/*.ipa
