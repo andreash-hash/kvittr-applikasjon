@@ -21,11 +21,7 @@ export default defineConfig(({ mode }) => ({
         '@capacitor/core',
         '@capacitor/camera',
         '@capacitor/filesystem',
-        '@capacitor/push-notifications',
-        '@capacitor/splash-screen',
-        '@capacitor/status-bar',
-        '@capacitor/app',
-        '@capacitor/network'
+        '@capacitor/push-notifications'
       ]
     }
   }
