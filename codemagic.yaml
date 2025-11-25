@@ -13,8 +13,12 @@
       - npm run build
       - cap sync ios
       - cd ios/App && pod install
-      - app-store-connect create-certificate --save
-      - app-store-connect fetch-signing-files app.kvittr --type IOS_APP_STORE --create
+      - echo "Checking certificates..."
+      - app-store-connect list-certificates
+      - echo "Creating certificate..."
+      - app-store-connect create-certificate --type IOS_DISTRIBUTION --save || echo "Certificate creation failed"
+      - echo "Fetching signing files..."
+      - app-store-connect fetch-signing-files app.kvittr --type IOS_APP_STORE --create || echo "Fetch failed"
       - xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
