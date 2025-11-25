@@ -56,22 +56,24 @@ const Settings = () => {
       setPushEnabled(enabled);
       
       if (enabled) {
-        // Check if Notification API is supported
-        if (!('Notification' in window)) {
-          throw new Error('Push-varsler støttes ikke i denne nettleseren');
+        // Request notification permission first
+        const permission = await Notification.requestPermission();
+        console.log('Notification permission:', permission);
+        
+        if (permission !== 'granted') {
+          setPushEnabled(false);
+          toast({
+            title: "Push-varsler ble avvist",
+            description: "Du må gi tillatelse for å motta varsler",
+            variant: "destructive"
+          });
+          setIsLoading(false);
+          return;
         }
 
         // Check if Firebase is loaded
         if (!window.firebaseMessaging) {
           throw new Error('Firebase ikke lastet');
-        }
-
-        // Request notification permission
-        const permission = await Notification.requestPermission();
-        console.log('Notification permission:', permission);
-        
-        if (permission !== 'granted') {
-          throw new Error('Push-varsler ble avvist');
         }
 
         // Get FCM token
