@@ -15,12 +15,13 @@
       - name: Install dependencies
         script: |
           npm ci
+          npm install -g @capacitor/cli
       - name: Build web app
         script: |
           npm run build
       - name: Capacitor sync
         script: |
-          npx cap sync ios
+          cap sync ios
       - name: Install CocoaPods dependencies
         script: |
           cd ios/App
