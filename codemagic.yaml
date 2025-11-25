@@ -2,12 +2,21 @@
   ios-workflow:
     name: iOS Workflow
     instance_type: mac_mini_m1
+    integrations:
+      app_store_connect: codemagic
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.kvittr
       xcode: latest
       node: 18
     scripts:
       - npm ci
-      - npm install -g @capacitor/cli
+      - npm install -g @capacitor/cli  
       - npm run build
       - cap sync ios
       - cd ios/App && pod install
+      - app-store-connect fetch-signing-files app.kvittr --type IOS_APP_STORE --create
+      - xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
