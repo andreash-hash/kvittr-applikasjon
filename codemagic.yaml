@@ -3,7 +3,7 @@
     name: iOS Workflow
     instance_type: mac_mini_m1
     integrations:
-      app_store_connect: codemagic
+      app_store_connect: Apple Developer Portal
     environment:
       xcode: latest
       node: 18
@@ -13,12 +13,9 @@
       - npm run build
       - cap sync ios
       - cd ios/App && pod install
-      - echo "Checking certificates..."
       - app-store-connect list-certificates
-      - echo "Creating certificate..."
-      - app-store-connect create-certificate --type IOS_DISTRIBUTION --save || echo "Certificate creation failed"
-      - echo "Fetching signing files..."
-      - app-store-connect fetch-signing-files app.kvittr --type IOS_APP_STORE --create || echo "Fetch failed"
+      - app-store-connect create-certificate --type IOS_DISTRIBUTION --save || true
+      - app-store-connect fetch-signing-files app.kvittr --type IOS_APP_STORE --create
       - xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
