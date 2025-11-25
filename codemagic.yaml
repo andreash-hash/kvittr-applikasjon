@@ -9,7 +9,7 @@
         XCODE_SCHEME: "App"
         BUNDLE_ID: "app.kvittr"
       node: 18
-      xcode: 15.0
+      xcode: latest
       cocoapods: default
     scripts:
       - name: Install npm dependencies
