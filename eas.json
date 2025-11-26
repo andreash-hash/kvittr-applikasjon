@@ -6,14 +6,21 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "18.x"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "18.x"
     },
     "production": {
+      "node": "18.x",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "image": "latest"
+      },
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64"
       }
     }
   },
