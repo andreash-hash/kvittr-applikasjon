@@ -1,3 +1,4 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -5,7 +6,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Kvittr</string>
+	<string>Kvittr</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,5 +46,27 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	
+	<!-- PRIVACY USAGE DESCRIPTIONS - REQUIRED BY APPLE -->
+	
+	<!-- Camera Access -->
+	<key>NSCameraUsageDescription</key>
+	<string>Kvittr trenger tilgang til kameraet for å ta bilder av kvitteringer og garantibevis.</string>
+	
+	<!-- Photo Library Access -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Kvittr trenger tilgang til bildebiblioteket for å velge bilder av kvitteringer.</string>
+	
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Kvittr vil lagre bilder av kvitteringer i bildebiblioteket ditt.</string>
+	
+	<!-- Location Access (optional - kun hvis du bruker location) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Kvittr bruker din posisjon for å finne butikker i nærheten.</string>
+	
+	<!-- Notifications (optional - kun hvis du bruker push notifications) -->
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Kvittr sender deg påminnelser når garantier og byttelapper utløper snart.</string>
+	
 </dict>
 </plist>
