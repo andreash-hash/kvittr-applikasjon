@@ -5,12 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, ArrowRight, X, Settings } from 'lucide-react';
 import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import ReceiptCard from '@/components/ReceiptCard';
 import { Card } from '@/components/ui/card';
 import { differenceInDays } from 'date-fns';
 import Onboarding from '@/components/Onboarding';
 import PullToRefresh from '@/components/PullToRefresh';
+import SwipeableCard from '@/components/SwipeableCard';
+import { useToastNotification } from '@/components/CenteredToast';
 
 type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv' | 'expiring';
 
@@ -21,6 +22,7 @@ const Dashboard = () => {
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('alle');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const navigate = useNavigate();
+  const { showToast } = useToastNotification();
 
   useEffect(() => {
     // Check if onboarding has been completed
@@ -88,7 +90,7 @@ const Dashboard = () => {
       const withStatus = allReceipts.map(r => ({ ...r, status: calculateStatus(r) }));
       setReceipts(withStatus);
     } catch (error) {
-      toast.error('Kunne ikke laste kvitteringer');
+      showToast('Kunne ikke laste kvitteringer', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +100,7 @@ const Dashboard = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       await loadReceipts(session.user.id);
-      toast.success('Oppdatert!');
+      // NO toast on refresh - silent update
     }
   }, []);
 
@@ -109,6 +111,42 @@ const Dashboard = () => {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
+  };
+
+  const handleDeleteReceipt = async (receiptId: string) => {
+    try {
+      const { error } = await supabase
+        .from('receipts')
+        .delete()
+        .eq('id', receiptId);
+      
+      if (error) throw error;
+      
+      setReceipts(prev => prev.filter(r => r.id !== receiptId));
+      showToast('Slettet!', 'success');
+    } catch (error) {
+      console.error('Delete error:', error);
+      showToast('Kunne ikke slette', 'error');
+    }
+  };
+
+  const handleArchiveReceipt = async (receiptId: string) => {
+    try {
+      const { error } = await supabase
+        .from('receipts')
+        .update({ is_used: true })
+        .eq('id', receiptId);
+      
+      if (error) throw error;
+      
+      setReceipts(prev => prev.map(r => 
+        r.id === receiptId ? { ...r, is_used: true, status: 'used' } : r
+      ));
+      showToast('Flyttet til arkiv', 'success');
+    } catch (error) {
+      console.error('Archive error:', error);
+      showToast('Kunne ikke arkivere', 'error');
+    }
   };
 
   const filterReceipts = (receipts: Receipt[]) => {
@@ -337,18 +375,9 @@ const Dashboard = () => {
             })}
           </div>
 
-          {/* Alert card - status banner */}
+          {/* Alert card - status banner - NO scrollIntoView on click */}
           <Card
-            onClick={expiringReceipts.length > 0 ? () => {
-              setSelectedFilter('expiring');
-              setSearchQuery('');
-              setTimeout(() => {
-                const firstCard = document.querySelector('[data-expiring="true"]');
-                if (firstCard) {
-                  firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-              }, 100);
-            } : undefined}
+            onClick={expiringReceipts.length > 0 ? () => setSelectedFilter('expiring') : undefined}
             className={`p-4 mb-4 transition-all rounded-xl h-[56px] flex items-center border-l-4 ${
               expiringReceipts.length > 0
                 ? 'bg-warning/10 border-l-warning text-warning-foreground cursor-pointer hover:bg-warning/15'
@@ -379,7 +408,7 @@ const Dashboard = () => {
             </div>
           </Card>
 
-          {/* Receipt cards list */}
+          {/* Receipt cards list with swipe actions */}
           <div className="space-y-3">
             {isLoading ? (
               <div className="text-center py-12 text-muted-foreground">
@@ -393,9 +422,16 @@ const Dashboard = () => {
             ) : (
               filteredReceipts.map(receipt => {
                 const isExpiring = expiringReceipts.some(er => er.id === receipt.id);
+                const isArchived = selectedFilter === 'arkiv';
                 return (
                   <div key={receipt.id} data-expiring={isExpiring}>
-                    <ReceiptCard receipt={receipt} />
+                    <SwipeableCard
+                      onDelete={() => handleDeleteReceipt(receipt.id)}
+                      onArchive={() => handleArchiveReceipt(receipt.id)}
+                      disabled={isArchived}
+                    >
+                      <ReceiptCard receipt={receipt} />
+                    </SwipeableCard>
                   </div>
                 );
               })
