@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, AlertTriangle, ArrowRight, Eye, EyeOff, Settings } from 'lucide-react';
+import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, ArrowRight, X, Settings } from 'lucide-react';
 import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import ReceiptCard from '@/components/ReceiptCard';
 import { Card } from '@/components/ui/card';
 import { differenceInDays } from 'date-fns';
+import Onboarding from '@/components/Onboarding';
+import PullToRefresh from '@/components/PullToRefresh';
 
 type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv' | 'expiring';
 
@@ -17,11 +19,16 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('alle');
-  const [showUsedReceipts, setShowUsedReceipts] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
+    // Check if onboarding has been completed
+    const onboardingCompleted = localStorage.getItem('onboarding_completed');
+    if (!onboardingCompleted) {
+      setShowOnboarding(true);
+    }
+    
     checkAuthAndLoadReceipts();
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -81,36 +88,34 @@ const Dashboard = () => {
       const withStatus = allReceipts.map(r => ({ ...r, status: calculateStatus(r) }));
       setReceipts(withStatus);
     } catch (error) {
-      toast({
-        title: 'Feil',
-        description: 'Kunne ikke laste kvitteringer',
-        variant: 'destructive',
-      });
+      toast.error('Kunne ikke laste kvitteringer');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleRefresh = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await loadReceipts(session.user.id);
+      toast.success('Oppdatert!');
+    }
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
 
-  const handleExpiringClick = () => {
-    setSelectedFilter('expiring');
-    setTimeout(() => {
-      const firstCard = document.querySelector('[data-expiring="true"]');
-      if (firstCard) {
-        firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 100);
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
   };
 
   const filterReceipts = (receipts: Receipt[]) => {
     let filtered = receipts;
 
-    // Filter out used receipts unless showUsedReceipts is true or we're in arkiv view
-    if (!showUsedReceipts && selectedFilter !== 'arkiv') {
+    // Filter out used receipts unless we're in arkiv view
+    if (selectedFilter !== 'arkiv') {
       filtered = filtered.filter(r => !(r.is_used === true));
     }
 
@@ -127,7 +132,6 @@ const Dashboard = () => {
         return status === 'expired' || status === 'used' || r.is_used === true;
       });
     }
-    // Note: 'expiring' filter is NOT handled here - it's handled in getFilteredReceipts()
 
     // Then apply search filter
     if (searchQuery) {
@@ -200,8 +204,6 @@ const Dashboard = () => {
   ));
 
   const getFilteredReceipts = () => {
-    console.log('getFilteredReceipts called with filter:', selectedFilter);
-    
     switch (selectedFilter) {
       case 'alle':
         return allReceipts;
@@ -214,37 +216,25 @@ const Dashboard = () => {
       case 'arkiv':
         return archived;
       case 'expiring':
-        // Use the same logic as counting - filter receipts expiring soon
         const expiringFiltered = allReceipts.filter(receipt => {
-          // Check warranty_until within 60 days
           if (receipt.warranty_until) {
             const daysUntilExpiry = differenceInDays(new Date(receipt.warranty_until), new Date());
-            console.log(`Receipt ${receipt.id} - ${receipt.shop_name}: warranty_until=${receipt.warranty_until}, daysUntil=${daysUntilExpiry}`);
             if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
           }
-          
-          // Check return_until within 14 days
           if (receipt.return_until) {
             const daysUntilExpiry = differenceInDays(new Date(receipt.return_until), new Date());
-            console.log(`Receipt ${receipt.id} - ${receipt.shop_name}: return_until=${receipt.return_until}, daysUntil=${daysUntilExpiry}`);
             if (daysUntilExpiry >= 0 && daysUntilExpiry <= 14) return true;
           }
-          
-          // Check legacy fields for backward compatibility
           if (receipt.type === 'gift_card' && receipt.expiry_date) {
             const daysUntilExpiry = differenceInDays(new Date(receipt.expiry_date), new Date());
-            console.log(`Receipt ${receipt.id} - ${receipt.shop_name}: gift_card expiry_date=${receipt.expiry_date}, daysUntil=${daysUntilExpiry}`);
             if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
           }
           if (receipt.type === 'return_slip' && receipt.return_by) {
             const daysUntilExpiry = differenceInDays(new Date(receipt.return_by), new Date());
-            console.log(`Receipt ${receipt.id} - ${receipt.shop_name}: return_slip return_by=${receipt.return_by}, daysUntil=${daysUntilExpiry}`);
             if (daysUntilExpiry >= 0 && daysUntilExpiry <= 60) return true;
           }
-          
           return false;
         });
-        console.log(`Found ${expiringFiltered.length} expiring receipts`);
         return expiringFiltered;
       default:
         return allReceipts;
@@ -254,35 +244,17 @@ const Dashboard = () => {
   const getEmptyStateMessage = () => {
     switch (selectedFilter) {
       case 'alle':
-        return {
-          primary: 'Ingen kvitteringer ennå.',
-          secondary: 'Trykk + for å legge til.'
-        };
+        return { primary: 'Ingen kvitteringer ennå.', secondary: 'Trykk + for å legge til.' };
       case 'kvitteringer':
-        return {
-          primary: 'Ingen vanlige kvitteringer.',
-          secondary: 'Skann en kvittering for å komme i gang!'
-        };
+        return { primary: 'Ingen vanlige kvitteringer.', secondary: 'Skann en kvittering for å komme i gang!' };
       case 'gavekort':
-        return {
-          primary: 'Ingen gavekort registrert.',
-          secondary: 'Skann et gavekort for å holde styr på saldo!'
-        };
+        return { primary: 'Ingen gavekort registrert.', secondary: 'Skann et gavekort for å holde styr på saldo!' };
       case 'bytte':
-        return {
-          primary: 'Ingen byttelapper eller tilgodelapper.',
-          secondary: 'Skann en for å holde oversikt!'
-        };
+        return { primary: 'Ingen byttelapper eller tilgodelapper.', secondary: 'Skann en for å holde oversikt!' };
       case 'arkiv':
-        return {
-          primary: 'Ingenting i arkivet ennå.',
-          secondary: 'Utløpte kvitteringer og brukte gavekort havner her.'
-        };
+        return { primary: 'Ingenting i arkivet ennå.', secondary: 'Utløpte kvitteringer og brukte gavekort havner her.' };
       default:
-        return {
-          primary: 'Ingen kvitteringer ennå.',
-          secondary: 'Trykk + for å legge til.'
-        };
+        return { primary: 'Ingen kvitteringer ennå.', secondary: 'Trykk + for å legge til.' };
     }
   };
 
@@ -300,143 +272,145 @@ const Dashboard = () => {
 
   const filteredReceipts = getFilteredReceipts();
 
+  // Show onboarding if not completed
+  if (showOnboarding) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <div className="container max-w-2xl mx-auto p-4 pb-24">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-primary">Kvittr</h1>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-              <Settings className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Søk..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-          <Button
-            variant={showUsedReceipts ? "default" : "ghost"}
-            size="icon"
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
-            onClick={() => setShowUsedReceipts(!showUsedReceipts)}
-            title={showUsedReceipts ? "Skjul brukte kvitteringer" : "Vis brukte kvitteringer"}
-          >
-            {showUsedReceipts ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-          </Button>
-        </div>
-
-        {/* Horizontal scrolling filter cards */}
-        <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4">
-          {filters.map((filter) => {
-            const FilterIcon = filter.icon;
-            const isSelected = selectedFilter === filter.id;
-            return (
-              <button
-                key={filter.id}
-                onClick={() => setSelectedFilter(filter.id)}
-                className={`flex-shrink-0 w-[100px] h-[80px] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${
-                  isSelected
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'bg-card text-muted-foreground border border-border'
-                }`}
-              >
-                <FilterIcon className="h-6 w-6" />
-                <span className="text-xs font-medium">{filter.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Alert card - Always visible with two states */}
-        <Card
-          onClick={expiringReceipts.length > 0 ? () => {
-            setSelectedFilter('expiring');
-            setSearchQuery('');
-            setTimeout(() => {
-              const firstCard = document.querySelector('[data-expiring="true"]');
-              if (firstCard) {
-                firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            }, 100);
-          } : undefined}
-          className={`p-4 mb-4 transition-all rounded-xl h-[60px] flex items-center ${
-            expiringReceipts.length > 0
-              ? 'bg-[#FF9500] text-white cursor-pointer hover:bg-[#FF9500]/90 hover:scale-[1.01]'
-              : 'bg-[#F3F4F6] dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-          }`}
-        >
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-3">
-              {expiringReceipts.length > 0 ? (
-                <>
-                  <span className="text-2xl">⚠️</span>
-                  <div>
-                    <p className="font-semibold text-sm leading-tight">
-                      Utløper snart! {expiringCount} garantier/bytteretter utløper snart!
-                    </p>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-orange-600 dark:text-orange-400 ml-auto" />
-                </>
-              ) : (
-                <>
-                  <span className="text-2xl">✓</span>
-                  <div>
-                    <p className="font-semibold text-xs leading-tight">
-                      Alt ser bra ut! Ingen garantier eller bytteretter utløper de neste 60 dagene
-                    </p>
-                  </div>
-                </>
-              )}
+    <div className="min-h-screen bg-background">
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="container max-w-2xl mx-auto p-4 pb-28 safe-area-top safe-area-left safe-area-right">
+          {/* Header with safe area */}
+          <div className="flex items-center justify-between mb-6 pt-2">
+            <h1 className="text-3xl font-bold text-primary">Kvittr</h1>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+                <Settings className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <LogOut className="h-5 w-5" />
+              </Button>
             </div>
-            {expiringReceipts.length > 0 && (
-              <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+          </div>
+
+          {/* Search field - without eye icon, with clear button */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Søk etter butikk eller produkt..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-10 h-12 rounded-xl bg-card border-border"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                onClick={() => setSearchQuery('')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             )}
           </div>
-        </Card>
 
-        {/* Receipt cards list */}
-        <div className="space-y-1.5">
-          {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>Laster...</p>
-            </div>
-          ) : filteredReceipts.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>{getEmptyStateMessage().primary}</p>
-              <p className="text-sm mt-2">{getEmptyStateMessage().secondary}</p>
-            </div>
-          ) : (
-            filteredReceipts.map(receipt => {
-              // Check if this receipt is expiring
-              const isExpiring = expiringReceipts.some(er => er.id === receipt.id);
+          {/* Horizontal scrolling filter cards - refined */}
+          <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4">
+            {filters.map((filter) => {
+              const FilterIcon = filter.icon;
+              const isSelected = selectedFilter === filter.id;
               return (
-                <div key={receipt.id} data-expiring={isExpiring}>
-                  <ReceiptCard receipt={receipt} />
-                </div>
+                <button
+                  key={filter.id}
+                  onClick={() => setSelectedFilter(filter.id)}
+                  className={`flex-shrink-0 w-[90px] h-[56px] rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-200 ${
+                    isSelected
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'bg-card text-muted-foreground border border-border hover:bg-muted'
+                  }`}
+                >
+                  <FilterIcon className="h-5 w-5" />
+                  <span className="text-xs font-medium">{filter.label}</span>
+                </button>
               );
-            })
-          )}
-        </div>
-      </div>
+            })}
+          </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">
+          {/* Alert card - status banner */}
+          <Card
+            onClick={expiringReceipts.length > 0 ? () => {
+              setSelectedFilter('expiring');
+              setSearchQuery('');
+              setTimeout(() => {
+                const firstCard = document.querySelector('[data-expiring="true"]');
+                if (firstCard) {
+                  firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }, 100);
+            } : undefined}
+            className={`p-4 mb-4 transition-all rounded-xl h-[56px] flex items-center border-l-4 ${
+              expiringReceipts.length > 0
+                ? 'bg-warning/10 border-l-warning text-warning-foreground cursor-pointer hover:bg-warning/15'
+                : 'bg-success/10 border-l-success text-success'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-3">
+                {expiringReceipts.length > 0 ? (
+                  <>
+                    <span className="text-xl">⚠️</span>
+                    <p className="font-semibold text-sm">
+                      {expiringCount} garantier/bytteretter utløper snart!
+                    </p>
+                    <ArrowRight className="w-4 h-4 ml-auto" />
+                  </>
+                ) : (
+                  <>
+                    <div className="w-6 h-6 rounded-full bg-success flex items-center justify-center">
+                      <span className="text-success-foreground text-sm">✓</span>
+                    </div>
+                    <p className="font-medium text-xs text-success">
+                      Alt ser bra ut! Ingen garantier utløper de neste 60 dagene
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Receipt cards list */}
+          <div className="space-y-3">
+            {isLoading ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>Laster...</p>
+              </div>
+            ) : filteredReceipts.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>{getEmptyStateMessage().primary}</p>
+                <p className="text-sm mt-2">{getEmptyStateMessage().secondary}</p>
+              </div>
+            ) : (
+              filteredReceipts.map(receipt => {
+                const isExpiring = expiringReceipts.some(er => er.id === receipt.id);
+                return (
+                  <div key={receipt.id} data-expiring={isExpiring}>
+                    <ReceiptCard receipt={receipt} />
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </PullToRefresh>
+
+      {/* Bottom scan button with safe area */}
+      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 safe-area-bottom">
         <div className="container max-w-2xl mx-auto">
           <Button 
-            className="w-full" 
+            className="w-full h-14 text-base font-semibold rounded-xl" 
             size="lg"
             onClick={() => {
-              // Auto-select type based on current filter
               let preselectedType = 'receipt';
               if (selectedFilter === 'gavekort') preselectedType = 'gift_card';
               if (selectedFilter === 'bytte') preselectedType = 'return_slip';

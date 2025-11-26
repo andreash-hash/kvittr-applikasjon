@@ -1,11 +1,10 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Receipt, calculateStatus, saveReceipt } from '@/lib/storage';
-import { formatDate, formatCurrency, getDaysUntil, formatDaysRemaining } from '@/lib/format';
+import { formatDate, formatCurrency, getDaysUntil } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
-import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2, Check } from 'lucide-react';
+import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2, Check, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { differenceInDays, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
@@ -21,7 +20,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface ReceiptCardProps {
   receipt: Receipt;
@@ -29,7 +28,6 @@ interface ReceiptCardProps {
 
 const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isMarkingUsed, setIsMarkingUsed] = useState(false);
   
@@ -37,7 +35,6 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     e.stopPropagation();
     setIsMarkingUsed(true);
     try {
-      // Update is_used in database
       const { error } = await supabase
         .from('receipts')
         .update({ is_used: true })
@@ -45,25 +42,16 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       
       if (error) throw error;
       
-      toast({
-        title: 'Markert som brukt',
-        description: 'Kvitteringen er flyttet til arkiv',
-      });
-      
+      toast.success('Markert som brukt');
       window.location.reload();
     } catch (error) {
       console.error('Mark as used error:', error);
-      toast({
-        title: 'Feil',
-        description: 'Kunne ikke markere som brukt',
-        variant: 'destructive',
-      });
+      toast.error('Kunne ikke markere som brukt');
     }
     setIsMarkingUsed(false);
   };
   
   const getWarrantyBadge = () => {
-    // Check if warranty should be shown based on user preference or automatic detection
     if (!shouldShowWarranty(receipt.has_warranty, receipt.shop_name, receipt.type)) return null;
     if (!receipt.warranty_until) return null;
     
@@ -71,11 +59,11 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     const today = new Date();
     const daysRemaining = differenceInDays(warrantyDate, today);
     
-    if (daysRemaining < 0) return null; // Expired
+    if (daysRemaining < 0) return null;
     
-    let badgeColor = 'bg-green-600';
-    if (daysRemaining < 7) badgeColor = 'bg-red-600';
-    else if (daysRemaining <= 30) badgeColor = 'bg-orange-500';
+    let badgeColor = 'bg-success';
+    if (daysRemaining < 7) badgeColor = 'bg-destructive';
+    else if (daysRemaining <= 30) badgeColor = 'bg-warning';
     
     return (
       <Badge className={`${badgeColor} text-white text-xs`}>
@@ -86,10 +74,8 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   };
   
   const getReturnBadge = () => {
-    // Check if warranty/return should be shown based on user preference or automatic detection
     if (!shouldShowWarranty(receipt.has_warranty, receipt.shop_name, receipt.type)) return null;
     
-    // Use return_until as primary, fall back to return_by for legacy
     const returnDeadline = receipt.return_until || receipt.return_by;
     if (!returnDeadline) return null;
     
@@ -97,22 +83,21 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     const today = new Date();
     const daysRemaining = differenceInDays(returnDate, today);
     
-    if (daysRemaining < 0) return null; // Expired
+    if (daysRemaining < 0) return null;
     
-    let badgeColor = 'bg-green-600';
-    if (daysRemaining < 7) badgeColor = 'bg-red-600';
-    else if (daysRemaining <= 30) badgeColor = 'bg-orange-500';
+    let badgeColor = 'bg-success';
+    if (daysRemaining < 7) badgeColor = 'bg-destructive';
+    else if (daysRemaining <= 30) badgeColor = 'bg-warning';
     
     return (
       <Badge className={`${badgeColor} text-white text-xs`}>
         <RefreshCw className="h-3 w-3 mr-1" />
-        🔄 Bytte til {format(returnDate, 'd. MMM yyyy', { locale: nb })}
+        Bytte til {format(returnDate, 'd. MMM yyyy', { locale: nb })}
       </Badge>
     );
   };
   
   const getValidUntilBadge = () => {
-    // Only show for gavekort
     if (receipt.type !== 'gift_card') return null;
     if (!receipt.expiry_date) return null;
     
@@ -120,11 +105,11 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     const today = new Date();
     const daysRemaining = differenceInDays(expiryDate, today);
     
-    if (daysRemaining < 0) return null; // Expired
+    if (daysRemaining < 0) return null;
     
-    let badgeColor = 'bg-green-600';
-    if (daysRemaining < 7) badgeColor = 'bg-red-600';
-    else if (daysRemaining <= 30) badgeColor = 'bg-orange-500';
+    let badgeColor = 'bg-success';
+    if (daysRemaining < 7) badgeColor = 'bg-destructive';
+    else if (daysRemaining <= 30) badgeColor = 'bg-warning';
     
     return (
       <Badge className={`${badgeColor} text-white text-xs`}>
@@ -140,32 +125,31 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   const expiryDate = receipt.expiry_date || receipt.warranty_expires || receipt.return_by;
   const daysUntil = expiryDate ? getDaysUntil(expiryDate) : null;
   
-  // Get type-specific styling and config
   const getTypeConfig = () => {
     switch (receipt.type) {
       case 'return_slip':
         return {
-          borderColor: 'border-l-orange-500',
+          borderColor: 'border-l-warning',
           icon: RefreshCw,
           label: 'BYTTELAPP',
-          labelColor: 'text-orange-600',
-          bgColor: 'bg-orange-50',
+          labelColor: 'text-warning',
+          bgColor: 'bg-warning/10',
         };
       case 'gift_card':
         return {
-          borderColor: 'border-l-green-500',
+          borderColor: 'border-l-success',
           icon: Gift,
           label: 'GAVEKORT',
-          labelColor: 'text-green-600',
-          bgColor: 'bg-green-50',
+          labelColor: 'text-success',
+          bgColor: 'bg-success/10',
         };
       default:
         return {
-          borderColor: 'border-l-gray-400',
+          borderColor: 'border-l-muted-foreground',
           icon: ReceiptIcon,
           label: 'KVITTERING',
-          labelColor: 'text-gray-600',
-          bgColor: 'bg-gray-50',
+          labelColor: 'text-muted-foreground',
+          bgColor: 'bg-muted',
         };
     }
   };
@@ -173,26 +157,14 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   const typeConfig = getTypeConfig();
   const TypeIcon = typeConfig.icon;
   
-  // Calculate progress for warranties (based on purchase to expiry)
-  const getWarrantyProgress = () => {
-    if (!receipt.warranty_expires) return 0;
-    const purchaseDate = new Date(receipt.purchase_date);
-    const expiryDate = new Date(receipt.warranty_expires);
-    const today = new Date();
-    const totalDays = Math.ceil((expiryDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
-    const daysElapsed = Math.ceil((today.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
-    return Math.min(100, Math.max(0, (daysElapsed / totalDays) * 100));
-  };
-  
-  // Get status badge configuration
   const getStatusBadgeConfig = () => {
     if (!daysUntil || daysUntil < 0) {
       if (receipt.status === 'expired') {
         if (receipt.type === 'return_slip') {
           return {
             text: `Byttefrist utløpt ${formatDate(receipt.return_by!)}`,
-            bgColor: 'bg-gray-100',
-            textColor: 'text-gray-600',
+            bgColor: 'bg-muted',
+            textColor: 'text-muted-foreground',
             icon: RefreshCw,
             showProgress: false
           };
@@ -201,12 +173,11 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       return null;
     }
 
-      // Don't show progress bar badge for byttelapper - they use simple badge below
-      if (receipt.type === 'return_slip') {
-        return null;
-      }
+    if (receipt.type === 'return_slip') {
+      return null;
+    }
 
-    // Show archived status
+    // Show expired status with RED color - CRITICAL FIX
     if (status === 'expired') {
       const returnDeadline = receipt.return_until || receipt.return_by;
       let reason = 'UTLØPT';
@@ -217,11 +188,10 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       }
       return {
         text: reason,
-        bgColor: 'bg-muted',
-        textColor: 'text-muted-foreground',
-        icon: Shield,
+        bgColor: 'bg-destructive/10',
+        textColor: 'text-destructive',
+        icon: AlertTriangle,
         showProgress: false,
-        progressColor: 'gray'
       };
     }
 
@@ -232,7 +202,6 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
         textColor: 'text-muted-foreground',
         icon: Gift,
         showProgress: false,
-        progressColor: 'gray'
       };
     }
 
@@ -240,8 +209,8 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       const validText = expiryDate ? ` - Gyldig til ${formatDate(expiryDate)}` : '';
       return {
         text: `Gavekort ${formatCurrency(receipt.remaining_value || receipt.amount)}${validText}`,
-        bgColor: 'bg-green-50',
-        textColor: 'text-green-700',
+        bgColor: 'bg-success/10',
+        textColor: 'text-success',
         icon: Gift,
         showProgress: false
       };
@@ -256,14 +225,29 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     if (!daysUntil || daysUntil < 0) {
       if (status === 'expired') {
         const returnDeadline = receipt.return_until || receipt.return_by;
-        // Show specific reason for archiving
+        // Show with RED styling - CRITICAL FIX
         if (receipt.warranty_until && new Date(receipt.warranty_until) < new Date()) {
-          return <Badge variant="secondary" className="absolute top-4 right-4 bg-muted">GARANTI UTLØPT</Badge>;
+          return (
+            <Badge className="absolute top-4 right-4 bg-destructive text-destructive-foreground">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              GARANTI UTLØPT
+            </Badge>
+          );
         }
         if (returnDeadline && new Date(returnDeadline) < new Date()) {
-          return <Badge variant="secondary" className="absolute top-4 right-4 bg-muted">BYTTEFRIST UTLØPT</Badge>;
+          return (
+            <Badge className="absolute top-4 right-4 bg-destructive text-destructive-foreground">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              BYTTEFRIST UTLØPT
+            </Badge>
+          );
         }
-        return <Badge variant="secondary" className="absolute top-4 right-4 bg-muted">UTLØPT</Badge>;
+        return (
+          <Badge className="absolute top-4 right-4 bg-destructive text-destructive-foreground">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            UTLØPT
+          </Badge>
+        );
       }
       if (status === 'used') {
         return <Badge variant="secondary" className="absolute top-4 right-4 bg-muted">BRUKT</Badge>;
@@ -276,7 +260,11 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       (receipt.type === 'gift_card' && daysUntil <= 30);
     
     if (shouldWarn) {
-      return <Badge variant="warning" className="absolute top-4 right-4">UTLØPER SNART!</Badge>;
+      return (
+        <Badge className="absolute top-4 right-4 bg-warning text-warning-foreground">
+          UTLØPER SNART!
+        </Badge>
+      );
     }
     return null;
   };
@@ -297,32 +285,23 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       
       if (error) throw error;
       
-      toast({
-        title: 'Kvittering slettet',
-        description: 'Kvitteringen er fjernet',
-      });
-      
+      toast.success('Kvittering slettet');
       window.location.reload();
     } catch (error) {
       console.error('Delete error:', error);
-      toast({
-        title: 'Feil',
-        description: 'Kunne ikke slette kvittering',
-        variant: 'destructive',
-      });
+      toast.error('Kunne ikke slette kvittering');
     }
     setShowDeleteDialog(false);
   };
 
-  // Check if receipt is marked as used
   const isUsed = (receipt as any).is_used === true;
   
   return (
     <>
       <Card 
-        className={`relative overflow-hidden border-l-4 ${typeConfig.borderColor} hover:shadow-xl transition-all duration-200 cursor-pointer rounded-xl ${
+        className={`relative overflow-hidden border-l-4 ${typeConfig.borderColor} shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer rounded-xl ${
           isHovered ? 'scale-[1.01]' : ''
-        } ${isUsed ? 'opacity-60 bg-muted/50' : ''}`}
+        } ${isUsed ? 'opacity-60 bg-muted/50' : 'bg-card'}`}
         onClick={() => navigate(`/item/${receipt.id}`)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -331,33 +310,49 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       
       {/* Processing indicator */}
       {receipt.processing_status === 'pending' && (
-        <div className="absolute top-4 left-4 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+        <div className="absolute top-4 left-4 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
           <Loader2 className="h-3 w-3 animate-spin" />
           Analyserer...
         </div>
       )}
       
-      <CardContent className="p-2">
+      <CardContent className="p-3">
         {/* Header with icon and type label */}
-        <div className={`flex items-center gap-1 mb-1.5 px-1.5 py-0.5 rounded ${typeConfig.bgColor} w-fit`}>
-          <TypeIcon className={`h-2.5 w-2.5 ${typeConfig.labelColor}`} />
-          <span className={`text-[9px] font-bold tracking-wide ${typeConfig.labelColor}`}>
+        <div className={`flex items-center gap-1 mb-2 px-2 py-1 rounded-md ${typeConfig.bgColor} w-fit`}>
+          <TypeIcon className={`h-3 w-3 ${typeConfig.labelColor}`} />
+          <span className={`text-[10px] font-bold tracking-wide ${typeConfig.labelColor}`}>
             {typeConfig.label}
           </span>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-3">
+          {/* Thumbnail - Increased to 100x100px */}
+          <div className="w-[100px] h-[100px] min-w-[100px] min-h-[100px] rounded-lg bg-muted flex-shrink-0 overflow-hidden">
+            {receipt.image_url ? (
+              <img 
+                src={receipt.image_url} 
+                alt={receipt.product_name}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <TypeIcon className="h-8 w-8 text-muted-foreground/30" />
+              </div>
+            )}
+          </div>
+          
           {/* Main content */}
-          <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex-1 min-w-0 space-y-2">
             {/* Main info */}
             <div className="space-y-0.5">
-              <h3 className="text-sm font-bold text-foreground leading-[1.2]">
+              <h3 className="text-sm font-bold text-foreground leading-tight line-clamp-2">
                 {receipt.product_name}
               </h3>
-              <p className="text-xs text-muted-foreground leading-[1.2]">
+              <p className="text-xs text-muted-foreground">
                 {receipt.shop_name}
               </p>
-              <p className="text-[11px] text-muted-foreground/70 leading-[1.2]">
+              <p className="text-[11px] text-muted-foreground/70">
                 {receipt.type === 'return_slip' || receipt.type === 'gift_card' ? 'Utstedt: ' : 'Kjøpt: '}{formatDate(receipt.purchase_date)}
               </p>
               {isUsed && (
@@ -371,114 +366,74 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
             {/* Prominent Status Badge */}
             {statusBadgeConfig && (
               <div 
-                className={`${statusBadgeConfig.bgColor} ${statusBadgeConfig.textColor} rounded-md p-1.5 cursor-pointer hover:opacity-80 transition-opacity`}
+                className={`${statusBadgeConfig.bgColor} ${statusBadgeConfig.textColor} rounded-md p-2`}
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/item/${receipt.id}`);
                 }}
               >
-                <div className="flex items-start gap-1">
-                  <statusBadgeConfig.icon className="h-3 w-3 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold leading-[1.2]">
-                      {statusBadgeConfig.text}
-                    </p>
-                    {statusBadgeConfig.showProgress && (
-                      <div className="mt-1 space-y-0.5">
-                        <Progress 
-                          value={receipt.type === 'return_slip' && receipt.return_by ? 
-                                 Math.max(0, Math.min(100, (daysUntil! / 14) * 100)) : 0} 
-                          className="h-1"
-                        />
-                        <p className="text-[9px] opacity-75 leading-[1.2]">
-                          {`${Math.round((daysUntil! / 14) * 100)}% av byttefristen gjenstår`}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                <div className="flex items-center gap-1.5">
+                  <statusBadgeConfig.icon className="h-3.5 w-3.5 flex-shrink-0" />
+                  <p className="text-xs font-semibold">{statusBadgeConfig.text}</p>
                 </div>
               </div>
             )}
             
-            {receipt.status === 'used' && (
-              <div className="bg-gray-100 text-gray-600 rounded-md p-1.5">
-                <p className="text-xs font-semibold leading-[1.2]">Brukt</p>
-              </div>
-            )}
-            
             {/* Info chips */}
-            <div className="flex gap-1 flex-wrap">
-              <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 leading-[1.2]">
+            <div className="flex gap-1.5 flex-wrap">
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 h-5">
                 {formatCurrency(receipt.amount)}
               </Badge>
               
-              {/* No warranty badge - show when warranty tracking is disabled */}
               {!shouldShowWarranty(receipt.has_warranty, receipt.shop_name, receipt.type) && receipt.type === 'receipt' && (
-                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 leading-[1.2]">
+                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 h-5">
                   Dagligvare - ingen garanti
                 </Badge>
               )}
               
-              {/* Warranty/Return/Valid Until badges */}
               {getWarrantyBadge()}
               {getReturnBadge()}
               {getValidUntilBadge()}
             </div>
-            
-            {/* Action buttons */}
-            <div className="flex gap-1.5 pt-0.5">
-              <Button
-                variant="default"
-                size="sm"
-                className="flex-1 h-8 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/item/${receipt.id}`);
-                }}
-              >
-                <Eye className="h-3 w-3 mr-1" />
-                Se detaljer
-              </Button>
-              
-              {!isUsed && (receipt.type === 'gift_card' || receipt.type === 'return_slip') && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2 text-xs"
-                  onClick={handleMarkAsUsed}
-                  disabled={isMarkingUsed}
-                >
-                  <Check className="h-3 w-3 mr-1" />
-                  Brukt
-                </Button>
-              )}
-              
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={(e) => handleAction(e, 'delete')}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
           </div>
+        </div>
+        
+        {/* Action buttons */}
+        <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+          <Button
+            variant="default"
+            size="sm"
+            className="flex-1 h-9 text-xs rounded-lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/item/${receipt.id}`);
+            }}
+          >
+            <Eye className="h-3.5 w-3.5 mr-1.5" />
+            Se detaljer
+          </Button>
           
-          {/* Thumbnail - Fixed 50x50px */}
-          <div className="w-[50px] h-[50px] min-w-[50px] min-h-[50px] max-w-[50px] max-h-[50px] rounded-lg bg-muted flex-shrink-0 overflow-hidden">
-            {receipt.image_url ? (
-              <img 
-                src={receipt.image_url} 
-                alt={receipt.product_name}
-                className="w-full h-full object-cover"
-                style={{ width: '50px', height: '50px', objectFit: 'cover' }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <TypeIcon className="h-5 w-5 text-muted-foreground opacity-30" />
-              </div>
-            )}
-          </div>
+          {!isUsed && (receipt.type === 'gift_card' || receipt.type === 'return_slip') && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 px-3 text-xs rounded-lg"
+              onClick={handleMarkAsUsed}
+              disabled={isMarkingUsed}
+            >
+              <Check className="h-3.5 w-3.5 mr-1" />
+              Brukt
+            </Button>
+          )}
+          
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 w-9 p-0 rounded-lg"
+            onClick={(e) => handleAction(e, 'delete')}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -488,15 +443,12 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
         <AlertDialogHeader>
           <AlertDialogTitle>Slett kvittering</AlertDialogTitle>
           <AlertDialogDescription>
-            Er du sikker på at du vil slette denne kvitteringen?
+            Er du sikker på at du vil slette denne kvitteringen? Denne handlingen kan ikke angres.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Avbryt</AlertDialogCancel>
-          <AlertDialogAction 
-            onClick={handleConfirmDelete}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
+          <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
             Slett
           </AlertDialogAction>
         </AlertDialogFooter>
