@@ -4,10 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Moon, Sun, Monitor } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 declare global {
   interface Window {
@@ -16,16 +16,23 @@ declare global {
   }
 }
 
+type Theme = 'light' | 'dark' | 'system';
+
 const Settings = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [pushEnabled, setPushEnabled] = useState(false);
   const [notify30Days, setNotify30Days] = useState(true);
   const [notify7Days, setNotify7Days] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [theme, setTheme] = useState<Theme>('system');
 
   useEffect(() => {
+    // Load theme from localStorage
+    const savedTheme = localStorage.getItem('theme') as Theme || 'system';
+    setTheme(savedTheme);
+    applyTheme(savedTheme);
+
     // Load settings from database on mount
     const loadSettings = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -47,6 +54,23 @@ const Settings = () => {
     loadSettings();
   }, []);
 
+  const applyTheme = (newTheme: Theme) => {
+    const root = document.documentElement;
+    
+    if (newTheme === 'system') {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', systemPrefersDark);
+    } else {
+      root.classList.toggle('dark', newTheme === 'dark');
+    }
+  };
+
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    applyTheme(newTheme);
+  };
+
   const handlePushToggle = async (enabled: boolean) => {
     if (!userId) return;
     
@@ -57,47 +81,32 @@ const Settings = () => {
       
       if (enabled) {
         console.log('Current Notification.permission:', Notification.permission);
-        console.log('Notification in window:', 'Notification' in window, typeof Notification);
         
-        // Check current permission status
         let permission = Notification.permission;
         
-        // Only request if permission hasn't been decided yet
         if (permission === 'default') {
-          console.log('Requesting permission...');
           permission = await Notification.requestPermission();
         }
         
-        console.log('Final permission:', permission);
-        
         if (permission !== 'granted') {
           setPushEnabled(false);
-          toast({
-            title: "Push-varsler ble avvist",
-            description: "Du må gi tillatelse for å motta varsler",
-            variant: "destructive"
-          });
+          toast.error('Du må gi tillatelse for å motta varsler');
           setIsLoading(false);
           return;
         }
 
-        // Check if Firebase is loaded
         if (!window.firebaseMessaging) {
           throw new Error('Firebase ikke lastet');
         }
 
-        // Get FCM token
         const token = await window.firebaseMessaging.getToken({
           vapidKey: window.FIREBASE_VAPID_KEY
         });
-        
-        console.log('FCM token:', token);
         
         if (!token) {
           throw new Error('Kunne ikke hente FCM token');
         }
         
-        // Save token to Supabase
         const { error: tokenError } = await supabase.from('push_tokens').upsert({
           user_id: userId,
           token: token,
@@ -106,58 +115,84 @@ const Settings = () => {
         });
         
         if (tokenError) {
-          console.error('Error saving push token:', tokenError);
           throw new Error('Kunne ikke lagre push token');
         }
-        
-        console.log('Push token saved successfully');
       } else {
-        // Disable push notifications
         await supabase.from('push_tokens')
           .update({ enabled: false })
           .eq('user_id', userId);
       }
       
-      // Always save preference to user_settings regardless of Firebase success
       const { error } = await supabase.from('user_settings').upsert({
         user_id: userId,
         notification_enabled: enabled
       });
       
       if (error) {
-        console.error('Error saving user settings:', error);
         throw error;
       }
       
-      toast({
-        title: enabled ? "Push-varsler aktivert" : "Push-varsler deaktivert",
-        description: enabled 
-          ? "Du vil motta varsler om utløpende kvitteringer" 
-          : "Du vil ikke lenger motta varsler"
-      });
+      toast.success(enabled ? 'Push-varsler aktivert' : 'Push-varsler deaktivert');
       
     } catch (error) {
       console.error('Settings update error:', error);
       setPushEnabled(!enabled);
-      toast({
-        title: "Kunne ikke oppdatere innstillinger",
-        description: error instanceof Error ? error.message : "Vennligst prøv igjen",
-        variant: "destructive"
-      });
+      toast.error(error instanceof Error ? error.message : 'Vennligst prøv igjen');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+    <div className="min-h-screen bg-background safe-area-all">
       <div className="container max-w-2xl mx-auto p-4 space-y-6">
-        <div className="flex items-center mb-6">
+        <div className="flex items-center mb-6 pt-2">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold ml-2">Innstillinger</h1>
         </div>
+
+        {/* Theme / Dark Mode */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Utseende</CardTitle>
+            <CardDescription>
+              Tilpass hvordan appen ser ut
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <Button
+                variant={theme === 'light' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => handleThemeChange('light')}
+              >
+                <Sun className="h-4 w-4 mr-2" />
+                Lys
+              </Button>
+              <Button
+                variant={theme === 'dark' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => handleThemeChange('dark')}
+              >
+                <Moon className="h-4 w-4 mr-2" />
+                Mørk
+              </Button>
+              <Button
+                variant={theme === 'system' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => handleThemeChange('system')}
+              >
+                <Monitor className="h-4 w-4 mr-2" />
+                Auto
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Push Notifications */}
         <Card>

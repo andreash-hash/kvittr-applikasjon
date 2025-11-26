@@ -20,6 +20,26 @@ const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
+    // Apply saved theme on app load
+    const savedTheme = localStorage.getItem('theme') || 'system';
+    const root = document.documentElement;
+    
+    if (savedTheme === 'system') {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', systemPrefersDark);
+    } else {
+      root.classList.toggle('dark', savedTheme === 'dark');
+    }
+
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (localStorage.getItem('theme') === 'system') {
+        root.classList.toggle('dark', e.matches);
+      }
+    };
+    mediaQuery.addEventListener('change', handleChange);
+
     // Register Firebase Cloud Messaging service worker (for web)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
@@ -45,6 +65,7 @@ const App = () => {
 
     return () => {
       authListener?.subscription.unsubscribe();
+      mediaQuery.removeEventListener('change', handleChange);
     };
   }, []);
 
@@ -52,7 +73,17 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Sonner />
+        <Sonner 
+          position="top-center"
+          toastOptions={{
+            classNames: {
+              toast: 'safe-area-top',
+              success: 'bg-success text-success-foreground border-success',
+              error: 'bg-destructive text-destructive-foreground border-destructive',
+            },
+            duration: 3000,
+          }}
+        />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
