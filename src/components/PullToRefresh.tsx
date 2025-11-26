@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from 'react';
-import { motion, useAnimation } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
 interface PullToRefreshProps {
@@ -14,7 +13,6 @@ const PullToRefresh = ({ children, onRefresh, disabled }: PullToRefreshProps) =>
   const [pullDistance, setPullDistance] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
-  const controls = useAnimation();
 
   const triggerDistance = 80;
 
@@ -70,44 +68,43 @@ const PullToRefresh = ({ children, onRefresh, disabled }: PullToRefreshProps) =>
   return (
     <div 
       ref={containerRef}
-      className="relative overflow-auto h-full"
+      className="relative h-full"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Pull indicator */}
-      <motion.div
+      {/* Pull indicator - Blue spinner only */}
+      <div
         className="absolute left-0 right-0 flex justify-center items-center z-10 pointer-events-none"
         style={{
           top: -40,
           height: 40,
           transform: `translateY(${pullDistance}px)`,
+          transition: isPulling ? 'none' : 'transform 0.3s ease-out',
         }}
       >
         <div 
-          className={`flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 transition-all ${
-            isRefreshing ? 'scale-100' : ''
-          }`}
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 transition-all"
           style={{
             transform: `scale(${0.5 + progress * 0.5}) rotate(${progress * 360}deg)`,
             opacity: progress > 0.1 ? 1 : 0,
           }}
         >
           <Loader2 
-            className={`h-5 w-5 text-primary ${isRefreshing ? 'animate-spin' : ''}`}
+            className={`h-6 w-6 text-primary ${isRefreshing ? 'animate-spin' : ''}`}
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Content */}
-      <motion.div
+      <div
         style={{
           transform: isPulling || isRefreshing ? `translateY(${pullDistance}px)` : 'translateY(0)',
           transition: isPulling ? 'none' : 'transform 0.3s ease-out',
         }}
       >
         {children}
-      </motion.div>
+      </div>
     </div>
   );
 };

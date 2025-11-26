@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PushNotificationService } from "@/services/pushNotificationService";
+import { ToastProvider, setGlobalToast, useToastNotification } from "@/components/CenteredToast";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -17,6 +17,17 @@ import Success from "./pages/Success";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+// Component to set up global toast
+const GlobalToastSetup = () => {
+  const { showToast } = useToastNotification();
+  
+  useEffect(() => {
+    setGlobalToast(showToast);
+  }, [showToast]);
+  
+  return null;
+};
 
 const App = () => {
   useEffect(() => {
@@ -71,33 +82,25 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner 
-          position="top-center"
-          toastOptions={{
-            classNames: {
-              toast: 'safe-area-top',
-              success: 'bg-success text-success-foreground border-success',
-              error: 'bg-destructive text-destructive-foreground border-destructive',
-            },
-            duration: 3000,
-          }}
-        />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/scan" element={<Scan />} />
-            <Route path="/item/:id" element={<ItemDetail />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/success" element={<Success />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <ToastProvider>
+        <GlobalToastSetup />
+        <TooltipProvider>
+          <Toaster />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/scan" element={<Scan />} />
+              <Route path="/item/:id" element={<ItemDetail />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/success" element={<Success />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 };

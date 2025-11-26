@@ -1,26 +1,16 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Receipt, calculateStatus, saveReceipt } from '@/lib/storage';
+import { Receipt, calculateStatus } from '@/lib/storage';
 import { formatDate, formatCurrency, getDaysUntil } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
-import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Trash2, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Loader2, Check, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { differenceInDays, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import { shouldShowWarranty } from '@/lib/utils';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useToastNotification } from '@/components/CenteredToast';
 
 interface ReceiptCardProps {
   receipt: Receipt;
@@ -28,8 +18,8 @@ interface ReceiptCardProps {
 
 const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   const navigate = useNavigate();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isMarkingUsed, setIsMarkingUsed] = useState(false);
+  const { showToast } = useToastNotification();
   
   const handleMarkAsUsed = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -42,11 +32,11 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       
       if (error) throw error;
       
-      toast.success('Markert som brukt');
+      showToast('Merket som brukt', 'success');
       window.location.reload();
     } catch (error) {
       console.error('Mark as used error:', error);
-      toast.error('Kunne ikke markere som brukt');
+      showToast('Kunne ikke markere som brukt', 'error');
     }
     setIsMarkingUsed(false);
   };
@@ -268,44 +258,18 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     }
     return null;
   };
-  
-  const handleAction = (e: React.MouseEvent, action: string) => {
-    e.stopPropagation();
-    if (action === 'delete') {
-      setShowDeleteDialog(true);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    try {
-      const { error } = await supabase
-        .from('receipts')
-        .delete()
-        .eq('id', receipt.id);
-      
-      if (error) throw error;
-      
-      toast.success('Kvittering slettet');
-      window.location.reload();
-    } catch (error) {
-      console.error('Delete error:', error);
-      toast.error('Kunne ikke slette kvittering');
-    }
-    setShowDeleteDialog(false);
-  };
 
   const isUsed = (receipt as any).is_used === true;
   
   return (
-    <>
-      <Card 
-        className={`relative overflow-hidden border-l-4 ${typeConfig.borderColor} shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer rounded-xl ${
-          isHovered ? 'scale-[1.01]' : ''
-        } ${isUsed ? 'opacity-60 bg-muted/50' : 'bg-card'}`}
-        onClick={() => navigate(`/item/${receipt.id}`)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+    <Card 
+      className={`relative overflow-hidden border-l-4 ${typeConfig.borderColor} shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer rounded-xl ${
+        isHovered ? 'scale-[1.01]' : ''
+      } ${isUsed ? 'opacity-60 bg-muted/50' : 'bg-card'}`}
+      onClick={() => navigate(`/item/${receipt.id}`)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {getExpiryWarning()}
       
       {/* Processing indicator */}
@@ -398,7 +362,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
           </div>
         </div>
         
-        {/* Action buttons */}
+        {/* Action buttons - Removed delete button since we have swipe */}
         <div className="flex gap-2 mt-3 pt-3 border-t border-border">
           <Button
             variant="default"
@@ -425,36 +389,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
               Brukt
             </Button>
           )}
-          
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 w-9 p-0 rounded-lg"
-            onClick={(e) => handleAction(e, 'delete')}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
         </div>
       </CardContent>
     </Card>
-
-    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Slett kvittering</AlertDialogTitle>
-          <AlertDialogDescription>
-            Er du sikker på at du vil slette denne kvitteringen? Denne handlingen kan ikke angres.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Avbryt</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Slett
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-    </>
   );
 };
 
