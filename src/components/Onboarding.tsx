@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Slide {
   image: string;
@@ -35,43 +34,15 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState(0);
 
-  const handleSkip = async () => {
-    // Save to localStorage (instant)
+  const handleSkip = () => {
+    // Save to localStorage only (user is not authenticated yet)
     localStorage.setItem('onboarding_completed', 'true');
-    
-    // Save to Supabase (for cross-device sync)
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from('profiles')
-          .update({ onboarding_completed: true })
-          .eq('id', user.id);
-      }
-    } catch (error) {
-      console.error('Error saving onboarding completion:', error);
-    }
-    
     onComplete();
   };
 
-  const handleComplete = async () => {
-    // Save to localStorage (instant)
+  const handleComplete = () => {
+    // Save to localStorage only (user is not authenticated yet)
     localStorage.setItem('onboarding_completed', 'true');
-    
-    // Save to Supabase (for cross-device sync)
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from('profiles')
-          .update({ onboarding_completed: true })
-          .eq('id', user.id);
-      }
-    } catch (error) {
-      console.error('Error saving onboarding completion:', error);
-    }
-    
     onComplete();
   };
 
