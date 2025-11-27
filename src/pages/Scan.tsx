@@ -119,10 +119,10 @@ const Scan = () => {
           });
           
           const imageDataUrl = `data:image/jpeg;base64,${base64Data.data}`;
-          setCapturedImage(imageDataUrl);
           
-          // Automatically enhance the image
+          // Skip intermediate preview - go directly to enhancement
           const enhanced = await enhanceImage(imageDataUrl);
+          setCapturedImage(enhanced);
           setEnhancedImage(enhanced);
         }
       } catch (error: any) {
@@ -170,10 +170,10 @@ const Scan = () => {
           });
           
           const imageDataUrl = `data:image/jpeg;base64,${base64Data.data}`;
-          setCapturedImage(imageDataUrl);
           
-          // Automatically enhance the image
+          // Skip intermediate preview - go directly to enhancement
           const enhanced = await enhanceImage(imageDataUrl);
+          setCapturedImage(enhanced);
           setEnhancedImage(enhanced);
         }
       } catch (error: any) {
@@ -204,10 +204,10 @@ const Scan = () => {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const imageData = e.target?.result as string;
-        setCapturedImage(imageData);
         
-        // Enhance uploaded image as well
+        // Skip intermediate preview - go directly to enhancement
         const enhanced = await enhanceImage(imageData);
+        setCapturedImage(enhanced);
         setEnhancedImage(enhanced);
       };
       reader.readAsDataURL(file);
