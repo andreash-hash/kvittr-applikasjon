@@ -187,7 +187,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 {isLastSlide ? (
                   <Button
                     onClick={handleComplete}
-                    className="w-full h-10 text-sm font-bold rounded-xl"
+                    className="w-full h-10 text-sm font-bold rounded-xl bg-gradient-brand text-white hover:scale-[1.02] transition-transform"
                   >
                     Kom i gang
                   </Button>

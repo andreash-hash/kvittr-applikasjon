@@ -85,7 +85,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-gradient-brand text-white hover:scale-[1.02] transition-transform" disabled={isLoading}>
               {isLoading ? 'Logger inn...' : 'Logg inn'}
             </Button>
             <Button

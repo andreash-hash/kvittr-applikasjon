@@ -336,7 +336,7 @@ const Scan = () => {
 
           <div className="w-full max-w-md space-y-4">
             <Button 
-              className="w-full h-16 text-lg" 
+              className="w-full h-16 text-lg bg-gradient-brand text-white hover:scale-[1.02] transition-transform" 
               size="lg"
               onClick={takePhoto}
             >
@@ -427,7 +427,7 @@ const Scan = () => {
 
       <div className="p-4 bg-card border-t space-y-3">
         <Button 
-          className="w-full" 
+          className="w-full bg-gradient-brand text-white hover:scale-[1.02] transition-transform" 
           size="lg"
           onClick={saveImage}
           disabled={isLoading || isProcessing}

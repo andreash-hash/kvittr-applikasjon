@@ -359,13 +359,25 @@ const Dashboard = () => {
             {filters.map((filter) => {
               const FilterIcon = filter.icon;
               const isSelected = selectedFilter === filter.id;
+              
+              // Category-specific colors matching logo
+              const getCategoryColor = () => {
+                if (!isSelected) return '';
+                switch(filter.id) {
+                  case 'kvitteringer': return 'bg-category-receipt';
+                  case 'bytte': return 'bg-category-return';
+                  case 'gavekort': return 'bg-category-giftcard';
+                  default: return 'bg-primary';
+                }
+              };
+              
               return (
                 <button
                   key={filter.id}
                   onClick={() => setSelectedFilter(filter.id)}
                   className={`flex-shrink-0 w-[90px] h-[56px] rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-200 ${
                     isSelected
-                      ? 'bg-primary text-primary-foreground shadow-md'
+                      ? `${getCategoryColor()} text-white shadow-md`
                       : 'bg-card text-muted-foreground border border-border hover:bg-muted'
                   }`}
                 >
@@ -381,7 +393,7 @@ const Dashboard = () => {
             onClick={expiringReceipts.length > 0 ? () => setSelectedFilter('expiring') : undefined}
             className={`p-4 mb-4 transition-all rounded-xl h-[56px] flex items-center border-l-4 ${
               expiringReceipts.length > 0
-                ? 'bg-warning/10 border-l-warning text-warning-foreground cursor-pointer hover:bg-warning/15'
+                ? 'bg-category-expiring/10 border-l-category-expiring text-category-expiring cursor-pointer hover:bg-category-expiring/15'
                 : 'bg-success/10 border-l-success text-success'
             }`}
           >
@@ -445,7 +457,7 @@ const Dashboard = () => {
       <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 safe-area-bottom">
         <div className="container max-w-2xl mx-auto">
           <Button 
-            className="w-full h-14 text-base font-semibold rounded-xl" 
+            className="w-full h-14 text-base font-semibold rounded-xl bg-gradient-brand text-white hover:scale-[1.02] transition-transform" 
             size="lg"
             onClick={() => {
               let preselectedType = 'receipt';

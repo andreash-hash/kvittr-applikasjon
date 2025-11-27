@@ -672,7 +672,7 @@ const ItemDetail = () => {
             <div className="flex gap-3 pt-4">
               {isEditing ? (
                 <>
-                  <Button className="flex-1" onClick={handleSave}>
+                  <Button className="flex-1 bg-gradient-brand text-white hover:scale-[1.02] transition-transform" onClick={handleSave}>
                     <Save className="mr-2 h-4 w-4" />
                     Lagre
                   </Button>

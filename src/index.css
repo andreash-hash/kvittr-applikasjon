@@ -8,41 +8,61 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Base colors */
     --background: 210 20% 98%;
-    --foreground: 220 20% 15%;
+    --foreground: 210 29% 24%; /* Logo dark charcoal */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 15%;
+    --card-foreground: 210 29% 24%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 15%;
+    --popover-foreground: 210 29% 24%;
 
-    --primary: 199 89% 48%;
+    /* Primary - Logo Blue */
+    --primary: 239 84% 67%; /* Logo blue #6366F1 */
     --primary-foreground: 0 0% 100%;
 
+    /* Secondary - Light gray for subtle elements */
     --secondary: 220 14% 96%;
-    --secondary-foreground: 220 20% 25%;
+    --secondary-foreground: 210 29% 24%;
 
     --muted: 220 14% 96%;
     --muted-foreground: 220 9% 46%;
 
-    --accent: 158 64% 52%;
+    /* Accent - Logo Teal */
+    --accent: 168 76% 36%; /* Logo teal #16A085 */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    /* Destructive - Logo Coral */
+    --destructive: 338 100% 71%; /* Logo coral #FF6B9D */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 152 69% 41%;
+    /* Success - Logo Teal */
+    --success: 168 76% 36%; /* Logo teal #16A085 */
     --success-foreground: 0 0% 100%;
 
-    --warning: 24 95% 53%;
-    --warning-foreground: 24 95% 15%;
+    /* Warning - Logo Orange */
+    --warning: 39 100% 50%; /* Logo orange #FFA500 */
+    --warning-foreground: 0 0% 100%;
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 199 89% 48%;
+    --ring: 239 84% 67%;
 
     --radius: 0.75rem;
+
+    /* Logo brand colors */
+    --logo-dark: 210 29% 24%; /* #2C3E50 */
+    --logo-coral: 338 100% 71%; /* #FF6B9D */
+    --logo-orange: 39 100% 50%; /* #FFA500 */
+    --logo-blue: 239 84% 67%; /* #6366F1 */
+    --logo-teal: 168 76% 36%; /* #16A085 */
+
+    /* Category colors for tabs */
+    --category-receipt: 239 84% 67%; /* Blue */
+    --category-return: 39 100% 50%; /* Orange */
+    --category-giftcard: 168 76% 36%; /* Teal */
+    --category-expiring: 338 100% 71%; /* Coral */
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -64,7 +84,8 @@ All colors MUST be HSL.
     --popover: 217 33% 17%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 213 94% 68%;
+    /* Primary - Logo Blue (brighter for dark mode) */
+    --primary: 239 84% 75%;
     --primary-foreground: 222 47% 11%;
 
     --secondary: 217 33% 17%;
@@ -73,21 +94,38 @@ All colors MUST be HSL.
     --muted: 217 33% 17%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 158 64% 62%;
+    /* Accent - Logo Teal (brighter for dark mode) */
+    --accent: 168 76% 50%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 65%;
+    /* Destructive - Logo Coral */
+    --destructive: 338 100% 75%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 158 64% 62%;
+    /* Success - Logo Teal (brighter) */
+    --success: 168 76% 50%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 32 95% 64%;
-    --warning-foreground: 32 95% 15%;
+    /* Warning - Logo Orange (brighter) */
+    --warning: 39 100% 60%;
+    --warning-foreground: 0 0% 100%;
 
     --border: 217 33% 25%;
     --input: 217 33% 25%;
-    --ring: 213 94% 68%;
+    --ring: 239 84% 75%;
+
+    /* Logo colors for dark mode (brighter versions) */
+    --logo-dark: 210 29% 35%;
+    --logo-coral: 338 100% 75%;
+    --logo-orange: 39 100% 60%;
+    --logo-blue: 239 84% 75%;
+    --logo-teal: 168 76% 50%;
+
+    /* Category colors for tabs (brighter for dark mode) */
+    --category-receipt: 239 84% 75%;
+    --category-return: 39 100% 60%;
+    --category-giftcard: 168 76% 50%;
+    --category-expiring: 338 100% 75%;
     
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -142,5 +180,47 @@ All colors MUST be HSL.
   
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Kvittr brand gradient for primary CTAs */
+  .bg-gradient-brand {
+    background: linear-gradient(135deg, hsl(var(--logo-coral)) 0%, hsl(var(--logo-orange)) 50%, hsl(var(--logo-blue)) 100%);
+  }
+
+  .hover\:bg-gradient-brand-bright:hover {
+    background: linear-gradient(135deg, hsl(338 100% 76%) 0%, hsl(39 100% 55%) 50%, hsl(239 84% 72%) 100%);
+  }
+
+  /* Category-specific accent borders */
+  .border-l-category-receipt {
+    border-left: 4px solid hsl(var(--category-receipt));
+  }
+
+  .border-l-category-return {
+    border-left: 4px solid hsl(var(--category-return));
+  }
+
+  .border-l-category-giftcard {
+    border-left: 4px solid hsl(var(--category-giftcard));
+  }
+
+  .border-l-category-default {
+    border-left: 4px solid hsl(var(--logo-dark));
+  }
+
+  /* Status badge utilities */
+  .badge-valid {
+    background-color: hsl(var(--logo-teal));
+    color: white;
+  }
+
+  .badge-expiring {
+    background-color: hsl(var(--logo-orange));
+    color: white;
+  }
+
+  .badge-expired {
+    background-color: hsl(var(--logo-dark));
+    color: white;
   }
 }
