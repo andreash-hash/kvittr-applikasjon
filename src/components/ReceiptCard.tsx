@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Receipt, calculateStatus } from '@/lib/storage';
 import { formatDate, formatCurrency, getDaysUntil } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
-import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Loader2, Check, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { differenceInDays, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
@@ -366,9 +366,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
         {/* Action buttons - Removed delete button since we have swipe */}
         <div className="flex gap-2 mt-3 pt-3 border-t border-border">
           <Button
-            variant="default"
+            variant="outline"
             size="sm"
-            className="flex-1 h-9 text-xs rounded-lg bg-gradient-brand text-white hover:scale-[1.02] transition-transform"
+            className="flex-1 h-9 text-xs rounded-lg border-logo-blue text-logo-blue hover:bg-logo-blue/10"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/item/${receipt.id}`);
