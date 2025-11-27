@@ -130,14 +130,16 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               <img 
                 src={slides[currentSlide].image}
                 alt={slides[currentSlide].title}
-                className="w-full h-full object-contain object-center"
+                className={`w-full h-full object-cover object-center ${
+                  currentSlide === 0 ? 'blur-sm' : ''
+                }`}
               />
             </div>
 
             {/* Navigation dots - positioned above text overlay */}
             <div 
-              className="absolute left-0 right-0 z-10 flex justify-center gap-2"
-              style={{ bottom: 'calc(240px + env(safe-area-inset-bottom))' }}
+              className="absolute left-1/2 -translate-x-1/2 z-10 flex justify-center gap-2"
+              style={{ bottom: 'calc(260px + env(safe-area-inset-bottom))' }}
             >
               {slides.map((_, index) => (
                 <button
@@ -160,9 +162,8 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-1/2 -translate-x-1/2 z-10 w-[85%] max-w-[400px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-[85%] max-w-[400px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
               style={{
-                bottom: 'calc(40px + env(safe-area-inset-bottom))',
                 background: 'rgba(255, 255, 255, 0.95)',
               }}
             >
