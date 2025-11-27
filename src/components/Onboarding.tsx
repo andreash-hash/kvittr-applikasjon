@@ -95,16 +95,19 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       transition={{ duration: 0.5 }}
       className="fixed inset-0 z-[10000] bg-background"
     >
-      {/* Logo at top */}
-      <div
+      {/* App Icon at top */}
+      <img
+        src="/kvittr-app-icon-light.png"
+        alt="Kvittr"
         className="fixed z-20 left-1/2 -translate-x-1/2"
         style={{
           top: 'calc(55px + env(safe-area-inset-top))',
-          textShadow: '0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(255, 255, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.9)',
+          width: '64px',
+          height: '64px',
+          borderRadius: '14px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
         }}
-      >
-        <Logo size="medium" className="drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]" />
-      </div>
+      />
 
       {/* Skip button - top right with safe area */}
       <button
