@@ -25,12 +25,41 @@ const Dashboard = () => {
   const { showToast } = useToastNotification();
 
   useEffect(() => {
-    // Check if onboarding has been completed
-    const onboardingCompleted = localStorage.getItem('onboarding_completed');
-    if (!onboardingCompleted) {
-      setShowOnboarding(true);
-    }
+    // Check if onboarding has been completed - dual verification
+    const checkOnboarding = async () => {
+      // Check localStorage first (fast)
+      const localCompleted = localStorage.getItem('onboarding_completed');
+      
+      // Check Supabase for cross-device consistency
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('onboarding_completed')
+            .eq('id', user.id)
+            .single();
+          
+          // Show onboarding if neither localStorage nor Supabase has completion flag
+          if (!localCompleted && !profile?.onboarding_completed) {
+            setShowOnboarding(true);
+          } else if (profile?.onboarding_completed && !localCompleted) {
+            // Sync localStorage if Supabase has completion but local doesn't
+            localStorage.setItem('onboarding_completed', 'true');
+          }
+        } else if (!localCompleted) {
+          // Not logged in yet, check only localStorage
+          setShowOnboarding(true);
+        }
+      } catch (error) {
+        // If Supabase fails, rely on localStorage only
+        if (!localCompleted) {
+          setShowOnboarding(true);
+        }
+      }
+    };
     
+    checkOnboarding();
     checkAuthAndLoadReceipts();
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
