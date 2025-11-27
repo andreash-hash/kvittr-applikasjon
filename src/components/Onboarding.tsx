@@ -136,36 +136,33 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               />
             </div>
 
-            {/* Navigation dots - positioned above text card */}
-            <div 
-              className="absolute left-1/2 top-[calc(50%-180px)] -translate-x-1/2 z-10 flex justify-center gap-2"
-            >
-              {slides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setDirection(index > currentSlide ? 1 : -1);
-                    setCurrentSlide(index);
-                  }}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 border ${
-                    index === currentSlide
-                      ? 'bg-primary w-6 border-primary'
-                      : 'bg-white/50 border-white/30'
-                  }`}
-                />
-              ))}
-            </div>
-
             {/* Text overlay - floating card centered */}
             <motion.div 
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-[83%] max-w-[390px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+              className="absolute left-0 right-0 mx-auto top-1/2 -translate-y-1/2 z-10 w-[83%] max-w-[390px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
               style={{
                 background: 'rgba(255, 255, 255, 0.95)',
               }}
             >
+              {/* Navigation dots - positioned above text card */}
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex justify-center gap-2">
+                {slides.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setDirection(index > currentSlide ? 1 : -1);
+                      setCurrentSlide(index);
+                    }}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 border ${
+                      index === currentSlide
+                        ? 'bg-primary w-6 border-primary'
+                        : 'bg-white/50 border-white/30'
+                    }`}
+                  />
+                ))}
+              </div>
               <div className="dark:bg-gray-800/95 dark:backdrop-blur-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.24)] rounded-[20px] px-5 py-5">
                 <h2 className="text-[20px] font-bold text-gray-900 dark:text-gray-50 mb-1.5 text-center leading-tight">
                   {slides[currentSlide].title}
