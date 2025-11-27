@@ -321,7 +321,6 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-6 pt-2">
             <div className="flex items-center gap-3">
               <Logo size="small" clickable />
-              <h1 className="text-3xl font-bold text-primary">Kvittr</h1>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>

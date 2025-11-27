@@ -92,7 +92,6 @@ const Signup = () => {
           <div className="flex justify-center mb-4">
             <Logo size="medium" />
           </div>
-          <CardTitle className="text-3xl font-bold text-primary">Kvittr</CardTitle>
           <CardDescription>Opprett din konto</CardDescription>
         </CardHeader>
         <CardContent>

@@ -60,7 +60,6 @@ const Login = () => {
           <div className="flex justify-center mb-4">
             <Logo size="medium" />
           </div>
-          <CardTitle className="text-3xl font-bold text-primary">Kvittr</CardTitle>
           <CardDescription>Logg inn på din konto</CardDescription>
         </CardHeader>
         <CardContent>
