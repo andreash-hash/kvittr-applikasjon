@@ -29,19 +29,8 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
   const threshold = 100; // pixels to trigger action
   const maxSwipe = 120;
 
-  const handleDragStart = () => {
-    if (disabled) return;
-    // Lock body scroll during swipe
-    document.body.style.overflow = 'hidden';
-    document.body.style.touchAction = 'none';
-  };
-
   const handleDragEnd = async (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (disabled) return;
-
-    // Re-enable body scroll
-    document.body.style.overflow = '';
-    document.body.style.touchAction = '';
 
     const offset = info.offset.x;
     const velocity = info.velocity.x;
@@ -131,7 +120,6 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
             bounceDamping: 20
           }}
           whileDrag={{ scale: 1.02 }}
-          onDragStart={handleDragStart}
           onDrag={handleDrag}
           onDragEnd={handleDragEnd}
           animate={controls}

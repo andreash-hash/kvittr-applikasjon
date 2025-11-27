@@ -389,7 +389,7 @@ const Dashboard = () => {
                  {expiringReceipts.length > 0 ? (
                   <>
                     <span className="text-xl">⚠️</span>
-                    <p className="font-semibold text-sm text-white dark:text-white">
+                    <p className="font-semibold text-sm text-gray-900 dark:text-white">
                       {expiringCount} garantier/bytteretter utløper snart!
                     </p>
                     <ArrowRight className="w-4 h-4 ml-auto" />
