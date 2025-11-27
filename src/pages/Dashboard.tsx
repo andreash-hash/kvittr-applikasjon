@@ -11,6 +11,7 @@ import { differenceInDays } from 'date-fns';
 import PullToRefresh from '@/components/PullToRefresh';
 import SwipeableCard from '@/components/SwipeableCard';
 import { useToastNotification } from '@/components/CenteredToast';
+import { Logo } from '@/components/Logo';
 
 type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv' | 'expiring';
 
@@ -318,7 +319,10 @@ const Dashboard = () => {
         <div className="container max-w-2xl mx-auto p-4 pb-28 safe-area-top safe-area-left safe-area-right">
           {/* Header with safe area */}
           <div className="flex items-center justify-between mb-6 pt-2">
-            <h1 className="text-3xl font-bold text-primary">Kvittr</h1>
+            <div className="flex items-center gap-3">
+              <Logo size="small" clickable />
+              <h1 className="text-3xl font-bold text-primary">Kvittr</h1>
+            </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
                 <Settings className="h-5 w-5" />
