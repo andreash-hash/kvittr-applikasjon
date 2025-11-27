@@ -51,12 +51,12 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     
     if (daysRemaining < 0) return null;
     
-    let badgeColor = 'bg-success';
-    if (daysRemaining < 7) badgeColor = 'bg-destructive';
-    else if (daysRemaining <= 30) badgeColor = 'bg-warning';
+    let badgeColor = 'badge-valid';
+    if (daysRemaining < 7) badgeColor = 'badge-expired';
+    else if (daysRemaining <= 30) badgeColor = 'badge-expiring';
     
     return (
-      <Badge className={`${badgeColor} text-white text-xs`}>
+      <Badge className={`${badgeColor} text-xs`}>
         <Shield className="h-3 w-3 mr-1" />
         Garanti til {format(warrantyDate, 'd. MMM yyyy', { locale: nb })}
       </Badge>
@@ -75,12 +75,12 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     
     if (daysRemaining < 0) return null;
     
-    let badgeColor = 'bg-success';
-    if (daysRemaining < 7) badgeColor = 'bg-destructive';
-    else if (daysRemaining <= 30) badgeColor = 'bg-warning';
+    let badgeColor = 'badge-valid';
+    if (daysRemaining < 7) badgeColor = 'badge-expired';
+    else if (daysRemaining <= 30) badgeColor = 'badge-expiring';
     
     return (
-      <Badge className={`${badgeColor} text-white text-xs`}>
+      <Badge className={`${badgeColor} text-xs`}>
         <RefreshCw className="h-3 w-3 mr-1" />
         Bytte til {format(returnDate, 'd. MMM yyyy', { locale: nb })}
       </Badge>
@@ -97,12 +97,12 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     
     if (daysRemaining < 0) return null;
     
-    let badgeColor = 'bg-success';
-    if (daysRemaining < 7) badgeColor = 'bg-destructive';
-    else if (daysRemaining <= 30) badgeColor = 'bg-warning';
+    let badgeColor = 'badge-valid';
+    if (daysRemaining < 7) badgeColor = 'badge-expired';
+    else if (daysRemaining <= 30) badgeColor = 'badge-expiring';
     
     return (
-      <Badge className={`${badgeColor} text-white text-xs`}>
+      <Badge className={`${badgeColor} text-xs`}>
         <Gift className="h-3 w-3 mr-1" />
         Gyldig til {format(expiryDate, 'd. MMM yyyy', { locale: nb })}
       </Badge>
@@ -119,27 +119,27 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     switch (receipt.type) {
       case 'return_slip':
         return {
-          borderColor: 'border-l-warning',
+          borderColor: 'border-l-category-return',
           icon: RefreshCw,
           label: 'BYTTELAPP',
-          labelColor: 'text-warning',
-          bgColor: 'bg-warning/10',
+          labelColor: 'text-category-return',
+          bgColor: 'bg-category-return/10',
         };
       case 'gift_card':
         return {
-          borderColor: 'border-l-success',
+          borderColor: 'border-l-category-giftcard',
           icon: Gift,
           label: 'GAVEKORT',
-          labelColor: 'text-success',
-          bgColor: 'bg-success/10',
+          labelColor: 'text-category-giftcard',
+          bgColor: 'bg-category-giftcard/10',
         };
       default:
         return {
-          borderColor: 'border-l-muted-foreground',
+          borderColor: 'border-l-category-receipt',
           icon: ReceiptIcon,
           label: 'KVITTERING',
-          labelColor: 'text-muted-foreground',
-          bgColor: 'bg-muted',
+          labelColor: 'text-category-receipt',
+          bgColor: 'bg-category-receipt/10',
         };
     }
   };
@@ -368,7 +368,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
           <Button
             variant="default"
             size="sm"
-            className="flex-1 h-9 text-xs rounded-lg"
+            className="flex-1 h-9 text-xs rounded-lg bg-gradient-brand text-white hover:scale-[1.02] transition-transform"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/item/${receipt.id}`);

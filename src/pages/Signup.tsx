@@ -147,7 +147,7 @@ const Signup = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-gradient-brand text-white hover:scale-[1.02] transition-transform" disabled={isLoading}>
               {isLoading ? 'Oppretter konto...' : 'Registrer deg'}
             </Button>
             <Button
