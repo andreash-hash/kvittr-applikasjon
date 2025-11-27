@@ -145,6 +145,13 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                   currentSlide === 0 ? 'blur-[2px]' : ''
                 }`}
               />
+              {/* Top gradient overlay for logo readability */}
+              <div 
+                className="absolute inset-x-0 top-0 h-[30%] pointer-events-none"
+                style={{
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 100%)'
+                }}
+              />
               {/* Subtle gradient overlay for better text contrast */}
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20" />
             </div>
