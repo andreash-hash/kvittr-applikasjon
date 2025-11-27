@@ -19,8 +19,10 @@ const PullToRefresh = ({ children, onRefresh, disabled }: PullToRefreshProps) =>
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (disabled || isRefreshing) return;
     
+    // CRITICAL: Only allow pull-to-refresh at ABSOLUTE TOP
+    const scrollY = window.scrollY || window.pageYOffset;
     const scrollTop = containerRef.current?.scrollTop || 0;
-    if (scrollTop > 0) return;
+    if (scrollY > 10 || scrollTop > 10) return; // Must be within 10px of top
     
     startY.current = e.touches[0].clientY;
     setIsPulling(true);

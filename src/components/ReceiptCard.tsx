@@ -272,9 +272,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     >
       {getExpiryWarning()}
       
-      {/* Processing indicator */}
+      {/* Processing indicator - positioned below type label */}
       {receipt.processing_status === 'pending' && (
-        <div className="absolute top-4 left-4 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+        <div className="absolute top-14 left-4 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin" />
           Analyserer...
         </div>
