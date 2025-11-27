@@ -386,10 +386,10 @@ const Dashboard = () => {
           >
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-3">
-                {expiringReceipts.length > 0 ? (
+                 {expiringReceipts.length > 0 ? (
                   <>
                     <span className="text-xl">⚠️</span>
-                    <p className="font-semibold text-sm">
+                    <p className="font-semibold text-sm text-white dark:text-white">
                       {expiringCount} garantier/bytteretter utløper snart!
                     </p>
                     <ArrowRight className="w-4 h-4 ml-auto" />

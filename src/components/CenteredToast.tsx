@@ -49,9 +49,13 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
+              style={{
+                width: '85%',
+                maxWidth: '320px',
+                minWidth: '280px',
+              }}
               className={`
                 pointer-events-auto
-                w-[85%] max-w-[320px] min-w-[280px]
                 px-5 py-4
                 rounded-xl
                 shadow-[0_4px_16px_rgba(0,0,0,0.24)]
