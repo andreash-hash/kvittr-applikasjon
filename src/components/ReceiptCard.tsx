@@ -122,24 +122,24 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
           borderColor: 'border-l-category-return',
           icon: RefreshCw,
           label: 'BYTTELAPP',
-          labelColor: 'text-category-return',
-          bgColor: 'bg-category-return/10',
+          badgeBgColor: 'bg-category-return',
+          badgeTextColor: 'text-white',
         };
       case 'gift_card':
         return {
           borderColor: 'border-l-category-giftcard',
           icon: Gift,
           label: 'GAVEKORT',
-          labelColor: 'text-category-giftcard',
-          bgColor: 'bg-category-giftcard/10',
+          badgeBgColor: 'bg-category-giftcard',
+          badgeTextColor: 'text-white',
         };
       default:
         return {
           borderColor: 'border-l-category-receipt',
           icon: ReceiptIcon,
           label: 'KVITTERING',
-          labelColor: 'text-category-receipt',
-          bgColor: 'bg-category-receipt/10',
+          badgeBgColor: 'bg-category-receipt',
+          badgeTextColor: 'text-white',
         };
     }
   };
@@ -275,9 +275,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       <CardContent className="p-3">
         {/* Header with type label and analyzing badge */}
         <div className="flex justify-between items-center mb-2">
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${typeConfig.bgColor} w-fit`}>
-            <TypeIcon className={`h-3 w-3 ${typeConfig.labelColor}`} />
-            <span className={`text-[10px] font-bold tracking-wide ${typeConfig.labelColor}`}>
+          <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${typeConfig.badgeBgColor} w-fit`}>
+            <TypeIcon className={`h-3 w-3 ${typeConfig.badgeTextColor}`} />
+            <span className={`text-[10px] font-bold tracking-wide ${typeConfig.badgeTextColor}`}>
               {typeConfig.label}
             </span>
           </div>
