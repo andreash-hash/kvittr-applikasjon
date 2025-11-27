@@ -100,9 +100,10 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         className="fixed z-20 left-1/2 -translate-x-1/2"
         style={{
           top: 'calc(50px + env(safe-area-inset-top))',
+          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8)',
         }}
       >
-        <Logo size="small" className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]" />
+        <Logo size="small" className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" />
       </div>
 
       {/* Skip button - top right with safe area */}
@@ -145,14 +146,15 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                   currentSlide === 0 ? 'blur-[2px]' : ''
                 }`}
               />
-              {/* Top gradient overlay for logo readability */}
+              {/* Strong dark gradient overlay at top for logo readability */}
               <div 
-                className="absolute inset-x-0 top-0 h-[30%] pointer-events-none"
+                className="absolute top-0 left-0 right-0 pointer-events-none z-10"
                 style={{
-                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 100%)'
+                  height: '200px',
+                  background: 'linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)'
                 }}
               />
-              {/* Subtle gradient overlay for better text contrast */}
+              {/* Subtle gradient overlay for better text contrast at bottom */}
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20" />
             </div>
 
