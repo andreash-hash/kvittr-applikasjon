@@ -95,19 +95,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       transition={{ duration: 0.5 }}
       className="fixed inset-0 z-[10000] bg-background"
     >
-      {/* App Icon at top */}
-      <img
-        src="/kvittr-app-icon-light.png"
-        alt="Kvittr"
-        className="fixed z-20 left-1/2 -translate-x-1/2"
-        style={{
-          top: 'calc(55px + env(safe-area-inset-top))',
-          width: '64px',
-          height: '64px',
-          borderRadius: '14px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-        }}
-      />
 
       {/* Skip button - top right with safe area */}
       <button
@@ -166,12 +153,19 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-0 right-0 mx-auto z-10 w-[83%] max-w-[390px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+              className="absolute left-0 right-0 mx-auto z-10 w-[83%] max-w-[390px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-hidden"
               style={{
                 bottom: 'calc(80px + env(safe-area-inset-bottom))',
                 background: 'rgba(255, 255, 255, 0.95)',
               }}
             >
+              {/* Gradient accent bar at top */}
+              <div 
+                className="w-full h-1.5"
+                style={{
+                  background: 'linear-gradient(90deg, #FF6B9D 0%, #FFA500 25%, #6366F1 50%, #16A085 100%)',
+                }}
+              />
               {/* Navigation dots - positioned above text card */}
               <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex justify-center gap-2">
                 {slides.map((_, index) => (
@@ -183,9 +177,16 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                     }}
                     className={`w-2 h-2 rounded-full transition-all duration-300 border shadow-md ${
                       index === currentSlide
-                        ? 'bg-white w-6 border-white'
+                        ? 'w-6 border-white'
                         : 'bg-white/60 border-white/50'
                     }`}
+                    style={
+                      index === currentSlide
+                        ? {
+                            background: 'linear-gradient(90deg, #FF6B9D 0%, #FFA500 35%, #6366F1 65%, #16A085 100%)',
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </div>
