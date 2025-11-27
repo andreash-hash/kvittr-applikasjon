@@ -126,25 +126,18 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
             className="h-full flex flex-col relative"
           >
             {/* Full screen image */}
-            <div className="absolute inset-0">
+            <div className="absolute inset-0 bg-[#1F2937]">
               <img 
                 src={slides[currentSlide].image}
                 alt={slides[currentSlide].title}
-                className="w-full h-full object-cover object-center"
-              />
-              {/* Gradient overlay for text readability */}
-              <div 
-                className="absolute inset-0"
-                style={{
-                  background: 'linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 50%)'
-                }}
+                className="w-full h-full object-contain object-center"
               />
             </div>
 
             {/* Navigation dots - positioned above text overlay */}
             <div 
               className="absolute left-0 right-0 z-10 flex justify-center gap-2"
-              style={{ bottom: 'calc(280px + env(safe-area-inset-bottom))' }}
+              style={{ bottom: 'calc(240px + env(safe-area-inset-bottom))' }}
             >
               {slides.map((_, index) => (
                 <button
@@ -162,22 +155,22 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               ))}
             </div>
 
-            {/* Text overlay - frosted glass effect at bottom */}
+            {/* Text overlay - floating card */}
             <motion.div 
-              initial={{ y: 100 }}
-              animate={{ y: 0 }}
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute bottom-0 left-0 right-0 z-10 rounded-t-[24px] backdrop-blur-xl"
+              className="absolute left-1/2 -translate-x-1/2 z-10 w-[85%] max-w-[400px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
               style={{
+                bottom: 'calc(40px + env(safe-area-inset-bottom))',
                 background: 'rgba(255, 255, 255, 0.95)',
-                paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
               }}
             >
-              <div className="dark:bg-gray-800/95 dark:backdrop-blur-xl rounded-t-[24px] px-6 pt-8 pb-6">
-                <h2 className="text-[28px] font-bold text-gray-900 dark:text-gray-50 mb-3 text-center leading-tight">
+              <div className="dark:bg-gray-800/95 dark:backdrop-blur-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.24)] rounded-[20px] px-6 py-6">
+                <h2 className="text-[24px] font-bold text-gray-900 dark:text-gray-50 mb-2 text-center leading-tight">
                   {slides[currentSlide].title}
                 </h2>
-                <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed text-center mb-6">
+                <p className="text-[15px] text-gray-600 dark:text-gray-300 leading-[1.4] text-center mb-5">
                   {slides[currentSlide].description}
                 </p>
 
@@ -185,7 +178,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 {isLastSlide ? (
                   <Button
                     onClick={handleComplete}
-                    className="w-full h-14 text-lg font-bold rounded-xl"
+                    className="w-full h-12 text-base font-bold rounded-xl"
                   >
                     Kom i gang
                   </Button>
@@ -193,7 +186,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                   <Button
                     onClick={nextSlide}
                     variant="outline"
-                    className="w-full h-14 text-lg font-semibold rounded-xl"
+                    className="w-full h-12 text-base font-semibold rounded-xl"
                   >
                     Neste
                   </Button>
