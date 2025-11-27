@@ -51,9 +51,9 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
               transition={{ duration: 0.2, ease: 'easeOut' }}
               className={`
                 pointer-events-auto
-                w-[80%] max-w-[340px]
-                px-6 py-5
-                rounded-2xl
+                w-[85%] max-w-[320px] min-w-[280px]
+                px-5 py-4
+                rounded-xl
                 shadow-[0_4px_16px_rgba(0,0,0,0.24)]
                 flex items-center gap-3
                 ${toast.type === 'success' 
@@ -62,14 +62,14 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
                 }
               `}
             >
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
                 {toast.type === 'success' ? (
-                  <Check className="h-5 w-5 text-white" />
+                  <Check className="h-3.5 w-3.5 text-white" />
                 ) : (
-                  <X className="h-5 w-5 text-white" />
+                  <X className="h-3.5 w-3.5 text-white" />
                 )}
               </div>
-              <span className="text-white font-semibold text-base">
+              <span className="text-white font-semibold text-[15px] text-center flex-1">
                 {toast.message}
               </span>
             </motion.div>
