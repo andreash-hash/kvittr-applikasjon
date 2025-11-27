@@ -42,6 +42,11 @@ const App = () => {
       root.classList.toggle('dark', savedTheme === 'dark');
     }
 
+    // Disable automatic scroll restoration to prevent jump to top
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+
     // Listen for system theme changes
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e: MediaQueryListEvent) => {
