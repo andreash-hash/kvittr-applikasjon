@@ -99,11 +99,11 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       <div
         className="fixed z-20 left-1/2 -translate-x-1/2"
         style={{
-          top: 'calc(50px + env(safe-area-inset-top))',
-          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8)',
+          top: 'calc(55px + env(safe-area-inset-top))',
+          textShadow: '0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(255, 255, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.9)',
         }}
       >
-        <Logo size="small" className="drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" />
+        <Logo size="medium" className="drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]" />
       </div>
 
       {/* Skip button - top right with safe area */}
