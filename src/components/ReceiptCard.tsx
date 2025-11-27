@@ -272,21 +272,22 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     >
       {getExpiryWarning()}
       
-      {/* Processing indicator - positioned below type label */}
-      {receipt.processing_status === 'pending' && (
-        <div className="absolute top-14 left-4 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Analyserer...
-        </div>
-      )}
-      
       <CardContent className="p-3">
-        {/* Header with icon and type label */}
-        <div className={`flex items-center gap-1 mb-2 px-2 py-1 rounded-md ${typeConfig.bgColor} w-fit`}>
-          <TypeIcon className={`h-3 w-3 ${typeConfig.labelColor}`} />
-          <span className={`text-[10px] font-bold tracking-wide ${typeConfig.labelColor}`}>
-            {typeConfig.label}
-          </span>
+        {/* Header with type label and analyzing badge */}
+        <div className="flex justify-between items-center mb-2">
+          <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${typeConfig.bgColor} w-fit`}>
+            <TypeIcon className={`h-3 w-3 ${typeConfig.labelColor}`} />
+            <span className={`text-[10px] font-bold tracking-wide ${typeConfig.labelColor}`}>
+              {typeConfig.label}
+            </span>
+          </div>
+          
+          {receipt.processing_status === 'pending' && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary text-white rounded-xl text-[11px] font-semibold flex-shrink-0">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Analyserer</span>
+            </div>
+          )}
         </div>
         
         <div className="flex gap-3">
