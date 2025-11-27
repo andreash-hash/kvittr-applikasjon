@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Check, X } from 'lucide-react';
+import { Logo } from '@/components/Logo';
 
 const Signup = () => {
   const [email, setEmail] = useState('');
@@ -88,6 +89,9 @@ const Signup = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
+          <div className="flex justify-center mb-4">
+            <Logo size="medium" />
+          </div>
           <CardTitle className="text-3xl font-bold text-primary">Kvittr</CardTitle>
           <CardDescription>Opprett din konto</CardDescription>
         </CardHeader>

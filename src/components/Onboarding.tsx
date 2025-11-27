@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { Logo } from '@/components/Logo';
 
 interface Slide {
   image: string;
@@ -94,6 +95,17 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       transition={{ duration: 0.5 }}
       className="fixed inset-0 z-[10000] bg-background"
     >
+      {/* Logo - top left with safe area */}
+      <div 
+        className="fixed z-20"
+        style={{
+          top: 'calc(16px + env(safe-area-inset-top))',
+          left: 'calc(16px + env(safe-area-inset-left))',
+        }}
+      >
+        <Logo size="small" />
+      </div>
+
       {/* Skip button - top right with safe area */}
       <button
         onClick={handleSkip}
