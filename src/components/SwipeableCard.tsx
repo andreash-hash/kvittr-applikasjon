@@ -23,6 +23,7 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
   const controls = useAnimation();
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const threshold = 100; // pixels to trigger action
@@ -36,18 +37,17 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
 
     if (offset < -threshold || velocity < -500) {
       // Swiped left - Delete (show confirmation)
-      await controls.start({ x: 0 });
+      await controls.start({ x: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } });
       setSwipeDirection(null);
       setShowDeleteConfirm(true);
     } else if (offset > threshold || velocity > 500) {
-      // Swiped right - Archive (direct action)
-      await controls.start({ x: maxSwipe, opacity: 0 }, { duration: 0.3 });
-      onArchive();
-      await controls.start({ x: 0, opacity: 1 }, { duration: 0 });
+      // Swiped right - Archive (show confirmation)
+      await controls.start({ x: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } });
       setSwipeDirection(null);
+      setShowArchiveConfirm(true);
     } else {
       // Snap back
-      await controls.start({ x: 0 });
+      await controls.start({ x: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } });
       setSwipeDirection(null);
     }
   };
@@ -67,9 +67,16 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
 
   const handleConfirmDelete = async () => {
     setShowDeleteConfirm(false);
-    await controls.start({ x: -maxSwipe * 2, opacity: 0 }, { duration: 0.3 });
+    await controls.start({ x: -maxSwipe * 2, opacity: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } });
     onDelete();
-    await controls.start({ x: 0, opacity: 1 }, { duration: 0 });
+    await controls.start({ x: 0, opacity: 1 });
+  };
+
+  const handleConfirmArchive = async () => {
+    setShowArchiveConfirm(false);
+    await controls.start({ x: maxSwipe * 2, opacity: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } });
+    onArchive();
+    await controls.start({ x: 0, opacity: 1 });
   };
 
   return (
@@ -106,7 +113,12 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
         <motion.div
           drag={disabled ? false : "x"}
           dragConstraints={{ left: -maxSwipe, right: maxSwipe }}
-          dragElastic={0.1}
+          dragElastic={0.05}
+          dragTransition={{ 
+            bounceStiffness: 600,
+            bounceDamping: 20
+          }}
+          whileDrag={{ scale: 1.02 }}
           onDrag={handleDrag}
           onDragEnd={handleDragEnd}
           animate={controls}
@@ -131,6 +143,26 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Slett
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showArchiveConfirm} onOpenChange={setShowArchiveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arkiver kvittering?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Kvitteringen flyttes til arkivet og fjernes fra oversikten.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmArchive} 
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Arkiver
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
