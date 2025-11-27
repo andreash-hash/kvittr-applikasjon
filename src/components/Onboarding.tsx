@@ -131,15 +131,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 src={slides[currentSlide].image}
                 alt={slides[currentSlide].title}
                 className={`w-full h-full object-cover object-center ${
-                  currentSlide === 0 ? 'blur-sm' : ''
+                  currentSlide === 0 ? 'blur-[2px]' : ''
                 }`}
               />
             </div>
 
-            {/* Navigation dots - positioned above text overlay */}
+            {/* Navigation dots - positioned above text card */}
             <div 
-              className="absolute left-1/2 -translate-x-1/2 z-10 flex justify-center gap-2"
-              style={{ bottom: 'calc(260px + env(safe-area-inset-bottom))' }}
+              className="absolute left-1/2 top-[calc(50%-150px)] -translate-x-1/2 z-10 flex justify-center gap-2"
             >
               {slides.map((_, index) => (
                 <button
@@ -162,16 +161,16 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-[85%] max-w-[400px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-[64%] max-w-[300px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
               style={{
                 background: 'rgba(255, 255, 255, 0.95)',
               }}
             >
-              <div className="dark:bg-gray-800/95 dark:backdrop-blur-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.24)] rounded-[20px] px-6 py-6">
-                <h2 className="text-[24px] font-bold text-gray-900 dark:text-gray-50 mb-2 text-center leading-tight">
+              <div className="dark:bg-gray-800/95 dark:backdrop-blur-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.24)] rounded-[20px] px-5 py-5">
+                <h2 className="text-[20px] font-bold text-gray-900 dark:text-gray-50 mb-1.5 text-center leading-tight">
                   {slides[currentSlide].title}
                 </h2>
-                <p className="text-[15px] text-gray-600 dark:text-gray-300 leading-[1.4] text-center mb-5">
+                <p className="text-[13px] text-gray-600 dark:text-gray-300 leading-[1.4] text-center mb-4">
                   {slides[currentSlide].description}
                 </p>
 
@@ -179,7 +178,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 {isLastSlide ? (
                   <Button
                     onClick={handleComplete}
-                    className="w-full h-12 text-base font-bold rounded-xl"
+                    className="w-full h-10 text-sm font-bold rounded-xl"
                   >
                     Kom i gang
                   </Button>
@@ -187,7 +186,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                   <Button
                     onClick={nextSlide}
                     variant="outline"
-                    className="w-full h-12 text-base font-semibold rounded-xl"
+                    className="w-full h-10 text-sm font-semibold rounded-xl"
                   >
                     Neste
                   </Button>
