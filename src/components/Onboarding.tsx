@@ -130,7 +130,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               <img 
                 src={slides[currentSlide].image}
                 alt={slides[currentSlide].title}
-                className={`w-full h-full object-cover object-center ${
+                className={`w-full h-full object-contain object-center ${
                   currentSlide === 0 ? 'blur-[2px]' : ''
                 }`}
               />
@@ -138,7 +138,10 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
 
             {/* Navigation dots - positioned above text card */}
             <div 
-              className="absolute left-1/2 top-[calc(50%-150px)] -translate-x-1/2 z-10 flex justify-center gap-2"
+              className="absolute left-1/2 -translate-x-1/2 z-10 flex justify-center gap-2"
+              style={{
+                bottom: 'calc(20% + 150px + env(safe-area-inset-bottom))',
+              }}
             >
               {slides.map((_, index) => (
                 <button
@@ -156,14 +159,15 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               ))}
             </div>
 
-            {/* Text overlay - floating card */}
+            {/* Text overlay - floating card at bottom 20% */}
             <motion.div 
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-[64%] max-w-[300px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+              className="absolute left-1/2 -translate-x-1/2 z-10 w-[64%] max-w-[300px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
               style={{
                 background: 'rgba(255, 255, 255, 0.95)',
+                bottom: 'calc(20% + env(safe-area-inset-bottom))',
               }}
             >
               <div className="dark:bg-gray-800/95 dark:backdrop-blur-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.24)] rounded-[20px] px-5 py-5">
