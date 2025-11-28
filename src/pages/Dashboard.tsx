@@ -453,7 +453,7 @@ const Dashboard = () => {
       </PullToRefresh>
 
       {/* Bottom scan button with safe area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 safe-area-bottom">
+      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 safe-area-bottom safe-area-left safe-area-right">
         <div className="container max-w-2xl mx-auto">
           <Button 
             className="w-full h-14 text-base font-semibold rounded-xl" 
