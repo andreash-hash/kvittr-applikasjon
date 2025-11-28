@@ -184,19 +184,20 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                   />
                 ))}
               </div>
-              <div className="rounded-[20px] px-6 py-5">
+              <div className="rounded-[20px] px-6 py-8">
                 <h2 
-                  className="text-[28px] font-bold mb-2 text-center leading-tight"
+                  className="text-[24px] font-bold mb-3 text-center"
                   style={{
                     background: 'linear-gradient(90deg, #2C3E50 0%, #FF6B9D 25%, #FFA500 50%, #6366F1 75%, #16A085 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
+                    lineHeight: '1.2',
                   }}
                 >
                   {slides[currentSlide].title}
                 </h2>
-                <p className="text-[15px] leading-[1.5] text-center mb-4" style={{ color: '#374151' }}>
+                <p className="text-[15px] leading-[1.5] text-center mb-6" style={{ color: '#374151' }}>
                   {slides[currentSlide].description}
                 </p>
 
