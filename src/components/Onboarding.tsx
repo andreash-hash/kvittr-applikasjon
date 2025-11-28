@@ -184,27 +184,27 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                   />
                 ))}
               </div>
-              <div className="px-6 py-6">
+              <div className="px-6 py-5">
                 <h2 
-                  className="text-[24px] font-bold text-center"
+                  className="text-[22px] font-bold text-center"
                   style={{
                     background: 'linear-gradient(90deg, #2C3E50 0%, #FF6B9D 25%, #FFA500 50%, #6366F1 75%, #16A085 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
                     lineHeight: '1.2',
-                    marginBottom: '10px',
+                    marginBottom: '8px',
                     fontWeight: '700',
                   }}
                 >
                   {slides[currentSlide].title}
                 </h2>
                 <p 
-                  className="text-[15px] text-center"
+                  className="text-[14px] text-center"
                   style={{ 
                     color: '#4B5563',
-                    lineHeight: '1.4',
-                    marginBottom: '20px',
+                    lineHeight: '1.3',
+                    marginBottom: '16px',
                   }}
                 >
                   {slides[currentSlide].description}
@@ -217,10 +217,10 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                     className="w-full text-white"
                     style={{
                       background: '#1E293B',
-                      height: '52px',
-                      fontSize: '17px',
+                      height: '48px',
+                      fontSize: '16px',
                       fontWeight: '600',
-                      borderRadius: '14px',
+                      borderRadius: '12px',
                     }}
                   >
                     Kom i gang
@@ -231,10 +231,10 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                     className="w-full text-white"
                     style={{
                       background: '#1E293B',
-                      height: '52px',
-                      fontSize: '17px',
+                      height: '48px',
+                      fontSize: '16px',
                       fontWeight: '600',
-                      borderRadius: '14px',
+                      borderRadius: '12px',
                     }}
                   >
                     Neste
