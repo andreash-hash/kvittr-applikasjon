@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Camera as CameraIcon, ArrowLeft, Check, RotateCcw, Upload, Image as ImageIcon } from 'lucide-react';
+import { Camera as CameraIcon, ArrowLeft, Check, RotateCcw, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveReceipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,7 +15,9 @@ const Scan = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [isNative, setIsNative] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -222,10 +224,27 @@ const Scan = () => {
     setIsProcessing(false);
   };
 
+  const handleCancelUpload = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setIsUploading(false);
+    setIsLoading(false);
+    toast({
+      title: 'Avbrutt',
+      description: 'Analyse avbrutt',
+    });
+    navigate('/dashboard');
+  };
+
   const saveImage = async () => {
     if (!capturedImage || !userId) return;
     
     setIsLoading(true);
+    setIsUploading(true);
+    
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
     
     try {
       // Use enhanced image if available, otherwise use original
@@ -252,6 +271,11 @@ const Scan = () => {
         throw new Error('Kunne ikke laste opp bilde');
       }
       
+      // Check if aborted after upload
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+      
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('receipt-images')
@@ -274,6 +298,11 @@ const Scan = () => {
       };
       
       await saveReceipt(newReceipt);
+      
+      // Check if aborted after save
+      if (abortControllerRef.current?.signal.aborted) {
+        return;
+      }
       
       // Trigger OCR webhook (don't await - let it process in background)
       fetch('https://api.kvittr.app/webhook/receipt-ocr', {
@@ -299,14 +328,21 @@ const Scan = () => {
       });
       
       navigate(`/item/${receiptId}`);
-    } catch (error) {
+    } catch (error: any) {
+      // Don't show error if request was aborted
+      if (error.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
+        return;
+      }
+      
       console.error('Save error:', error);
       toast({
         title: 'Feil',
         description: error instanceof Error ? error.message : 'Kunne ikke lagre kvittering',
         variant: 'destructive',
       });
+    } finally {
       setIsLoading(false);
+      setIsUploading(false);
     }
   };
 
@@ -318,7 +354,7 @@ const Scan = () => {
     return (
       <div className="fixed inset-0 bg-background flex flex-col safe-area-all">
         {/* Header */}
-        <div className="p-4 flex items-center justify-between bg-card border-b safe-area-top">
+        <div className="p-4 flex items-center justify-between bg-card border-b" style={{ paddingTop: 'calc(40px + env(safe-area-inset-top))' }}>
           <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -377,7 +413,7 @@ const Scan = () => {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col safe-area-all">
-      <div className="p-4 flex items-center justify-between bg-card border-b safe-area-top">
+      <div className="p-4 flex items-center justify-between bg-card border-b" style={{ paddingTop: 'calc(40px + env(safe-area-inset-top))' }}>
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -454,6 +490,29 @@ const Scan = () => {
           Ta på nytt
         </Button>
       </div>
+
+      {/* Cancel Analysis Overlay */}
+      {isUploading && (
+        <div className="fixed inset-0 bg-black/50 flex flex-col items-center justify-center z-50">
+          <div className="bg-card rounded-lg p-6 mx-6 max-w-sm w-full">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-center text-lg font-semibold mb-2">
+              Analyserer kvittering...
+            </p>
+            <p className="text-center text-sm text-muted-foreground mb-6">
+              Dette kan ta 10-20 sekunder
+            </p>
+            
+            <Button
+              onClick={handleCancelUpload}
+              variant="outline"
+              className="w-full py-3 px-4"
+            >
+              Avbryt analyse
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

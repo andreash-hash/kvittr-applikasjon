@@ -318,7 +318,7 @@ const Dashboard = () => {
       <PullToRefresh onRefresh={handleRefresh}>
         <div className="container max-w-2xl mx-auto p-4 pb-28 safe-area-top safe-area-left safe-area-right">
           {/* Header with safe area */}
-          <div className="flex items-center justify-between mb-6 pt-2">
+          <div className="flex items-center justify-between mb-6" style={{ paddingTop: 'calc(40px + env(safe-area-inset-top))' }}>
             <div className="flex items-center gap-3">
               <Logo size="small" clickable />
             </div>
@@ -453,9 +453,9 @@ const Dashboard = () => {
       </PullToRefresh>
 
       {/* Bottom scan button with safe area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 safe-area-bottom safe-area-left safe-area-right">
+      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 safe-area-left safe-area-right" style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
         <div className="container max-w-2xl mx-auto">
-          <Button 
+          <Button
             className="w-full h-14 text-base font-semibold rounded-xl" 
             size="lg"
             onClick={() => {
