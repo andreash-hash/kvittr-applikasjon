@@ -148,13 +148,13 @@ All colors MUST be HSL.
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
   
-  /* Safe area support for iOS */
+  /* Safe area support for iOS - Enhanced for better spacing */
   .safe-area-top {
-    padding-top: env(safe-area-inset-top);
+    padding-top: max(16px, env(safe-area-inset-top));
   }
   
   .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
   
   .safe-area-left {
@@ -166,8 +166,8 @@ All colors MUST be HSL.
   }
   
   .safe-area-all {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }

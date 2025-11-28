@@ -222,6 +222,13 @@ const ItemDetail = () => {
   };
 
   const handleFillManually = () => {
+    // Stop any polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    
+    // Clear all processing states
     setProcessingError(false);
     setIsPolling(false);
     setIsRetrying(false);
@@ -296,7 +303,7 @@ const ItemDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center safe-area-all">
         <p className="text-muted-foreground">Laster...</p>
       </div>
     );
@@ -305,8 +312,8 @@ const ItemDetail = () => {
   if (!receipt) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <div className="container max-w-2xl mx-auto p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 safe-area-all">
+      <div className="container max-w-2xl mx-auto p-4 safe-area-top safe-area-left safe-area-right">
         <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-5 w-5" />

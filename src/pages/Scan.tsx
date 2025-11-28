@@ -218,6 +218,8 @@ const Scan = () => {
     setCapturedImage(null);
     setEnhancedImage(null);
     setShowOriginal(false);
+    setIsLoading(false);
+    setIsProcessing(false);
   };
 
   const saveImage = async () => {
@@ -314,9 +316,9 @@ const Scan = () => {
 
   if (!capturedImage) {
     return (
-      <div className="fixed inset-0 bg-background flex flex-col">
+      <div className="fixed inset-0 bg-background flex flex-col safe-area-all">
         {/* Header */}
-        <div className="p-4 flex items-center justify-between bg-card border-b">
+        <div className="p-4 flex items-center justify-between bg-card border-b safe-area-top">
           <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -374,8 +376,8 @@ const Scan = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-background flex flex-col">
-      <div className="p-4 flex items-center justify-between bg-card border-b">
+    <div className="fixed inset-0 bg-background flex flex-col safe-area-all">
+      <div className="p-4 flex items-center justify-between bg-card border-b safe-area-top">
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -425,7 +427,7 @@ const Scan = () => {
         </div>
       )}
 
-      <div className="p-4 bg-card border-t space-y-3">
+      <div className="p-4 bg-card border-t space-y-3 safe-area-bottom">
         <Button 
           className="w-full" 
           size="lg"
