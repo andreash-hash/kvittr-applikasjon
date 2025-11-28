@@ -153,7 +153,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-0 right-0 mx-auto z-10 w-[88%] max-w-[340px] rounded-[18px]"
+              className="absolute left-0 right-0 mx-auto z-10 w-[87%] max-w-[340px] rounded-[16px]"
               style={{
                 bottom: 'calc(80px + env(safe-area-inset-bottom))',
                 background: '#F5E6D3',
@@ -184,20 +184,29 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                   />
                 ))}
               </div>
-              <div className="rounded-[18px] px-5 py-6">
+              <div className="p-6">
                 <h2 
-                  className="text-[22px] font-bold mb-2 text-center"
+                  className="text-[20px] font-bold text-center"
                   style={{
                     background: 'linear-gradient(90deg, #2C3E50 0%, #FF6B9D 25%, #FFA500 50%, #6366F1 75%, #16A085 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
-                    lineHeight: '1.15',
+                    lineHeight: '1.2',
+                    marginBottom: '10px',
+                    fontWeight: '700',
                   }}
                 >
                   {slides[currentSlide].title}
                 </h2>
-                <p className="text-[14px] leading-[1.4] text-center mb-5" style={{ color: '#374151' }}>
+                <p 
+                  className="text-[14px] text-center"
+                  style={{ 
+                    color: '#4B5563',
+                    lineHeight: '1.4',
+                    marginBottom: '20px',
+                  }}
+                >
                   {slides[currentSlide].description}
                 </p>
 
@@ -205,9 +214,13 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 {isLastSlide ? (
                   <Button
                     onClick={handleComplete}
-                    className="w-full h-[50px] text-[15px] font-bold rounded-xl text-white"
+                    className="w-full text-white"
                     style={{
-                      background: '#1a2332',
+                      background: '#1E293B',
+                      height: '48px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      borderRadius: '12px',
                     }}
                   >
                     Kom i gang
@@ -215,9 +228,13 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 ) : (
                   <Button
                     onClick={nextSlide}
-                    className="w-full h-[50px] text-[15px] font-semibold rounded-xl text-white"
+                    className="w-full text-white"
                     style={{
-                      background: '#1a2332',
+                      background: '#1E293B',
+                      height: '48px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      borderRadius: '12px',
                     }}
                   >
                     Neste
