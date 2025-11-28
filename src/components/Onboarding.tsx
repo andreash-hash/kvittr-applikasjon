@@ -153,19 +153,13 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-0 right-0 mx-auto z-10 w-[83%] max-w-[390px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-hidden"
+              className="absolute left-0 right-0 mx-auto z-10 w-[83%] max-w-[390px] rounded-[20px]"
               style={{
                 bottom: 'calc(80px + env(safe-area-inset-bottom))',
-                background: 'rgba(255, 255, 255, 0.95)',
+                background: '#F5E6D3',
+                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
               }}
             >
-              {/* Gradient accent bar at top */}
-              <div 
-                className="w-full h-1.5"
-                style={{
-                  background: 'linear-gradient(90deg, #FF6B9D 0%, #FFA500 25%, #6366F1 50%, #16A085 100%)',
-                }}
-              />
               {/* Navigation dots - positioned above text card */}
               <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex justify-center gap-2">
                 {slides.map((_, index) => (
@@ -190,11 +184,19 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                   />
                 ))}
               </div>
-              <div className="dark:bg-gray-800/95 dark:backdrop-blur-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.24)] rounded-[20px] px-5 py-4">
-                <h2 className="text-[18px] font-bold text-gray-900 dark:text-gray-50 mb-1 text-center leading-tight">
+              <div className="rounded-[20px] px-6 py-5">
+                <h2 
+                  className="text-[28px] font-bold mb-2 text-center leading-tight"
+                  style={{
+                    background: 'linear-gradient(90deg, #2C3E50 0%, #FF6B9D 25%, #FFA500 50%, #6366F1 75%, #16A085 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
                   {slides[currentSlide].title}
                 </h2>
-                <p className="text-[13px] text-gray-600 dark:text-gray-300 leading-[1.4] text-center mb-3">
+                <p className="text-[15px] leading-[1.5] text-center mb-4" style={{ color: '#374151' }}>
                   {slides[currentSlide].description}
                 </p>
 
@@ -202,15 +204,20 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 {isLastSlide ? (
                   <Button
                     onClick={handleComplete}
-                    className="w-full h-11 text-sm font-bold rounded-xl"
+                    className="w-full h-12 text-base font-bold rounded-xl text-white"
+                    style={{
+                      background: '#1a2332',
+                    }}
                   >
                     Kom i gang
                   </Button>
                 ) : (
                   <Button
                     onClick={nextSlide}
-                    variant="outline"
-                    className="w-full h-11 text-sm font-semibold rounded-xl"
+                    className="w-full h-12 text-base font-semibold rounded-xl text-white"
+                    style={{
+                      background: '#1a2332',
+                    }}
                   >
                     Neste
                   </Button>
