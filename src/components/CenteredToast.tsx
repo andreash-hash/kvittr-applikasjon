@@ -39,8 +39,8 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       
-      {/* Toast Container - Fixed center of screen */}
-      <div className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center">
+      {/* Toast Container - Fixed top with offset */}
+      <div className="fixed left-0 right-0 pointer-events-none z-[9999] flex justify-center" style={{ top: 'calc(90px + env(safe-area-inset-top))' }}>
         <AnimatePresence>
           {toasts.map((toast) => (
             <motion.div

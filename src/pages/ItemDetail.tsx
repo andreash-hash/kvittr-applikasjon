@@ -313,8 +313,8 @@ const ItemDetail = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 safe-area-all">
-      <div className="container max-w-2xl mx-auto p-4 safe-area-top safe-area-left safe-area-right">
-        <div className="flex items-center justify-between mb-6">
+      <div className="container max-w-2xl mx-auto p-4 safe-area-left safe-area-right">
+        <div className="flex items-center justify-between mb-6" style={{ paddingTop: 'calc(40px + env(safe-area-inset-top))' }}>
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -369,12 +369,22 @@ const ItemDetail = () => {
         {isPolling && !isRetrying && (
           <Card className="mb-6 bg-primary/10">
             <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <div>
-                  <p className="font-medium text-foreground">Analyserer kvittering...</p>
-                  <p className="text-sm text-muted-foreground">Dette kan ta 10-20 sekunder</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">Analyserer kvittering...</p>
+                    <p className="text-sm text-muted-foreground">Dette kan ta 10-20 sekunder</p>
+                  </div>
                 </div>
+                <Button
+                  onClick={handleFillManually}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  Avbryt analyse
+                </Button>
               </div>
             </CardContent>
           </Card>

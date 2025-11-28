@@ -101,7 +101,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         onClick={handleSkip}
         className="fixed z-20 text-white text-base font-semibold drop-shadow-lg"
         style={{
-          top: 'calc(16px + env(safe-area-inset-top))',
+          top: 'calc(66px + env(safe-area-inset-top))',
           right: 'calc(16px + env(safe-area-inset-right))',
           textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
         }}
