@@ -153,7 +153,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-0 right-0 mx-auto z-10 w-[90%] max-w-[600px] rounded-[24px]"
+              className="absolute left-0 right-0 mx-auto z-10 w-[85%] max-w-[580px] rounded-[20px]"
               style={{
                 bottom: 'calc(80px + env(safe-area-inset-bottom))',
                 background: '#F5E6D3',
@@ -184,27 +184,27 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                   />
                 ))}
               </div>
-              <div className="p-8">
+              <div className="px-6 py-6">
                 <h2 
-                  className="text-[28px] font-bold text-center"
+                  className="text-[24px] font-bold text-center"
                   style={{
                     background: 'linear-gradient(90deg, #2C3E50 0%, #FF6B9D 25%, #FFA500 50%, #6366F1 75%, #16A085 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
                     lineHeight: '1.2',
-                    marginBottom: '12px',
+                    marginBottom: '10px',
                     fontWeight: '700',
                   }}
                 >
                   {slides[currentSlide].title}
                 </h2>
                 <p 
-                  className="text-[16px] text-center"
+                  className="text-[15px] text-center"
                   style={{ 
                     color: '#4B5563',
-                    lineHeight: '1.5',
-                    marginBottom: '24px',
+                    lineHeight: '1.4',
+                    marginBottom: '20px',
                   }}
                 >
                   {slides[currentSlide].description}
@@ -217,10 +217,10 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                     className="w-full text-white"
                     style={{
                       background: '#1E293B',
-                      height: '56px',
-                      fontSize: '18px',
+                      height: '52px',
+                      fontSize: '17px',
                       fontWeight: '600',
-                      borderRadius: '16px',
+                      borderRadius: '14px',
                     }}
                   >
                     Kom i gang
@@ -231,10 +231,10 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                     className="w-full text-white"
                     style={{
                       background: '#1E293B',
-                      height: '56px',
-                      fontSize: '18px',
+                      height: '52px',
+                      fontSize: '17px',
                       fontWeight: '600',
-                      borderRadius: '16px',
+                      borderRadius: '14px',
                     }}
                   >
                     Neste
