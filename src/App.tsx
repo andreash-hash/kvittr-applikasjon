@@ -14,6 +14,7 @@ import Scan from "./pages/Scan";
 import ItemDetail from "./pages/ItemDetail";
 import Settings from "./pages/Settings";
 import Success from "./pages/Success";
+import DownloadIcons from "./pages/DownloadIcons";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -101,6 +102,7 @@ const App = () => {
               <Route path="/item/:id" element={<ItemDetail />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/success" element={<Success />} />
+              <Route path="/download-icons" element={<DownloadIcons />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
