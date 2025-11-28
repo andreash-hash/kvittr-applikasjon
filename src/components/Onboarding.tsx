@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { Logo } from '@/components/Logo';
 
 interface Slide {
   image: string;
@@ -94,14 +95,15 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       transition={{ duration: 0.5 }}
       className="fixed inset-0 z-[10000] bg-background"
     >
+
       {/* Skip button - top right with safe area */}
       <button
         onClick={handleSkip}
-        className="fixed z-20 text-white text-base font-semibold shadow-lg"
+        className="fixed z-20 text-white text-base font-semibold drop-shadow-lg"
         style={{
           top: 'calc(16px + env(safe-area-inset-top))',
           right: 'calc(16px + env(safe-area-inset-right))',
-          textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
+          textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
         }}
       >
         Hopp over
@@ -125,29 +127,41 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
             onDragEnd={handleDragEnd}
             className="h-full flex flex-col relative"
           >
-            {/* Full screen image */}
+            {/* Full screen image with gradient overlay */}
             <div className="absolute inset-0 bg-[#1F2937]">
               <img 
                 src={slides[currentSlide].image}
                 alt={slides[currentSlide].title}
-                className={`w-full h-full object-contain object-center ${
+                className={`w-full h-full object-cover object-center ${
                   currentSlide === 0 ? 'blur-[2px]' : ''
                 }`}
               />
+              {/* Strong dark gradient overlay at top for logo readability */}
+              <div 
+                className="absolute top-0 left-0 right-0 pointer-events-none z-10"
+                style={{
+                  height: '200px',
+                  background: 'linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)'
+                }}
+              />
+              {/* Subtle gradient overlay for better text contrast at bottom */}
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20" />
             </div>
 
-            {/* Text overlay - floating card centered */}
+            {/* Text overlay - floating card in lower third */}
             <motion.div 
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-0 right-0 mx-auto top-1/2 -translate-y-1/2 z-10 w-[83%] max-w-[390px] backdrop-blur-xl rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+              className="absolute left-0 right-0 mx-auto z-10 w-[85%] max-w-[580px] rounded-[20px]"
               style={{
-                background: 'rgba(255, 255, 255, 0.95)',
+                bottom: 'calc(80px + env(safe-area-inset-bottom))',
+                background: '#F5E6D3',
+                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
               }}
             >
               {/* Navigation dots - positioned above text card */}
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex justify-center gap-2">
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex justify-center gap-2">
                 {slides.map((_, index) => (
                   <button
                     key={index}
@@ -155,19 +169,44 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                       setDirection(index > currentSlide ? 1 : -1);
                       setCurrentSlide(index);
                     }}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 border ${
+                    className={`w-2 h-2 rounded-full transition-all duration-300 border shadow-md ${
                       index === currentSlide
-                        ? 'bg-primary w-6 border-primary'
-                        : 'bg-white/50 border-white/30'
+                        ? 'w-6 border-white'
+                        : 'bg-white/60 border-white/50'
                     }`}
+                    style={
+                      index === currentSlide
+                        ? {
+                            background: 'linear-gradient(90deg, #FF6B9D 0%, #FFA500 35%, #6366F1 65%, #16A085 100%)',
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </div>
-              <div className="dark:bg-gray-800/95 dark:backdrop-blur-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.24)] rounded-[20px] px-5 py-5">
-                <h2 className="text-[20px] font-bold text-gray-900 dark:text-gray-50 mb-1.5 text-center leading-tight">
+              <div className="px-6 py-6">
+                <h2 
+                  className="text-[20px] font-bold text-center"
+                  style={{
+                    background: 'linear-gradient(90deg, #2C3E50 0%, #FF6B9D 25%, #FFA500 50%, #6366F1 75%, #16A085 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    lineHeight: '1.1',
+                    marginBottom: '6px',
+                    fontWeight: '700',
+                  }}
+                >
                   {slides[currentSlide].title}
                 </h2>
-                <p className="text-[13px] text-gray-600 dark:text-gray-300 leading-[1.4] text-center mb-4">
+                <p 
+                  className="text-[13px] text-center"
+                  style={{ 
+                    color: '#4B5563',
+                    lineHeight: '1.3',
+                    marginBottom: '12px',
+                  }}
+                >
                   {slides[currentSlide].description}
                 </p>
 
@@ -175,15 +214,28 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 {isLastSlide ? (
                   <Button
                     onClick={handleComplete}
-                    className="w-full h-10 text-sm font-bold rounded-xl"
+                    className="w-full text-white"
+                    style={{
+                      background: '#1E293B',
+                      height: '36px',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      borderRadius: '10px',
+                    }}
                   >
                     Kom i gang
                   </Button>
                 ) : (
                   <Button
                     onClick={nextSlide}
-                    variant="outline"
-                    className="w-full h-10 text-sm font-semibold rounded-xl"
+                    className="w-full text-white"
+                    style={{
+                      background: '#1E293B',
+                      height: '36px',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      borderRadius: '10px',
+                    }}
                   >
                     Neste
                   </Button>

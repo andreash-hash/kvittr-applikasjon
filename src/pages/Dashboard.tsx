@@ -11,6 +11,7 @@ import { differenceInDays } from 'date-fns';
 import PullToRefresh from '@/components/PullToRefresh';
 import SwipeableCard from '@/components/SwipeableCard';
 import { useToastNotification } from '@/components/CenteredToast';
+import { Logo } from '@/components/Logo';
 
 type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv' | 'expiring';
 
@@ -318,7 +319,9 @@ const Dashboard = () => {
         <div className="container max-w-2xl mx-auto p-4 pb-28 safe-area-top safe-area-left safe-area-right">
           {/* Header with safe area */}
           <div className="flex items-center justify-between mb-6 pt-2">
-            <h1 className="text-3xl font-bold text-primary">Kvittr</h1>
+            <div className="flex items-center gap-3">
+              <Logo size="small" clickable />
+            </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
                 <Settings className="h-5 w-5" />
@@ -355,13 +358,25 @@ const Dashboard = () => {
             {filters.map((filter) => {
               const FilterIcon = filter.icon;
               const isSelected = selectedFilter === filter.id;
+              
+              // Category-specific colors matching logo
+              const getCategoryColor = () => {
+                if (!isSelected) return '';
+                switch(filter.id) {
+                  case 'kvitteringer': return 'bg-category-receipt';
+                  case 'bytte': return 'bg-category-return';
+                  case 'gavekort': return 'bg-category-giftcard';
+                  default: return 'bg-primary';
+                }
+              };
+              
               return (
                 <button
                   key={filter.id}
                   onClick={() => setSelectedFilter(filter.id)}
                   className={`flex-shrink-0 w-[90px] h-[56px] rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-200 ${
                     isSelected
-                      ? 'bg-primary text-primary-foreground shadow-md'
+                      ? `${getCategoryColor()} text-white shadow-md`
                       : 'bg-card text-muted-foreground border border-border hover:bg-muted'
                   }`}
                 >
@@ -377,7 +392,7 @@ const Dashboard = () => {
             onClick={expiringReceipts.length > 0 ? () => setSelectedFilter('expiring') : undefined}
             className={`p-4 mb-4 transition-all rounded-xl h-[56px] flex items-center border-l-4 ${
               expiringReceipts.length > 0
-                ? 'bg-warning/10 border-l-warning text-warning-foreground cursor-pointer hover:bg-warning/15'
+                ? 'bg-category-expiring/10 border-l-category-expiring text-category-expiring cursor-pointer hover:bg-category-expiring/15'
                 : 'bg-success/10 border-l-success text-success'
             }`}
           >

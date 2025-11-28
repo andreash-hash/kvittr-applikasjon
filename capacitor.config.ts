@@ -8,7 +8,8 @@ const config: CapacitorConfig = {
     androidScheme: 'https'
   },
   ios: {
-    scheme: 'App'
+    scheme: 'App',
+    buildNumber: '3'
   }
 };
 

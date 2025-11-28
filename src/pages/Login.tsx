@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Logo } from '@/components/Logo';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -56,7 +57,9 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-3xl font-bold text-primary">Kvittr</CardTitle>
+          <div className="flex justify-center mb-4">
+            <Logo size="medium" />
+          </div>
           <CardDescription>Logg inn på din konto</CardDescription>
         </CardHeader>
         <CardContent>

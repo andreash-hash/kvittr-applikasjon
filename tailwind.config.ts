@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+        inter: ["Inter", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -64,6 +68,19 @@ export default {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
+        },
+        logo: {
+          dark: "hsl(var(--logo-dark))",
+          coral: "hsl(var(--logo-coral))",
+          orange: "hsl(var(--logo-orange))",
+          blue: "hsl(var(--logo-blue))",
+          teal: "hsl(var(--logo-teal))",
+        },
+        category: {
+          receipt: "hsl(var(--category-receipt))",
+          return: "hsl(var(--category-return))",
+          giftcard: "hsl(var(--category-giftcard))",
+          expiring: "hsl(var(--category-expiring))",
         },
       },
       borderRadius: {

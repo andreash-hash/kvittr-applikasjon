@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Receipt, calculateStatus } from '@/lib/storage';
 import { formatDate, formatCurrency, getDaysUntil } from '@/lib/format';
 import { useNavigate } from 'react-router-dom';
-import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { Shield, RefreshCw, Gift, Receipt as ReceiptIcon, Eye, Loader2, Check, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { differenceInDays, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
@@ -51,12 +51,12 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     
     if (daysRemaining < 0) return null;
     
-    let badgeColor = 'bg-success';
-    if (daysRemaining < 7) badgeColor = 'bg-destructive';
-    else if (daysRemaining <= 30) badgeColor = 'bg-warning';
+    let badgeColor = 'badge-valid';
+    if (daysRemaining < 7) badgeColor = 'badge-expired';
+    else if (daysRemaining <= 30) badgeColor = 'badge-expiring';
     
     return (
-      <Badge className={`${badgeColor} text-white text-xs`}>
+      <Badge className={`${badgeColor} text-xs`}>
         <Shield className="h-3 w-3 mr-1" />
         Garanti til {format(warrantyDate, 'd. MMM yyyy', { locale: nb })}
       </Badge>
@@ -75,12 +75,12 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     
     if (daysRemaining < 0) return null;
     
-    let badgeColor = 'bg-success';
-    if (daysRemaining < 7) badgeColor = 'bg-destructive';
-    else if (daysRemaining <= 30) badgeColor = 'bg-warning';
+    let badgeColor = 'badge-valid';
+    if (daysRemaining < 7) badgeColor = 'badge-expired';
+    else if (daysRemaining <= 30) badgeColor = 'badge-expiring';
     
     return (
-      <Badge className={`${badgeColor} text-white text-xs`}>
+      <Badge className={`${badgeColor} text-xs`}>
         <RefreshCw className="h-3 w-3 mr-1" />
         Bytte til {format(returnDate, 'd. MMM yyyy', { locale: nb })}
       </Badge>
@@ -97,12 +97,12 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     
     if (daysRemaining < 0) return null;
     
-    let badgeColor = 'bg-success';
-    if (daysRemaining < 7) badgeColor = 'bg-destructive';
-    else if (daysRemaining <= 30) badgeColor = 'bg-warning';
+    let badgeColor = 'badge-valid';
+    if (daysRemaining < 7) badgeColor = 'badge-expired';
+    else if (daysRemaining <= 30) badgeColor = 'badge-expiring';
     
     return (
-      <Badge className={`${badgeColor} text-white text-xs`}>
+      <Badge className={`${badgeColor} text-xs`}>
         <Gift className="h-3 w-3 mr-1" />
         Gyldig til {format(expiryDate, 'd. MMM yyyy', { locale: nb })}
       </Badge>
@@ -119,27 +119,27 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     switch (receipt.type) {
       case 'return_slip':
         return {
-          borderColor: 'border-l-warning',
+          borderColor: 'border-l-category-return',
           icon: RefreshCw,
           label: 'BYTTELAPP',
-          labelColor: 'text-warning',
-          bgColor: 'bg-warning/10',
+          badgeBgColor: 'bg-category-return',
+          badgeTextColor: 'text-white',
         };
       case 'gift_card':
         return {
-          borderColor: 'border-l-success',
+          borderColor: 'border-l-category-giftcard',
           icon: Gift,
           label: 'GAVEKORT',
-          labelColor: 'text-success',
-          bgColor: 'bg-success/10',
+          badgeBgColor: 'bg-category-giftcard',
+          badgeTextColor: 'text-white',
         };
       default:
         return {
-          borderColor: 'border-l-muted-foreground',
+          borderColor: 'border-l-category-receipt',
           icon: ReceiptIcon,
           label: 'KVITTERING',
-          labelColor: 'text-muted-foreground',
-          bgColor: 'bg-muted',
+          badgeBgColor: 'bg-category-receipt',
+          badgeTextColor: 'text-white',
         };
     }
   };
@@ -275,9 +275,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
       <CardContent className="p-3">
         {/* Header with type label and analyzing badge */}
         <div className="flex justify-between items-center mb-2">
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${typeConfig.bgColor} w-fit`}>
-            <TypeIcon className={`h-3 w-3 ${typeConfig.labelColor}`} />
-            <span className={`text-[10px] font-bold tracking-wide ${typeConfig.labelColor}`}>
+          <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${typeConfig.badgeBgColor} w-fit`}>
+            <TypeIcon className={`h-3 w-3 ${typeConfig.badgeTextColor}`} />
+            <span className={`text-[10px] font-bold tracking-wide ${typeConfig.badgeTextColor}`}>
               {typeConfig.label}
             </span>
           </div>
@@ -366,9 +366,9 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
         {/* Action buttons - Removed delete button since we have swipe */}
         <div className="flex gap-2 mt-3 pt-3 border-t border-border">
           <Button
-            variant="default"
+            variant="outline"
             size="sm"
-            className="flex-1 h-9 text-xs rounded-lg"
+            className="flex-1 h-9 text-xs rounded-lg border-logo-blue text-logo-blue hover:bg-logo-blue/10"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/item/${receipt.id}`);
