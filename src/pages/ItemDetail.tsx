@@ -27,6 +27,7 @@ const ItemDetail = () => {
   const [processingError, setProcessingError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollStartTimeRef = useRef<number | null>(null);
 
@@ -237,17 +238,47 @@ const ItemDetail = () => {
 
   const handleSave = async () => {
     if (!receipt) return;
+    
+    setIsSaving(true);
+    
     try {
-      await saveReceipt(receipt);
+      // Ensure dates are properly formatted
+      const receiptToSave = {
+        ...receipt,
+        purchase_date: receipt.purchase_date?.includes('T') 
+          ? receipt.purchase_date 
+          : `${receipt.purchase_date}T00:00:00`,
+        warranty_until: receipt.warranty_until?.includes('T')
+          ? receipt.warranty_until
+          : receipt.warranty_until ? `${receipt.warranty_until}T00:00:00` : undefined,
+        return_until: receipt.return_until?.includes('T')
+          ? receipt.return_until
+          : receipt.return_until ? `${receipt.return_until}T00:00:00` : undefined,
+        expiry_date: receipt.expiry_date?.includes('T')
+          ? receipt.expiry_date
+          : receipt.expiry_date ? `${receipt.expiry_date}T00:00:00` : undefined,
+      };
+      
+      await saveReceipt(receiptToSave);
+      
+      toast({
+        title: 'Lagret',
+        description: 'Endringene er lagret',
+      });
+      
       setIsEditing(false);
+      
       // Navigate to success screen with receipt type
       navigate(`/success?type=${receipt.type}`);
     } catch (error) {
+      console.error('Save error:', error);
       toast({
         title: 'Feil',
         description: 'Kunne ikke lagre endringer',
         variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -489,7 +520,7 @@ const ItemDetail = () => {
               />
             </div>
 
-            {/* Warranty toggle - only for regular receipts */}
+            {/* Warranty toggle - ONLY for regular receipts, NOT for gift cards or return slips */}
             {receipt.type === 'receipt' && (
               <div className="flex items-center justify-between space-x-2 rounded-lg border p-3 bg-muted/30">
                 <div className="flex-1 space-y-0.5">
@@ -689,13 +720,27 @@ const ItemDetail = () => {
             <div className="flex gap-3 pt-4">
               {isEditing ? (
                 <>
-                  <Button className="flex-1" onClick={handleSave}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Lagre
+                  <Button 
+                    className="flex-1" 
+                    onClick={handleSave}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Lagrer...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Lagre
+                      </>
+                    )}
                   </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => setIsEditing(false)}
+                    disabled={isSaving}
                   >
                     Avbryt
                   </Button>
