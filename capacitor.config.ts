@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
   },
   ios: {
     scheme: 'App',
-    buildNumber: '15',
+    buildNumber: '17',
     backgroundColor: '#F5F1E8',
     contentMode: 'center'
   }
