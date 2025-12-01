@@ -165,34 +165,21 @@ const Scan = () => {
         // @ts-ignore - Capacitor modules loaded dynamically
         const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
         
-        // Check and request photos permissions
-        const permissions = await Camera.checkPermissions();
-        console.log('Photos permissions:', permissions);
-        
-        if (permissions.photos !== 'granted') {
-          const requestResult = await Camera.requestPermissions({ permissions: ['photos'] });
-          console.log('Permission request result:', requestResult);
-          
-          if (requestResult.photos !== 'granted') {
-            toast({
-              title: 'Tilgang nektet',
-              description: 'Vennligst aktiver fototilgang i innstillinger for å velge bilder.',
-              variant: 'destructive',
-            });
-            return;
-          }
-        }
+        console.log('Opening gallery picker with CameraSource.Photos');
         
         const image = await Camera.getPhoto({
           quality: 90,
           allowEditing: false,
           resultType: CameraResultType.DataUrl,
           source: CameraSource.Photos,
+          promptLabelHeader: 'Velg bilde',
+          promptLabelPhoto: 'Fra galleri',
           correctOrientation: true,
         });
         
+        console.log('Image selected from gallery:', image.format);
+        
         if (image.dataUrl) {
-          // Skip intermediate preview - go directly to enhancement
           const enhanced = await enhanceImage(image.dataUrl);
           setCapturedImage(enhanced);
           setEnhancedImage(enhanced);
