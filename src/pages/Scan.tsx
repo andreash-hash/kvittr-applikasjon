@@ -102,35 +102,44 @@ const Scan = () => {
       try {
         // @ts-ignore - Capacitor modules loaded dynamically
         const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
-        // @ts-ignore
-        const { Filesystem } = await import('@capacitor/filesystem');
+        
+        // Check and request camera permissions
+        const permissions = await Camera.checkPermissions();
+        console.log('Camera permissions:', permissions);
+        
+        if (permissions.camera !== 'granted') {
+          const requestResult = await Camera.requestPermissions({ permissions: ['camera'] });
+          console.log('Permission request result:', requestResult);
+          
+          if (requestResult.camera !== 'granted') {
+            toast({
+              title: 'Tilgang nektet',
+              description: 'Vennligst aktiver kameratilgang i innstillinger for å ta bilder.',
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
         
         const image = await Camera.getPhoto({
           quality: 90,
           allowEditing: false,
-          resultType: CameraResultType.Uri,
+          resultType: CameraResultType.DataUrl,
           source: CameraSource.Camera,
           saveToGallery: false,
           correctOrientation: true,
         });
         
-        if (image.webPath) {
-          // Convert image to base64 data URL for display
-          const base64Data = await Filesystem.readFile({
-            path: image.path!
-          });
-          
-          const imageDataUrl = `data:image/jpeg;base64,${base64Data.data}`;
-          
+        if (image.dataUrl) {
           // Skip intermediate preview - go directly to enhancement
-          const enhanced = await enhanceImage(imageDataUrl);
+          const enhanced = await enhanceImage(image.dataUrl);
           setCapturedImage(enhanced);
           setEnhancedImage(enhanced);
         }
       } catch (error: any) {
         console.error('Camera error:', error);
         
-        if (error.message === 'User cancelled photos app') {
+        if (error.message === 'User cancelled photos app' || error.message?.includes('cancel')) {
           toast({
             title: 'Avbrutt',
             description: 'Du avbrøt bildeopplastingen',
@@ -138,7 +147,7 @@ const Scan = () => {
         } else {
           toast({
             title: 'Kamera feil',
-            description: 'Kunne ikke ta bilde. Prøv igjen.',
+            description: 'Kunne ikke ta bilde. Sjekk at appen har kameratilgang.',
             variant: 'destructive',
           });
         }
@@ -155,33 +164,43 @@ const Scan = () => {
       try {
         // @ts-ignore - Capacitor modules loaded dynamically
         const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
-        // @ts-ignore
-        const { Filesystem } = await import('@capacitor/filesystem');
+        
+        // Check and request photos permissions
+        const permissions = await Camera.checkPermissions();
+        console.log('Photos permissions:', permissions);
+        
+        if (permissions.photos !== 'granted') {
+          const requestResult = await Camera.requestPermissions({ permissions: ['photos'] });
+          console.log('Permission request result:', requestResult);
+          
+          if (requestResult.photos !== 'granted') {
+            toast({
+              title: 'Tilgang nektet',
+              description: 'Vennligst aktiver fototilgang i innstillinger for å velge bilder.',
+              variant: 'destructive',
+            });
+            return;
+          }
+        }
         
         const image = await Camera.getPhoto({
           quality: 90,
           allowEditing: false,
-          resultType: CameraResultType.Uri,
+          resultType: CameraResultType.DataUrl,
           source: CameraSource.Photos,
+          correctOrientation: true,
         });
         
-        if (image.webPath) {
-          // Convert image to base64 data URL for display
-          const base64Data = await Filesystem.readFile({
-            path: image.path!
-          });
-          
-          const imageDataUrl = `data:image/jpeg;base64,${base64Data.data}`;
-          
+        if (image.dataUrl) {
           // Skip intermediate preview - go directly to enhancement
-          const enhanced = await enhanceImage(imageDataUrl);
+          const enhanced = await enhanceImage(image.dataUrl);
           setCapturedImage(enhanced);
           setEnhancedImage(enhanced);
         }
       } catch (error: any) {
         console.error('Gallery picker error:', error);
         
-        if (error.message === 'User cancelled photos app') {
+        if (error.message === 'User cancelled photos app' || error.message?.includes('cancel')) {
           toast({
             title: 'Avbrutt',
             description: 'Du avbrøt bildeopplastingen',
@@ -189,7 +208,7 @@ const Scan = () => {
         } else {
           toast({
             title: 'Galleri feil',
-            description: 'Kunne ikke velge bilde. Prøv igjen.',
+            description: 'Kunne ikke velge bilde. Sjekk at appen har fototilgang.',
             variant: 'destructive',
           });
         }
