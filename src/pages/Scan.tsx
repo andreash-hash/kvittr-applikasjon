@@ -16,7 +16,8 @@ const Scan = () => {
   const [showOriginal, setShowOriginal] = useState(false);
   const [isNative, setIsNative] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -153,8 +154,8 @@ const Scan = () => {
         }
       }
     } else {
-      // Web fallback - trigger file input
-      fileInputRef.current?.click();
+      // Web fallback - trigger camera file input (with capture attribute)
+      cameraInputRef.current?.click();
     }
   };
 
@@ -201,8 +202,8 @@ const Scan = () => {
         }
       }
     } else {
-      // Web fallback - trigger file input
-      fileInputRef.current?.click();
+      // Web fallback - trigger gallery file input (without capture attribute)
+      galleryInputRef.current?.click();
     }
   };
 
@@ -404,12 +405,21 @@ const Scan = () => {
           </div>
         </div>
 
-        {/* Hidden file input for web fallback */}
+        {/* Hidden file input for camera (with capture) */}
         <input
-          ref={fileInputRef}
+          ref={cameraInputRef}
           type="file"
           accept="image/*"
           capture="environment"
+          className="hidden"
+          onChange={handleFileUpload}
+        />
+        
+        {/* Hidden file input for gallery (without capture) */}
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
           className="hidden"
           onChange={handleFileUpload}
         />
