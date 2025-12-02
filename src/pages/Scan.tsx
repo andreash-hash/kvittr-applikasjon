@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { saveReceipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import imageCompression from 'browser-image-compression';
+import { WebcamModal } from '@/components/WebcamModal';
 
 const Scan = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -16,12 +17,16 @@ const Scan = () => {
   const [showOriginal, setShowOriginal] = useState(false);
   const [isNative, setIsNative] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showWebcam, setShowWebcam] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  
+  // Detect if running on mobile device
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   
   // Get preselected type from navigation state
   const preselectedType = location.state?.preselectedType || 'receipt';
@@ -154,9 +159,22 @@ const Scan = () => {
         }
       }
     } else {
-      // Web fallback - trigger camera file input (with capture attribute)
-      cameraInputRef.current?.click();
+      // Web fallback
+      if (isMobile) {
+        // Mobile: use file input with capture attribute
+        cameraInputRef.current?.click();
+      } else {
+        // Desktop: show webcam modal
+        setShowWebcam(true);
+      }
     }
+  };
+
+  const handleWebcamCapture = async (imageDataUrl: string) => {
+    setShowWebcam(false);
+    const enhanced = await enhanceImage(imageDataUrl);
+    setCapturedImage(enhanced);
+    setEnhancedImage(enhanced);
   };
 
   const pickFromGallery = async () => {
@@ -422,6 +440,13 @@ const Scan = () => {
           accept="image/*"
           className="hidden"
           onChange={handleFileUpload}
+        />
+
+        {/* Webcam modal for desktop */}
+        <WebcamModal
+          isOpen={showWebcam}
+          onClose={() => setShowWebcam(false)}
+          onCapture={handleWebcamCapture}
         />
       </div>
     );
