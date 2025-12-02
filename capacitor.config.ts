@@ -1,4 +1,4 @@
-﻿import { CapacitorConfig } from '@capacitor/cli';
+import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'app.kvittr',
@@ -12,6 +12,11 @@ const config: CapacitorConfig = {
     buildNumber: '20',
     backgroundColor: '#F5F1E8',
     contentMode: 'center'
+  },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
+    }
   }
 };
 
