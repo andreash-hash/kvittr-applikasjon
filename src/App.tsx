@@ -4,8 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { PushNotificationService } from "@/services/pushNotificationService";
 import { ToastProvider, setGlobalToast, useToastNotification } from "@/components/CenteredToast";
+import { useNativePushNotifications } from "@/hooks/useNativePushNotifications";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -27,6 +27,12 @@ const GlobalToastSetup = () => {
     setGlobalToast(showToast);
   }, [showToast]);
   
+  return null;
+};
+
+// Component to initialize native push notifications
+const NativePushSetup = () => {
+  useNativePushNotifications();
   return null;
 };
 
@@ -69,19 +75,7 @@ const App = () => {
         });
     }
 
-    // Initialize native push notifications on auth state change
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        // Initialize push notifications when user signs in
-        PushNotificationService.initialize();
-      } else if (event === 'SIGNED_OUT') {
-        // Clean up push token when user signs out
-        PushNotificationService.removePushToken();
-      }
-    });
-
     return () => {
-      authListener?.subscription.unsubscribe();
       mediaQuery.removeEventListener('change', handleChange);
     };
   }, []);
@@ -90,6 +84,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <GlobalToastSetup />
+        <NativePushSetup />
         <TooltipProvider>
           <Toaster />
           <BrowserRouter>

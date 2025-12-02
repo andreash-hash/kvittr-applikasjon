@@ -1,0 +1,181 @@
+import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+export const useNativePushNotifications = () => {
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isNative, setIsNative] = useState(false);
+  const { toast } = useToast();
+
+  // Check if native platform
+  useEffect(() => {
+    const checkPlatform = async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        setIsNative(Capacitor.isNativePlatform());
+      } catch {
+        setIsNative(false);
+      }
+    };
+    checkPlatform();
+  }, []);
+
+  const saveFcmToken = useCallback(async (token: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { Capacitor } = await import('@capacitor/core');
+      const platform = Capacitor.getPlatform();
+
+      // Check if token already exists
+      const { data: existingToken } = await supabase
+        .from('push_tokens')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('token', token)
+        .maybeSingle();
+
+      if (!existingToken) {
+        await supabase.from('push_tokens').insert({
+          user_id: user.id,
+          token: token,
+          platform: platform,
+          enabled: true
+        });
+        console.log('FCM token saved to Supabase');
+      } else {
+        await supabase
+          .from('push_tokens')
+          .update({ enabled: true })
+          .eq('id', existingToken.id);
+        console.log('FCM token updated in Supabase');
+      }
+    } catch (error) {
+      console.error('Error saving FCM token:', error);
+    }
+  }, []);
+
+  const registerPush = useCallback(async () => {
+    if (!isNative) {
+      console.log('Not a native platform, skipping push registration');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      
+      // Check current permission status
+      let permStatus = await PushNotifications.checkPermissions();
+      
+      // Request permission if needed
+      if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
+        permStatus = await PushNotifications.requestPermissions();
+      }
+      
+      if (permStatus.receive !== 'granted') {
+        toast({
+          title: "Tillatelse nektet",
+          description: "Du må aktivere varsler i innstillingene",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Register with FCM/APNs
+      await PushNotifications.register();
+      setIsRegistered(true);
+      
+      toast({
+        title: "Varsler aktivert",
+        description: "Du vil motta varsler om utgående garantier og gavekort",
+      });
+    } catch (error) {
+      console.error('Push registration error:', error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke aktivere varsler",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isNative, toast]);
+
+  useEffect(() => {
+    if (!isNative) return;
+
+    let registrationListener: any;
+    let errorListener: any;
+    let receivedListener: any;
+    let actionListener: any;
+
+    const setupListeners = async () => {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+
+        // Listen for successful registration
+        registrationListener = await PushNotifications.addListener(
+          'registration',
+          async (token) => {
+            console.log('Push registration success, token:', token.value);
+            await saveFcmToken(token.value);
+          }
+        );
+
+        // Listen for registration errors
+        errorListener = await PushNotifications.addListener(
+          'registrationError',
+          (error) => {
+            console.error('Push registration error:', error);
+          }
+        );
+
+        // Listen for push notifications received while app is in foreground
+        receivedListener = await PushNotifications.addListener(
+          'pushNotificationReceived',
+          (notification) => {
+            console.log('Push notification received:', notification);
+            toast({
+              title: notification.title || 'Kvittr',
+              description: notification.body || '',
+            });
+          }
+        );
+
+        // Listen for push notification tapped (app opened from notification)
+        actionListener = await PushNotifications.addListener(
+          'pushNotificationActionPerformed',
+          (notification) => {
+            console.log('Push notification action performed:', notification);
+            // Handle navigation based on notification data
+            const data = notification.notification.data;
+            if (data?.receipt_id) {
+              window.location.href = `/item/${data.receipt_id}`;
+            }
+          }
+        );
+
+        // Auto-register on app start
+        registerPush();
+      } catch (error) {
+        console.error('Error setting up push listeners:', error);
+      }
+    };
+
+    setupListeners();
+
+    // Cleanup listeners on unmount
+    return () => {
+      registrationListener?.remove?.();
+      errorListener?.remove?.();
+      receivedListener?.remove?.();
+      actionListener?.remove?.();
+    };
+  }, [isNative, toast, saveFcmToken, registerPush]);
+
+  return { isRegistered, isLoading, registerPush, isNative };
+};

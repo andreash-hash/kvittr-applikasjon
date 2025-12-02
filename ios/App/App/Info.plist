@@ -68,5 +68,15 @@
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Kvittr sender deg påminnelser når garantier og byttelapper utløper snart.</string>
 	
+	<!-- Background Modes for Push Notifications -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	
+	<!-- Firebase App Delegate Proxy -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	
 </dict>
 </plist>
