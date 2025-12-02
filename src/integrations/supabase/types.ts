@@ -94,18 +94,21 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          fcm_token: string | null
           id: string
           onboarding_completed: boolean | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          fcm_token?: string | null
           id: string
           onboarding_completed?: boolean | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          fcm_token?: string | null
           id?: string
           onboarding_completed?: boolean | null
           updated_at?: string
