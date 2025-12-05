@@ -107,20 +107,21 @@ const Settings = () => {
           throw new Error('Kunne ikke hente FCM token');
         }
         
-        const { error: tokenError } = await supabase.from('push_tokens').upsert({
-          user_id: userId,
-          token: token,
-          platform: 'web',
-          enabled: true
-        });
+        // Save FCM token to profiles table
+        const { error: tokenError } = await supabase
+          .from('profiles')
+          .update({ fcm_token: token })
+          .eq('id', userId);
         
         if (tokenError) {
           throw new Error('Kunne ikke lagre push token');
         }
       } else {
-        await supabase.from('push_tokens')
-          .update({ enabled: false })
-          .eq('user_id', userId);
+        // Clear FCM token when disabling
+        await supabase
+          .from('profiles')
+          .update({ fcm_token: null })
+          .eq('id', userId);
       }
       
       const { error } = await supabase.from('user_settings').upsert({
