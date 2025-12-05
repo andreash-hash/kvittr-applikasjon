@@ -43,7 +43,7 @@ export class PushNotificationService {
         // Listen for registration success
         await PushNotifications.addListener('registration', async (token) => {
           console.log('Push registration success:', token.value);
-          await this.savePushToken(token.value);
+          await this.saveFcmToken(token.value);
         });
         
         // Listen for registration errors
@@ -71,9 +71,9 @@ export class PushNotificationService {
   }
   
   /**
-   * Save FCM token to Supabase
+   * Save FCM token to Supabase profiles table
    */
-  static async savePushToken(token: string) {
+  static async saveFcmToken(token: string) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -82,44 +82,18 @@ export class PushNotificationService {
         return;
       }
 
-      const CapacitorAPI = await getCapacitor();
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ fcm_token: token })
+        .eq('id', user.id);
       
-      // Detect platform
-      const platform = CapacitorAPI ? CapacitorAPI.getPlatform() : 'web';
-      
-      // Check if token already exists
-      const { data: existingToken } = await supabase
-        .from('push_tokens')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('token', token)
-        .maybeSingle();
-      
-      if (!existingToken) {
-        // Insert new token
-        const { error } = await supabase
-          .from('push_tokens')
-          .insert({
-            user_id: user.id,
-            token: token,
-            platform: platform,
-            enabled: true
-          });
-        
-        if (error) {
-          console.error('Error saving push token:', error);
-        } else {
-          console.log('Push token saved successfully');
-        }
+      if (updateError) {
+        console.error('Error saving FCM token:', updateError);
       } else {
-        // Update existing token to enabled
-        await supabase
-          .from('push_tokens')
-          .update({ enabled: true })
-          .eq('id', existingToken.id);
+        console.log('FCM token saved successfully to profiles table');
       }
     } catch (error) {
-      console.error('Error in savePushToken:', error);
+      console.error('Error in saveFcmToken:', error);
     }
   }
   
@@ -137,9 +111,9 @@ export class PushNotificationService {
   }
   
   /**
-   * Remove push token (on logout)
+   * Remove FCM token (on logout)
    */
-  static async removePushToken() {
+  static async removeFcmToken() {
     const CapacitorAPI = await getCapacitor();
     
     if (!CapacitorAPI || !CapacitorAPI.isNativePlatform()) {
@@ -151,15 +125,15 @@ export class PushNotificationService {
       
       if (!user) return;
       
-      // Mark all user tokens as inactive
+      // Clear FCM token in profiles table
       await supabase
-        .from('push_tokens')
-        .update({ enabled: false })
-        .eq('user_id', user.id);
+        .from('profiles')
+        .update({ fcm_token: null })
+        .eq('id', user.id);
       
-      console.log('Push tokens deactivated');
+      console.log('FCM token cleared');
     } catch (error) {
-      console.error('Error removing push token:', error);
+      console.error('Error removing FCM token:', error);
     }
   }
 }
