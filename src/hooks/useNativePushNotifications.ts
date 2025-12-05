@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+console.log('=== useNativePushNotifications module loading ===');
+
 export const useNativePushNotifications = () => {
   const [isRegistered, setIsRegistered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -13,8 +15,11 @@ export const useNativePushNotifications = () => {
     const checkPlatform = async () => {
       try {
         const { Capacitor } = await import('@capacitor/core');
-        setIsNative(Capacitor.isNativePlatform());
-      } catch {
+        const native = Capacitor.isNativePlatform();
+        console.log('Platform check:', { native, platform: Capacitor.getPlatform() });
+        setIsNative(native);
+      } catch (err) {
+        console.log('Platform check error:', err);
         setIsNative(false);
       }
     };
@@ -58,8 +63,15 @@ export const useNativePushNotifications = () => {
   }, []);
 
   const registerPush = useCallback(async () => {
+    console.log('=== registerPush FUNCTION CALLED ===');
+    console.log('isNative value:', isNative);
+    
     if (!isNative) {
-      console.log('Not a native platform, skipping push registration');
+      console.log('Exiting - not native platform');
+      toast({
+        title: "Ikke mobil",
+        description: "Push-varsler fungerer kun på mobil-appen",
+      });
       return;
     }
 
