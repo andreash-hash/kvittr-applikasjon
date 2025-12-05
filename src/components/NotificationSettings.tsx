@@ -17,11 +17,6 @@ export const NotificationSettings = () => {
     console.log('isRegistered:', isRegistered);
     console.log('registerPush function:', typeof registerPush);
 
-    toast({
-      title: "Debug",
-      description: `Native: ${isNative}, Loading: ${isLoading}`,
-    });
-
     try {
       await registerPush();
       console.log('registerPush completed');
@@ -35,6 +30,7 @@ export const NotificationSettings = () => {
     }
   };
 
+  // Web environment - show message that push is mobile-only
   if (!isNative) {
     return (
       <Card>
@@ -44,14 +40,9 @@ export const NotificationSettings = () => {
             Varsler
           </CardTitle>
           <CardDescription>
-            Åpne appen på mobil for å aktivere varsler
+            Push-varsler er kun tilgjengelig i iOS/Android-appen
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">
-            Platform: web (varsler kun på mobil)
-          </div>
-        </CardContent>
       </Card>
     );
   }
@@ -74,19 +65,14 @@ export const NotificationSettings = () => {
             Varsler er aktivert på denne enheten
           </div>
         ) : (
-          <>
-            <Button 
-              onClick={handleClick}
-              disabled={isLoading}
-              className="w-full"
-              type="button"
-            >
-              {isLoading ? 'Aktiverer...' : 'Aktiver varsler'}
-            </Button>
-            <div className="text-xs text-muted-foreground">
-              Debug: Loading={String(isLoading)}, Registered={String(isRegistered)}
-            </div>
-          </>
+          <Button 
+            onClick={handleClick}
+            disabled={isLoading}
+            className="w-full"
+            type="button"
+          >
+            {isLoading ? 'Aktiverer...' : 'Aktiver varsler'}
+          </Button>
         )}
       </CardContent>
     </Card>

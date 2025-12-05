@@ -19,44 +19,33 @@ export const useNativePushNotifications = () => {
         console.log('Platform check:', { native, platform: Capacitor.getPlatform() });
         setIsNative(native);
       } catch (err) {
-        console.log('Platform check error:', err);
+        console.log('Platform check error (expected in web):', err);
         setIsNative(false);
       }
     };
     checkPlatform();
   }, []);
 
+  // Save FCM token to profiles.fcm_token
   const saveFcmToken = useCallback(async (token: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { Capacitor } = await import('@capacitor/core');
-      const platform = Capacitor.getPlatform();
-
-      // Check if token already exists
-      const { data: existingToken } = await supabase
-        .from('push_tokens')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('token', token)
-        .maybeSingle();
-
-      if (!existingToken) {
-        await supabase.from('push_tokens').insert({
-          user_id: user.id,
-          token: token,
-          platform: platform,
-          enabled: true
-        });
-        console.log('FCM token saved to Supabase');
-      } else {
-        await supabase
-          .from('push_tokens')
-          .update({ enabled: true })
-          .eq('id', existingToken.id);
-        console.log('FCM token updated in Supabase');
+      if (!user) {
+        console.error('No user logged in, cannot save FCM token');
+        return;
       }
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ fcm_token: token })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Failed to save FCM token:', updateError);
+        throw new Error('Kunne ikke lagre push token');
+      }
+      
+      console.log('FCM token saved successfully to profiles table');
     } catch (error) {
       console.error('Error saving FCM token:', error);
     }
