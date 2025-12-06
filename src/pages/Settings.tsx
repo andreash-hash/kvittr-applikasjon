@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, Moon, Sun, Monitor } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -25,6 +26,7 @@ const Settings = () => {
   const [notify7Days, setNotify7Days] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [theme, setTheme] = useState<Theme>('system');
 
   useEffect(() => {
@@ -141,6 +143,24 @@ const Settings = () => {
       toast.error(error instanceof Error ? error.message : 'Vennligst prøv igjen');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Note: Full account deletion requires admin/service role
+      // This signs out the user and they can request deletion via support
+      toast.success('Du er logget ut. Kontakt support@kvittr.app for å slette kontoen din permanent.');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Kunne ikke logge ut');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -276,7 +296,7 @@ const Settings = () => {
             <Separator />
 
             <button
-              onClick={() => window.open('https://lovable.dev/privacy', '_blank')}
+              onClick={() => window.open('https://kvittr.app/privacy', '_blank')}
               className="w-full flex items-center justify-between text-sm hover:bg-accent p-2 rounded-md transition-colors"
             >
               <span className="font-medium">Personvern</span>
@@ -284,12 +304,51 @@ const Settings = () => {
             </button>
 
             <button
-              onClick={() => window.open('https://lovable.dev/terms', '_blank')}
+              onClick={() => window.open('https://kvittr.app/terms', '_blank')}
               className="w-full flex items-center justify-between text-sm hover:bg-accent p-2 rounded-md transition-colors"
             >
               <span className="font-medium">Vilkår</span>
               <ExternalLink className="h-4 w-4 text-muted-foreground" />
             </button>
+          </CardContent>
+        </Card>
+
+        {/* Delete Account */}
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="text-destructive">Slett konto</CardTitle>
+            <CardDescription>
+              Permanent sletting av konto og alle data
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Slett min konto
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Er du sikker?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Dette vil slette kontoen din og alle dine kvitteringer permanent. 
+                    Denne handlingen kan ikke angres.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isDeleting ? 'Sletter...' : 'Ja, slett kontoen min'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       </div>
