@@ -5,10 +5,12 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { nb } from 'date-fns/locale';
 
 declare global {
   interface Window {
@@ -28,6 +30,8 @@ const Settings = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [theme, setTheme] = useState<Theme>('system');
+  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
 
   useEffect(() => {
     // Load theme from localStorage
@@ -50,6 +54,18 @@ const Settings = () => {
         
         if (settings) {
           setPushEnabled(settings.notification_enabled ?? false);
+        }
+
+        // Fetch subscription info
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_tier, subscription_expires_at')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        if (profile) {
+          setSubscriptionTier(profile.subscription_tier || 'free');
+          setSubscriptionExpiresAt(profile.subscription_expires_at);
         }
       }
     };
@@ -233,6 +249,50 @@ const Settings = () => {
                 Auto
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Subscription */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Abonnement</CardTitle>
+            <CardDescription>
+              Din nåværende plan
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {subscriptionTier === 'premium' ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Premium aktiv</span>
+                </div>
+                <p className="text-sm text-muted-foreground">Ubegrenset kvitteringer</p>
+                {subscriptionExpiresAt && (
+                  <p className="text-sm text-muted-foreground">
+                    Fornyes: {format(new Date(subscriptionExpiresAt), 'd. MMMM yyyy', { locale: nb })}
+                  </p>
+                )}
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => toast.info('Åpne iPhone Innstillinger → Abonnementer')}
+                >
+                  Administrer abonnement
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="font-medium">Gratis plan</div>
+                <p className="text-sm text-muted-foreground">5 kvitteringer per måned</p>
+                <Button 
+                  className="w-full"
+                  onClick={() => navigate('/premium')}
+                >
+                  Oppgrader til Premium
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
