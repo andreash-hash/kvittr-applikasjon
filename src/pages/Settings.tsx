@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
-
+import { Capacitor } from '@capacitor/core';
 declare global {
   interface Window {
     firebaseMessaging?: any;
@@ -276,7 +276,16 @@ const Settings = () => {
                 <Button 
                   variant="outline" 
                   className="w-full"
-                  onClick={() => toast.info('Åpne iPhone Innstillinger → Abonnementer')}
+                  onClick={() => {
+                    const platform = Capacitor.getPlatform();
+                    if (platform === 'ios') {
+                      window.open('https://apps.apple.com/account/subscriptions', '_system');
+                    } else if (platform === 'android') {
+                      window.open('https://play.google.com/store/account/subscriptions?package=app.kvittr', '_system');
+                    } else {
+                      toast.info('For å administrere abonnement:\n• iOS: Innstillinger → [ditt navn] → Abonnementer\n• Android: Play Store → Meny → Abonnementer');
+                    }
+                  }}
                 >
                   Administrer abonnement
                 </Button>
