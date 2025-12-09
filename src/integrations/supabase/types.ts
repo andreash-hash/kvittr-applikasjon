@@ -97,6 +97,10 @@ export type Database = {
           fcm_token: string | null
           id: string
           onboarding_completed: boolean | null
+          subscription_expires_at: string | null
+          subscription_started_at: string | null
+          subscription_status: string | null
+          subscription_tier: string | null
           updated_at: string
         }
         Insert: {
@@ -104,6 +108,10 @@ export type Database = {
           fcm_token?: string | null
           id: string
           onboarding_completed?: boolean | null
+          subscription_expires_at?: string | null
+          subscription_started_at?: string | null
+          subscription_status?: string | null
+          subscription_tier?: string | null
           updated_at?: string
         }
         Update: {
@@ -111,6 +119,10 @@ export type Database = {
           fcm_token?: string | null
           id?: string
           onboarding_completed?: boolean | null
+          subscription_expires_at?: string | null
+          subscription_started_at?: string | null
+          subscription_status?: string | null
+          subscription_tier?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -243,7 +255,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_user_account: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

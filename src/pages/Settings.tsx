@@ -149,16 +149,37 @@ const Settings = () => {
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Get current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      // Call edge function to permanently delete account
+      const response = await fetch(
+        `https://wdfxfhchugungurebbcc.supabase.co/functions/v1/delete-account`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete account');
+      }
+
+      // Sign out locally
+      await supabase.auth.signOut();
       
-      // Note: Full account deletion requires admin/service role
-      // This signs out the user and they can request deletion via support
-      toast.success('Du er logget ut. Kontakt support@kvittr.app for å slette kontoen din permanent.');
+      toast.success('Kontoen din er permanent slettet');
       navigate('/login');
     } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Kunne ikke logge ut');
+      console.error('Delete account error:', error);
+      toast.error('Kunne ikke slette kontoen. Prøv igjen senere.');
     } finally {
       setIsDeleting(false);
     }
@@ -313,12 +334,12 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Delete Account */}
+        {/* Account Management */}
         <Card className="border-destructive/50">
           <CardHeader>
-            <CardTitle className="text-destructive">Slett konto</CardTitle>
+            <CardTitle>Kontohåndtering</CardTitle>
             <CardDescription>
-              Permanent sletting av konto og alle data
+              Administrer kontoen din
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -326,15 +347,23 @@ const Settings = () => {
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="w-full">
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Slett min konto
+                  Slett konto permanent
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Er du sikker?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Dette vil slette kontoen din og alle dine kvitteringer permanent. 
-                    Denne handlingen kan ikke angres.
+                  <AlertDialogTitle>Slett konto?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-left space-y-2">
+                    <span>Dette vil permanent slette:</span>
+                    <ul className="list-disc list-inside space-y-1 mt-2">
+                      <li>All dine kvitteringer</li>
+                      <li>Alle byttelapper og gavekort</li>
+                      <li>Din brukerinformasjon</li>
+                      <li>Abonnement (hvis aktivt)</li>
+                    </ul>
+                    <p className="font-medium text-destructive mt-3">
+                      Denne handlingen kan ikke angres.
+                    </p>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -344,7 +373,7 @@ const Settings = () => {
                     disabled={isDeleting}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    {isDeleting ? 'Sletter...' : 'Ja, slett kontoen min'}
+                    {isDeleting ? 'Sletter...' : 'Slett konto permanent'}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
