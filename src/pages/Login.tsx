@@ -3,15 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Logo } from '@/components/Logo';
+import { Mail } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [showResendOption, setShowResendOption] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -28,6 +31,7 @@ const Login = () => {
     }
 
     setIsLoading(true);
+    setShowResendOption(false);
     
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -37,19 +41,66 @@ const Login = () => {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        title: 'Feil',
-        description: error.message === 'Invalid login credentials' 
-          ? 'Feil e-post eller passord' 
-          : error.message,
-        variant: 'destructive',
-      });
+      // Check if error is about email not being confirmed
+      if (error.message.toLowerCase().includes('email not confirmed') || 
+          error.message.toLowerCase().includes('not confirmed')) {
+        toast({
+          title: 'E-post ikke bekreftet',
+          description: 'Sjekk innboksen din for bekreftelseslink.',
+          variant: 'destructive',
+        });
+        setShowResendOption(true);
+      } else {
+        toast({
+          title: 'Feil',
+          description: error.message === 'Invalid login credentials' 
+            ? 'Feil e-post eller passord' 
+            : error.message,
+          variant: 'destructive',
+        });
+      }
     } else {
       toast({
         title: 'Velkommen!',
         description: 'Du er nå logget inn',
       });
       navigate('/dashboard');
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      toast({
+        title: 'Feil',
+        description: 'Vennligst fyll ut e-postfeltet',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsResending(true);
+    
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+      },
+    });
+
+    setIsResending(false);
+
+    if (error) {
+      toast({
+        title: 'Feil',
+        description: 'Kunne ikke sende bekreftelseslink. Prøv igjen senere.',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sendt!',
+        description: 'En ny bekreftelseslink er sendt til din e-post.',
+      });
     }
   };
 
@@ -87,6 +138,20 @@ const Login = () => {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Logger inn...' : 'Logg inn'}
             </Button>
+            
+            {showResendOption && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleResendConfirmation}
+                disabled={isResending}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                {isResending ? 'Sender...' : 'Send bekreftelseslink på nytt'}
+              </Button>
+            )}
+            
             <Button
               type="button"
               variant="outline"
