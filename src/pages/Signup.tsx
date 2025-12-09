@@ -58,7 +58,7 @@ const Signup = () => {
 
     setIsLoading(true);
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -77,11 +77,20 @@ const Signup = () => {
         variant: 'destructive',
       });
     } else {
-      toast({
-        title: 'Velkommen!',
-        description: 'Kontoen din er opprettet',
-      });
-      navigate('/dashboard');
+      // Check if email confirmation is required
+      if (data.user && !data.user.email_confirmed_at) {
+        toast({
+          title: 'Konto opprettet!',
+          description: 'Vi har sendt en bekreftelseslink til din e-post. Sjekk innboksen din og klikk på linken for å aktivere kontoen.',
+        });
+        navigate('/login');
+      } else {
+        toast({
+          title: 'Velkommen!',
+          description: 'Kontoen din er opprettet og aktivert',
+        });
+        navigate('/dashboard');
+      }
     }
   };
 
