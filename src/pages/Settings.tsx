@@ -286,12 +286,13 @@ const Settings = () => {
                   className="w-full"
                   onClick={() => {
                     const platform = getPlatform();
+                    console.log('Administrer abonnement clicked, platform:', platform);
                     if (platform === 'ios') {
                       window.open('https://apps.apple.com/account/subscriptions', '_system');
                     } else if (platform === 'android') {
                       window.open('https://play.google.com/store/account/subscriptions?package=app.kvittr', '_system');
                     } else {
-                      toast.info('For å administrere abonnement:\n• iOS: Innstillinger → [ditt navn] → Abonnementer\n• Android: Play Store → Meny → Abonnementer');
+                      toast.info('For å administrere abonnement:\n• iOS: Innstillinger → Abonnementer\n• Android: Play Store → Abonnementer');
                     }
                   }}
                 >
