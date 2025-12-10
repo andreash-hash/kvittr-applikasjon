@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles, Key, Check, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -35,11 +37,26 @@ const Settings = () => {
   const [notify30Days, setNotify30Days] = useState(true);
   const [notify7Days, setNotify7Days] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [theme, setTheme] = useState<Theme>('system');
   const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
+  
+  // Password change state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Password validation
+  const hasMinLength = newPassword.length >= 8;
+  const hasUppercase = /[A-Z]/.test(newPassword);
+  const hasLowercase = /[a-z]/.test(newPassword);
+  const hasNumber = /[0-9]/.test(newPassword);
+  const passwordsMatch = newPassword === confirmPassword && newPassword.length > 0;
 
   useEffect(() => {
     // Load theme from localStorage
@@ -52,6 +69,7 @@ const Settings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
+        setUserEmail(user.email || null);
         
         // Fetch current notification setting
         const { data: settings } = await supabase
@@ -208,6 +226,70 @@ const Settings = () => {
       setIsDeleting(false);
     }
   };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword) {
+      toast.error('Vennligst fyll ut nåværende passord');
+      return;
+    }
+
+    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber) {
+      toast.error('Det nye passordet oppfyller ikke kravene');
+      return;
+    }
+
+    if (!passwordsMatch) {
+      toast.error('Passordene stemmer ikke overens');
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      // Verify current password by attempting to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: userEmail || '',
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast.error('Feil nåværende passord');
+        setIsChangingPassword(false);
+        return;
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        toast.error(updateError.message);
+      } else {
+        toast.success('Passord endret!');
+        setShowPasswordDialog(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+      toast.error('Kunne ikke endre passord. Prøv igjen.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const ValidationCheck = ({ valid, text }: { valid: boolean; text: string }) => (
+    <div className="flex items-center gap-2 text-sm">
+      {valid ? (
+        <Check className="h-4 w-4 text-green-500" />
+      ) : (
+        <X className="h-4 w-4 text-muted-foreground" />
+      )}
+      <span className={valid ? 'text-green-500' : 'text-muted-foreground'}>{text}</span>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background safe-area-all">
@@ -420,7 +502,16 @@ const Settings = () => {
               Administrer kontoen din
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowPasswordDialog(true)}
+            >
+              <Key className="h-4 w-4 mr-2" />
+              Endre passord
+            </Button>
+            
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="w-full">
@@ -458,6 +549,68 @@ const Settings = () => {
             </AlertDialog>
           </CardContent>
         </Card>
+
+        {/* Password Change Dialog */}
+        <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Endre passord</DialogTitle>
+              <DialogDescription>
+                Fyll ut feltene for å endre passordet ditt
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Nåværende passord</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password">Nytt passord</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                {newPassword.length > 0 && (
+                  <div className="space-y-1 mt-2">
+                    <ValidationCheck valid={hasMinLength} text="Minst 8 tegn" />
+                    <ValidationCheck valid={hasUppercase} text="Minst én stor bokstav (A-Z)" />
+                    <ValidationCheck valid={hasLowercase} text="Minst én liten bokstav (a-z)" />
+                    <ValidationCheck valid={hasNumber} text="Minst ett tall (0-9)" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-new-password">Bekreft nytt passord</Label>
+                <Input
+                  id="confirm-new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                {confirmPassword.length > 0 && (
+                  <ValidationCheck valid={passwordsMatch} text="Passordene stemmer overens" />
+                )}
+              </div>
+              <Button 
+                className="w-full" 
+                onClick={handleChangePassword}
+                disabled={isChangingPassword || !currentPassword || !hasMinLength || !hasUppercase || !hasLowercase || !hasNumber || !passwordsMatch}
+              >
+                {isChangingPassword ? 'Endrer...' : 'Endre passord'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
