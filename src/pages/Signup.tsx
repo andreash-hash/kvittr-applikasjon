@@ -81,7 +81,7 @@ const Signup = () => {
       if (data.user && !data.user.email_confirmed_at) {
         toast({
           title: 'Konto opprettet!',
-          description: 'Vi har sendt en bekreftelseslink til din e-post. Sjekk innboksen din og klikk på linken for å aktivere kontoen.',
+          description: 'Vi har sendt en bekreftelseslink til din e-post.\n\n⚠️ Sjekk innboksen din (og søppelpost) og klikk på linken for å aktivere kontoen.',
         });
         navigate('/login');
       } else {
