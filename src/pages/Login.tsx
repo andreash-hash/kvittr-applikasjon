@@ -146,7 +146,7 @@ const Login = () => {
     } else {
       toast({
         title: 'Sendt!',
-        description: 'Sjekk e-posten din for tilbakestillingslenke.',
+        description: 'Sjekk e-posten din for tilbakestillingslenke.\n\n⚠️ Husk å sjekke søppelpostmappen også.',
       });
       setShowResetDialog(false);
     }
