@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Success from "./pages/Success";
 import Premium from "./pages/Premium";
 import IconGenerator from "./pages/IconGenerator";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -100,6 +101,7 @@ const App = () => {
               <Route path="/success" element={<Success />} />
               <Route path="/premium" element={<Premium />} />
               <Route path="/icon-generator" element={<IconGenerator />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

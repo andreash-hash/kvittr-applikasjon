@@ -8,6 +8,13 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Logo } from '@/components/Logo';
 import { Mail } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -15,6 +22,9 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [showResendOption, setShowResendOption] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -104,6 +114,44 @@ const Login = () => {
     }
   };
 
+  const handleForgotPassword = () => {
+    setResetEmail(email);
+    setShowResetDialog(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetEmail) {
+      toast({
+        title: 'Feil',
+        description: 'Vennligst fyll ut e-postfeltet',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsResettingPassword(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: 'https://kvitter-meg.lovable.app/reset-password',
+    });
+
+    setIsResettingPassword(false);
+
+    if (error) {
+      toast({
+        title: 'Feil',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sendt!',
+        description: 'Sjekk e-posten din for tilbakestillingslenke.',
+      });
+      setShowResetDialog(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 safe-area-all">
       <Card className="w-full max-w-md">
@@ -139,6 +187,14 @@ const Login = () => {
               {isLoading ? 'Logger inn...' : 'Logg inn'}
             </Button>
             
+            <button
+              type="button"
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+              onClick={handleForgotPassword}
+            >
+              Glemt passord?
+            </button>
+            
             {showResendOption && (
               <Button
                 type="button"
@@ -163,6 +219,36 @@ const Login = () => {
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tilbakestill passord</DialogTitle>
+            <DialogDescription>
+              Skriv inn e-postadressen din, så sender vi deg en lenke for å tilbakestille passordet.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">E-post</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="din@epost.no"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+              />
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={handleResetPassword}
+              disabled={isResettingPassword}
+            >
+              {isResettingPassword ? 'Sender...' : 'Send tilbakestillingslenke'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
