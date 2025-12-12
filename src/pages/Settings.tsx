@@ -22,6 +22,18 @@ const getPlatform = (): string => {
     return 'web';
   }
 };
+
+// Helper to open external URLs using Capacitor Browser plugin
+const openExternalUrl = async (url: string): Promise<boolean> => {
+  try {
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url, presentationStyle: 'popover' });
+    return true;
+  } catch (error) {
+    console.error('Failed to open URL with Browser plugin:', error);
+    return false;
+  }
+};
 declare global {
   interface Window {
     firebaseMessaging?: any;
@@ -366,13 +378,20 @@ const Settings = () => {
                 <Button 
                   variant="outline" 
                   className="w-full"
-                  onClick={() => {
+                  onClick={async () => {
                     const platform = getPlatform();
                     console.log('Administrer abonnement clicked, platform:', platform);
+                    
                     if (platform === 'ios') {
-                      window.open('https://apps.apple.com/account/subscriptions', '_system');
+                      const opened = await openExternalUrl('https://apps.apple.com/account/subscriptions');
+                      if (!opened) {
+                        toast.info('Åpne iPhone Innstillinger → [ditt navn] → Abonnementer → Kvittr');
+                      }
                     } else if (platform === 'android') {
-                      window.open('https://play.google.com/store/account/subscriptions?package=app.kvittr', '_system');
+                      const opened = await openExternalUrl('https://play.google.com/store/account/subscriptions?package=app.kvittr');
+                      if (!opened) {
+                        toast.info('Åpne Google Play Store → Abonnementer');
+                      }
                     } else {
                       toast.info('For å administrere abonnement:\n• iOS: Innstillinger → Abonnementer\n• Android: Play Store → Abonnementer');
                     }
