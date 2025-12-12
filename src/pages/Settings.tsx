@@ -654,12 +654,6 @@ const Settings = () => {
                       <li>• Prioritert support</li>
                     </ul>
                   </div>
-                  <p className="font-medium text-foreground">
-                    Pris: 19 kr/måned
-                  </p>
-                  <p className="text-sm">
-                    Registrer deg med demo-kontoen for å teste Premium-funksjonene allerede nå!
-                  </p>
                 </div>
               </DialogDescription>
             </DialogHeader>
