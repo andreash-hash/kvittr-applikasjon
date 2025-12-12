@@ -62,6 +62,9 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  // Premium launch dialog state
+  const [showPremiumDialog, setShowPremiumDialog] = useState(false);
 
   // Password validation
   const hasMinLength = newPassword.length >= 8;
@@ -406,7 +409,7 @@ const Settings = () => {
                 <p className="text-sm text-muted-foreground">5 kvitteringer per måned</p>
                 <Button 
                   className="w-full"
-                  onClick={() => navigate('/premium')}
+                  onClick={() => setShowPremiumDialog(true)}
                 >
                   Oppgrader til Premium
                 </Button>
@@ -628,6 +631,41 @@ const Settings = () => {
                 {isChangingPassword ? 'Endrer...' : 'Endre passord'}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Premium Launch Dialog */}
+        <Dialog open={showPremiumDialog} onOpenChange={setShowPremiumDialog}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-center text-xl">
+                Premium lanseres snart! 🎉
+              </DialogTitle>
+              <DialogDescription asChild>
+                <div className="text-left space-y-4 pt-2">
+                  <p>
+                    Kvittr Premium med ubegrenset kvitteringer og push-varsler lanseres i januar 2025.
+                  </p>
+                  <div>
+                    <p className="font-medium text-foreground mb-2">Funksjoner:</p>
+                    <ul className="space-y-1 text-sm">
+                      <li>• Ubegrenset kvitteringer</li>
+                      <li>• Push-varsler 30 dager før garanti utløper</li>
+                      <li>• Prioritert support</li>
+                    </ul>
+                  </div>
+                  <p className="font-medium text-foreground">
+                    Pris: 19 kr/måned
+                  </p>
+                  <p className="text-sm">
+                    Registrer deg med demo-kontoen for å teste Premium-funksjonene allerede nå!
+                  </p>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <Button onClick={() => setShowPremiumDialog(false)} className="w-full">
+              OK
+            </Button>
           </DialogContent>
         </Dialog>
       </div>

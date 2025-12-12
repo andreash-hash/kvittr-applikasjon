@@ -1,18 +1,20 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ArrowLeft, Camera, Bell, Gift, Heart, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
 
 const Premium = () => {
   const navigate = useNavigate();
+  const [showLaunchDialog, setShowLaunchDialog] = useState(false);
 
   const handleSubscribe = () => {
-    toast.info('Kommer snart!');
+    setShowLaunchDialog(true);
   };
 
   const handleRestorePurchase = () => {
-    toast.info('Kommer snart!');
+    setShowLaunchDialog(true);
   };
 
   return (
@@ -125,6 +127,43 @@ const Premium = () => {
           </button>
         </div>
       </div>
+
+      {/* Premium Launch Dialog */}
+      <Dialog open={showLaunchDialog} onOpenChange={setShowLaunchDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">
+              Premium lanseres snart! 🎉
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="text-left space-y-4 pt-2">
+                <p>
+                  Kvittr Premium med ubegrenset kvitteringer og push-varsler lanseres i januar 2025.
+                </p>
+                <div>
+                  <p className="font-medium text-foreground mb-2">Funksjoner:</p>
+                  <ul className="space-y-1 text-sm">
+                    <li>• Ubegrenset kvitteringer</li>
+                    <li>• Push-varsler 30 dager før garanti utløper</li>
+                    <li>• Prioritert support</li>
+                  </ul>
+                </div>
+                <p className="font-medium text-foreground">
+                  Pris: 19 kr/måned
+                </p>
+                <p className="text-sm">
+                  Registrer deg med demo-kontoen for å teste Premium-funksjonene allerede nå!
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowLaunchDialog(false)} className="w-full">
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
