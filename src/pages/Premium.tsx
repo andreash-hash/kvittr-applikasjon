@@ -138,7 +138,7 @@ const Premium = () => {
             <DialogDescription asChild>
               <div className="text-left space-y-4 pt-2">
                 <p>
-                  Kvittr Premium med ubegrenset kvitteringer og push-varsler lanseres i januar 2025.
+                  Kvittr Premium med ubegrenset kvitteringer og push-varsler lanseres snart.
                 </p>
                 <div>
                   <p className="font-medium text-foreground mb-2">Funksjoner:</p>
