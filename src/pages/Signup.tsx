@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, Mail, AlertTriangle } from 'lucide-react';
+import { Check, X, Mail, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 
 const Signup = () => {
@@ -125,7 +125,14 @@ const Signup = () => {
 
   return (
     <>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 md:p-8 safe-area-all overflow-auto">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 md:p-8 safe-area-all overflow-auto relative">
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 p-2 flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors safe-area-top"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm">Tilbake</span>
+        </button>
         <Card className="w-full max-w-md mx-auto my-auto">
           <CardHeader className="space-y-1 text-center">
             <div className="flex justify-center mb-4">
