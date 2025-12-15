@@ -465,7 +465,7 @@ const Dashboard = () => {
                   {isGuestPremium() ? (
                     <>
                       <p className="font-medium text-sm text-success">
-                        ✨ Premium aktiv
+                        ✨ Premium aktiv - Ubegrenset scanninger
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Opprett konto for å synkronisere på tvers av enheter
@@ -474,17 +474,40 @@ const Dashboard = () => {
                   ) : (
                     <>
                       <p className="font-medium text-sm">
-                        {getRemainingGuestScans()} av 3 gratis scanninger gjenstående
+                        Gratis prøveversjon: {getRemainingGuestScans()} av 3 prøvescanninger gjenstående
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Opprett konto for ubegrenset lagring og varsler
+                        Opprett konto for å få 2 gratis scanninger per måned
                       </p>
                     </>
                   )}
                 </div>
-                <Button size="sm" variant={isGuestPremium() ? "outline" : "default"} onClick={() => navigate('/signup')}>
-                  Opprett konto
-                </Button>
+                <div className="flex gap-2">
+                  {!isGuestPremium() && (
+                    <Button size="sm" variant="outline" onClick={() => navigate('/premium')}>
+                      Oppgrader
+                    </Button>
+                  )}
+                  <Button size="sm" variant={isGuestPremium() ? "outline" : "default"} onClick={() => navigate('/signup')}>
+                    Opprett konto
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Premium banner for logged-in premium users */}
+          {!isGuest && scanLimitStatus?.isPremium && (
+            <Card className="p-4 mb-4 border-l-4 rounded-xl bg-success/10 border-l-success">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm text-success">
+                    ✨ Premium aktiv - Ubegrenset scanninger
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Takk for at du støtter Kvittr!
+                  </p>
+                </div>
               </div>
             </Card>
           )}
@@ -499,11 +522,11 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">
-                    {scanLimitStatus.scansUsed} av {FREE_MONTHLY_SCANS} scanninger brukt denne måneden
+                    Gratis plan: {scanLimitStatus.scansRemaining} av {FREE_MONTHLY_SCANS} scanninger denne måneden gjenstående
                   </p>
                   {scanLimitStatus.scansRemaining === 0 ? (
                     <p className="text-xs text-destructive mt-0.5">
-                      Du har brukt opp gratis scanninger
+                      Du har brukt opp gratis scanninger denne måneden
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -513,10 +536,10 @@ const Dashboard = () => {
                 </div>
                 <Button 
                   size="sm" 
-                  variant={scanLimitStatus.scansRemaining === 0 ? "default" : "outline"} 
+                  variant="default" 
                   onClick={() => navigate('/premium')}
                 >
-                  {scanLimitStatus.scansRemaining === 0 ? 'Oppgrader' : 'Se Premium'}
+                  Oppgrader til Premium
                 </Button>
               </div>
             </Card>
