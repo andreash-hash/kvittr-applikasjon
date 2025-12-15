@@ -139,25 +139,24 @@ const Signup = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <span>Ubegrenset kvitteringer</span>
+                  <span>2 kvitteringer per måned gratis</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <span>Push-varsler før garanti utløper</span>
+                  <span>Skylagring og synkronisering</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <span>Synkronisering mellom enheter</span>
+                  <span>Garanti-tracking (2-5 år norsk lov)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <span>Trygg skylagring (GDPR-kompatibel)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  <span>Aldri miste kvitteringer igjen</span>
+                  <span>Byttelapper og gavekort</span>
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground text-center pt-2">
+                Trenger du mer? Oppgrader til Premium for ubegrenset kvitteringer og push-varsler.
+              </p>
             </div>
 
             <div className="border-t pt-4">
