@@ -15,6 +15,7 @@ import { nb } from 'date-fns/locale';
 import { isGroceryStore, shouldShowWarranty } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { getGuestReceipts, type GuestReceipt } from '@/lib/guestStorage';
 
 const ItemDetail = () => {
   const { id } = useParams();
@@ -28,6 +29,7 @@ const ItemDetail = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollStartTimeRef = useRef<number | null>(null);
 
@@ -40,9 +42,9 @@ const ItemDetail = () => {
     };
   }, [id]);
 
-  // Setup realtime listener for receipt updates
+  // Setup realtime listener for receipt updates (only for authenticated users)
   useEffect(() => {
-    if (!id) return;
+    if (!id || isGuest) return;
 
     const channel = supabase
       .channel(`receipt-${id}`)
@@ -66,7 +68,7 @@ const ItemDetail = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id]);
+  }, [id, isGuest]);
 
   const loadReceipt = async () => {
     if (!id) {
@@ -75,9 +77,33 @@ const ItemDetail = () => {
     }
 
     const { data: { session } } = await supabase.auth.getSession();
+    
+    // Guest mode: load from localStorage
     if (!session) {
-      // Guest mode: don't force login; send user back to dashboard
-      navigate('/dashboard');
+      setIsGuest(true);
+      const guestReceipts = getGuestReceipts();
+      const found = guestReceipts.find(r => r.id === id);
+      if (found) {
+        // Convert GuestReceipt to Receipt format
+        const convertedReceipt: Receipt = {
+          id: found.id,
+          user_id: 'guest',
+          type: found.type,
+          shop_name: found.shop_name,
+          product_name: found.product_name,
+          amount: found.amount,
+          purchase_date: found.purchase_date,
+          image_url: found.image_url,
+          status: 'active' as const,
+          created_at: found.created_at,
+          processing_status: found.processing_status as 'pending' | 'completed' | 'failed',
+          is_used: false,
+        };
+        setReceipt(convertedReceipt);
+        setIsLoading(false);
+      } else {
+        navigate('/dashboard');
+      }
       return;
     }
 
