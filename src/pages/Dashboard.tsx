@@ -13,6 +13,7 @@ import SwipeableCard from '@/components/SwipeableCard';
 import { useToastNotification } from '@/components/CenteredToast';
 import { Logo } from '@/components/Logo';
 import { getGuestReceipts, hasGuestReceipts, getRemainingGuestScans, isGuestPremium, type GuestReceipt } from '@/lib/guestStorage';
+import { checkScanLimit, FREE_MONTHLY_SCANS, type ScanLimitStatus } from '@/lib/scanLimit';
 
 type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv' | 'expiring';
 
@@ -23,6 +24,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('alle');
+  const [scanLimitStatus, setScanLimitStatus] = useState<ScanLimitStatus | null>(null);
   const navigate = useNavigate();
   const { showToast } = useToastNotification();
 
@@ -38,6 +40,7 @@ const Dashboard = () => {
       } else if (event === 'SIGNED_IN') {
         setIsGuest(false);
         loadReceipts(session.user.id);
+        loadScanLimit(session.user.id);
       }
     });
 
@@ -102,6 +105,7 @@ const Dashboard = () => {
     }
 
     await loadReceipts(session.user.id);
+    await loadScanLimit(session.user.id);
   };
 
   const loadReceipts = async (userId: string) => {
@@ -115,6 +119,11 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadScanLimit = async (userId: string) => {
+    const status = await checkScanLimit(userId);
+    setScanLimitStatus(status);
   };
 
   const handleRefresh = useCallback(async () => {
@@ -480,7 +489,39 @@ const Dashboard = () => {
             </Card>
           )}
 
-          {/* Alert card - status banner - NO scrollIntoView on click */}
+          {/* Monthly scan limit banner for logged-in free users */}
+          {!isGuest && scanLimitStatus && !scanLimitStatus.isPremium && (
+            <Card className={`p-4 mb-4 border-l-4 rounded-xl ${
+              scanLimitStatus.scansRemaining === 0
+                ? 'bg-destructive/10 border-l-destructive'
+                : 'bg-primary/10 border-l-primary'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">
+                    {scanLimitStatus.scansUsed} av {FREE_MONTHLY_SCANS} scanninger brukt denne måneden
+                  </p>
+                  {scanLimitStatus.scansRemaining === 0 ? (
+                    <p className="text-xs text-destructive mt-0.5">
+                      Du har brukt opp gratis scanninger
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Oppgrader til Premium for ubegrenset
+                    </p>
+                  )}
+                </div>
+                <Button 
+                  size="sm" 
+                  variant={scanLimitStatus.scansRemaining === 0 ? "default" : "outline"} 
+                  onClick={() => navigate('/premium')}
+                >
+                  {scanLimitStatus.scansRemaining === 0 ? 'Oppgrader' : 'Se Premium'}
+                </Button>
+              </div>
+            </Card>
+          )}
+
           {!isGuest && (
           <Card
             onClick={expiringReceipts.length > 0 ? () => setSelectedFilter('expiring') : undefined}

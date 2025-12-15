@@ -97,6 +97,8 @@ export type Database = {
           fcm_token: string | null
           id: string
           onboarding_completed: boolean | null
+          scans_reset_date: string | null
+          scans_used_this_month: number | null
           subscription_expires_at: string | null
           subscription_started_at: string | null
           subscription_status: string | null
@@ -108,6 +110,8 @@ export type Database = {
           fcm_token?: string | null
           id: string
           onboarding_completed?: boolean | null
+          scans_reset_date?: string | null
+          scans_used_this_month?: number | null
           subscription_expires_at?: string | null
           subscription_started_at?: string | null
           subscription_status?: string | null
@@ -119,6 +123,8 @@ export type Database = {
           fcm_token?: string | null
           id?: string
           onboarding_completed?: boolean | null
+          scans_reset_date?: string | null
+          scans_used_this_month?: number | null
           subscription_expires_at?: string | null
           subscription_started_at?: string | null
           subscription_status?: string | null
