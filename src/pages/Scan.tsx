@@ -16,6 +16,8 @@ import {
   type GuestReceipt 
 } from '@/lib/guestStorage';
 import { SignupPromptDialog } from '@/components/SignupPromptDialog';
+import { UpgradePromptDialog } from '@/components/UpgradePromptDialog';
+import { checkScanLimit, incrementScanCount, FREE_MONTHLY_SCANS, type ScanLimitStatus } from '@/lib/scanLimit';
 
 const Scan = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -29,7 +31,9 @@ const Scan = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [showWebcam, setShowWebcam] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [remainingScans, setRemainingScans] = useState(getRemainingGuestScans());
+  const [scanLimitStatus, setScanLimitStatus] = useState<ScanLimitStatus | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -72,6 +76,14 @@ const Scan = () => {
     } else {
       setUserId(session.user.id);
       setIsGuest(false);
+      
+      // Check monthly scan limit for logged-in users
+      const limitStatus = await checkScanLimit(session.user.id);
+      setScanLimitStatus(limitStatus);
+      
+      if (!limitStatus.canScan && !limitStatus.isPremium) {
+        setShowUpgradePrompt(true);
+      }
     }
   };
 
@@ -405,6 +417,9 @@ const Scan = () => {
         });
       });
       
+      // Increment scan count for free users
+      await incrementScanCount(userId);
+      
       toast({
         title: 'Lagret!',
         description: 'Bilde sendt til scanning!',
@@ -459,6 +474,25 @@ const Scan = () => {
             </div>
           )}
           {isGuest && isGuestPremium() && (
+            <div className="w-full max-w-md bg-success/10 border border-success/20 rounded-xl p-4 text-center">
+              <p className="text-sm font-medium text-success">
+                ✨ Premium - Ubegrenset scanninger
+              </p>
+            </div>
+          )}
+          
+          {/* Logged-in user scan limit - show for free users */}
+          {!isGuest && scanLimitStatus && !scanLimitStatus.isPremium && (
+            <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-4 text-center">
+              <p className="text-sm font-medium text-primary">
+                {scanLimitStatus.scansUsed} av {FREE_MONTHLY_SCANS} scanninger brukt denne måneden
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Oppgrader til Premium for ubegrenset
+              </p>
+            </div>
+          )}
+          {!isGuest && scanLimitStatus?.isPremium && (
             <div className="w-full max-w-md bg-success/10 border border-success/20 rounded-xl p-4 text-center">
               <p className="text-sm font-medium text-success">
                 ✨ Premium - Ubegrenset scanninger
@@ -640,6 +674,12 @@ const Scan = () => {
           navigate('/dashboard');
         }}
         receiptCount={getGuestScanCount()}
+      />
+      
+      {/* Upgrade prompt dialog for logged-in users */}
+      <UpgradePromptDialog
+        isOpen={showUpgradePrompt}
+        onClose={() => setShowUpgradePrompt(false)}
       />
     </div>
   );
