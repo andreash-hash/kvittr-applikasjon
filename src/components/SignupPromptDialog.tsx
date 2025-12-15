@@ -32,33 +32,36 @@ export const SignupPromptDialog = ({ isOpen, onClose, receiptCount }: SignupProm
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-xl">
-            🎉 Du har brukt dine 3 gratis scanninger!
+            🎉 Du har brukt dine 3 gratis prøvescanninger!
           </DialogTitle>
           <DialogDescription asChild>
             <div className="text-left space-y-4 pt-4">
               <p className="text-foreground font-medium">
-                Opprett gratis konto for å:
+                Opprett gratis konto for å få:
               </p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-success flex-shrink-0" />
-                  <span>Lagre ubegrenset kvitteringer</span>
+                  <span>2 kvitteringer per måned</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-success flex-shrink-0" />
-                  <span>Få push-varsler før garanti utløper</span>
+                  <span>Skylagring og synkronisering mellom enheter</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-success flex-shrink-0" />
-                  <span>Synkronisere mellom alle enheter</span>
+                  <span>Garanti-tracking for norsk forbrukervern</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Check className="h-4 w-4 text-success flex-shrink-0" />
-                  <span>Aldri miste dine kvitteringer</span>
+                  <span>Aldri miste kvitteringer igjen</span>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
                 Dine {receiptCount} kvitteringer blir automatisk lagret når du registrerer deg.
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
+                Trenger du mer enn 2 per måned? Premium gir ubegrenset scanning + push-varsler.
               </p>
             </div>
           </DialogDescription>
@@ -70,7 +73,7 @@ export const SignupPromptDialog = ({ isOpen, onClose, receiptCount }: SignupProm
           </Button>
           <Button variant="outline" onClick={handlePremium} className="w-full">
             <Sparkles className="h-4 w-4 mr-2" />
-            Kjøp Premium direkte
+            Se Premium
           </Button>
           <Button 
             variant="ghost" 
