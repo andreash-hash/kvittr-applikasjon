@@ -159,7 +159,7 @@ const Login = () => {
           <div className="flex justify-center mb-4">
             <Logo size="medium" />
           </div>
-          <CardDescription>Logg inn på din konto</CardDescription>
+          <CardDescription>Har du allerede konto?</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -207,16 +207,19 @@ const Login = () => {
                 {isResending ? 'Sender...' : 'Send bekreftelseslink på nytt'}
               </Button>
             )}
-            
+          </form>
+          
+          <div className="border-t mt-6 pt-4 text-center">
+            <p className="text-sm text-muted-foreground mb-2">Ny bruker?</p>
             <Button
               type="button"
               variant="outline"
               className="w-full"
               onClick={() => navigate('/signup')}
             >
-              Har du ikke konto? Registrer deg
+              Opprett gratis konto
             </Button>
-          </form>
+          </div>
         </CardContent>
       </Card>
 
