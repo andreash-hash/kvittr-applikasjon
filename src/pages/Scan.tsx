@@ -7,6 +7,14 @@ import { saveReceipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import imageCompression from 'browser-image-compression';
 import { WebcamModal } from '@/components/WebcamModal';
+import { 
+  saveGuestReceipt, 
+  getRemainingGuestScans, 
+  canGuestScan, 
+  getGuestScanCount,
+  type GuestReceipt 
+} from '@/lib/guestStorage';
+import { SignupPromptDialog } from '@/components/SignupPromptDialog';
 
 const Scan = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -14,10 +22,13 @@ const Scan = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
   const [isNative, setIsNative] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showWebcam, setShowWebcam] = useState(false);
+  const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+  const [remainingScans, setRemainingScans] = useState(getRemainingGuestScans());
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -49,9 +60,17 @@ const Scan = () => {
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      navigate('/login');
+      // Guest mode - allow scanning without login
+      if (canGuestScan()) {
+        setIsGuest(true);
+        setRemainingScans(getRemainingGuestScans());
+      } else {
+        // No more guest scans, show signup prompt
+        setShowSignupPrompt(true);
+      }
     } else {
       setUserId(session.user.id);
+      setIsGuest(false);
     }
   };
 
@@ -263,7 +282,45 @@ const Scan = () => {
   };
 
   const saveImage = async () => {
-    if (!capturedImage || !userId) return;
+    if (!capturedImage) return;
+    
+    // Guest mode - save locally
+    if (isGuest) {
+      const imageToSave = enhancedImage || capturedImage;
+      const receiptId = crypto.randomUUID();
+      
+      const guestReceipt: GuestReceipt = {
+        id: receiptId,
+        type: preselectedType as 'receipt' | 'gift_card' | 'return_slip',
+        shop_name: 'Ny butikk',
+        product_name: 'Nytt produkt',
+        amount: 0,
+        purchase_date: new Date().toISOString(),
+        image_url: imageToSave, // Store base64 locally
+        status: 'active',
+        processing_status: 'local',
+        created_at: new Date().toISOString(),
+      };
+      
+      saveGuestReceipt(guestReceipt);
+      setRemainingScans(getRemainingGuestScans());
+      
+      toast({
+        title: 'Lagret lokalt!',
+        description: 'Kvitteringen er lagret på enheten din.',
+      });
+      
+      // Check if this was the last free scan
+      if (getRemainingGuestScans() === 0) {
+        setShowSignupPrompt(true);
+      } else {
+        navigate('/dashboard');
+      }
+      return;
+    }
+    
+    // Logged in user - save to Supabase
+    if (!userId) return;
     
     setIsLoading(true);
     setIsUploading(true);
@@ -389,6 +446,18 @@ const Scan = () => {
 
         {/* Content area with buttons */}
         <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-6">
+          {/* Guest mode counter */}
+          {isGuest && remainingScans > 0 && (
+            <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-4 text-center">
+              <p className="text-sm font-medium text-primary">
+                {remainingScans} av 3 gratis scanninger gjenstående
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Opprett konto for ubegrenset lagring
+              </p>
+            </div>
+          )}
+          
           <div className="text-center mb-8">
             <CameraIcon className="h-24 w-24 mx-auto mb-4 text-primary opacity-80" />
             <h2 className="text-2xl font-bold mb-2">Ta bilde av kvitteringen</h2>
@@ -554,6 +623,16 @@ const Scan = () => {
           </div>
         </div>
       )}
+      
+      {/* Signup prompt dialog */}
+      <SignupPromptDialog
+        isOpen={showSignupPrompt}
+        onClose={() => {
+          setShowSignupPrompt(false);
+          navigate('/dashboard');
+        }}
+        receiptCount={getGuestScanCount()}
+      />
     </div>
   );
 };

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, ArrowRight, X, Settings } from 'lucide-react';
+import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, ArrowRight, X, Settings, UserPlus } from 'lucide-react';
 import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import ReceiptCard from '@/components/ReceiptCard';
@@ -12,13 +12,16 @@ import PullToRefresh from '@/components/PullToRefresh';
 import SwipeableCard from '@/components/SwipeableCard';
 import { useToastNotification } from '@/components/CenteredToast';
 import { Logo } from '@/components/Logo';
+import { getGuestReceipts, hasGuestReceipts, getRemainingGuestScans, type GuestReceipt } from '@/lib/guestStorage';
 
 type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv' | 'expiring';
 
 const Dashboard = () => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [guestReceipts, setGuestReceipts] = useState<GuestReceipt[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('alle');
   const navigate = useNavigate();
   const { showToast } = useToastNotification();
@@ -28,8 +31,16 @@ const Dashboard = () => {
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        navigate('/login');
+        // Check for guest receipts
+        if (hasGuestReceipts()) {
+          setIsGuest(true);
+          setGuestReceipts(getGuestReceipts());
+          setIsLoading(false);
+        } else {
+          navigate('/login');
+        }
       } else if (event === 'SIGNED_IN') {
+        setIsGuest(false);
         loadReceipts(session.user.id);
       }
     });
@@ -39,6 +50,8 @@ const Dashboard = () => {
 
   // Setup realtime listener for receipt updates
   useEffect(() => {
+    if (isGuest) return;
+    
     const channel = supabase
       .channel('receipt-updates')
       .on(
@@ -65,15 +78,24 @@ const Dashboard = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [isGuest]);
 
   const checkAuthAndLoadReceipts = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      navigate('/login');
+      // Guest mode - load local receipts
+      if (hasGuestReceipts()) {
+        setIsGuest(true);
+        setGuestReceipts(getGuestReceipts());
+        setIsLoading(false);
+      } else {
+        navigate('/login');
+      }
       return;
     }
 
+    setIsGuest(false);
+    
     // Sync localStorage onboarding flag to Supabase if needed
     const localOnboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
     if (localOnboardingCompleted) {
@@ -104,12 +126,15 @@ const Dashboard = () => {
   };
 
   const handleRefresh = useCallback(async () => {
+    if (isGuest) {
+      setGuestReceipts(getGuestReceipts());
+      return;
+    }
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       await loadReceipts(session.user.id);
-      // NO toast on refresh - silent update
     }
-  }, []);
+  }, [isGuest]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -117,6 +142,15 @@ const Dashboard = () => {
   };
 
   const handleDeleteReceipt = async (receiptId: string) => {
+    if (isGuest) {
+      // For guest mode, remove from local storage
+      const updatedGuest = guestReceipts.filter(r => r.id !== receiptId);
+      localStorage.setItem('kvittr_guest_receipts', JSON.stringify(updatedGuest));
+      setGuestReceipts(updatedGuest);
+      showToast('Slettet!', 'success');
+      return;
+    }
+    
     try {
       const { error } = await supabase
         .from('receipts')
@@ -134,6 +168,10 @@ const Dashboard = () => {
   };
 
   const handleArchiveReceipt = async (receiptId: string) => {
+    if (isGuest) {
+      showToast('Opprett konto for å arkivere', 'error');
+      return;
+    }
     try {
       const { error } = await supabase
         .from('receipts')
@@ -186,7 +224,25 @@ const Dashboard = () => {
     return filtered;
   };
 
-  const allReceipts = filterReceipts(receipts);
+  // Convert guest receipts to Receipt format for display
+  const convertGuestToReceipts = (guestReceipts: GuestReceipt[]): Receipt[] => {
+    return guestReceipts.map(gr => ({
+      id: gr.id,
+      user_id: 'guest',
+      type: gr.type,
+      shop_name: gr.shop_name,
+      product_name: gr.product_name,
+      amount: gr.amount,
+      purchase_date: gr.purchase_date,
+      image_url: gr.image_url,
+      status: 'active' as const,
+      created_at: gr.created_at,
+      is_used: false,
+    }));
+  };
+
+  const displayReceipts = isGuest ? convertGuestToReceipts(guestReceipts) : receipts;
+  const allReceipts = filterReceipts(displayReceipts);
   
   // Check for expiring items
   const expiringCount = allReceipts.filter(receipt => {
@@ -215,7 +271,7 @@ const Dashboard = () => {
     return false;
   }).length;
   
-  const expiringReceipts = filterReceipts(receipts.filter(receipt => {
+  const expiringReceipts = filterReceipts(displayReceipts.filter(receipt => {
     // Check warranty_until within 60 days
     if (receipt.warranty_until) {
       const daysUntilExpiry = differenceInDays(new Date(receipt.warranty_until), new Date());
@@ -231,16 +287,16 @@ const Dashboard = () => {
     return false;
   }));
   
-  const regularReceipts = filterReceipts(receipts.filter(r => 
+  const regularReceipts = filterReceipts(displayReceipts.filter(r => 
     (r.type === 'receipt' || !r.type) && r.status !== 'expired' && r.status !== 'used'
   ));
-  const giftCards = filterReceipts(receipts.filter(r => 
+  const giftCards = filterReceipts(displayReceipts.filter(r => 
     r.type === 'gift_card' && r.status !== 'expired' && r.status !== 'used'
   ));
-  const returnSlips = filterReceipts(receipts.filter(r => 
+  const returnSlips = filterReceipts(displayReceipts.filter(r => 
     r.type === 'return_slip' && r.status !== 'expired' && r.status !== 'used'
   ));
-  const archived = filterReceipts(receipts.filter(r => 
+  const archived = filterReceipts(displayReceipts.filter(r => 
     r.status === 'expired' || r.status === 'used'
   ));
 
@@ -323,12 +379,21 @@ const Dashboard = () => {
               <Logo size="small" clickable />
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-                <Settings className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="h-5 w-5" />
-              </Button>
+              {isGuest ? (
+                <Button variant="default" size="sm" onClick={() => navigate('/signup')}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Opprett konto
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+                    <Settings className="h-5 w-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={handleLogout}>
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -387,7 +452,27 @@ const Dashboard = () => {
             })}
           </div>
 
+          {/* Guest mode banner */}
+          {isGuest && (
+            <Card className="p-4 mb-4 bg-primary/10 border-l-4 border-l-primary rounded-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">
+                    {getRemainingGuestScans()} av 3 gratis scanninger gjenstående
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Opprett konto for ubegrenset lagring og varsler
+                  </p>
+                </div>
+                <Button size="sm" onClick={() => navigate('/signup')}>
+                  Opprett konto
+                </Button>
+              </div>
+            </Card>
+          )}
+
           {/* Alert card - status banner - NO scrollIntoView on click */}
+          {!isGuest && (
           <Card
             onClick={expiringReceipts.length > 0 ? () => setSelectedFilter('expiring') : undefined}
             className={`p-4 mb-4 transition-all rounded-xl h-[56px] flex items-center border-l-4 ${
@@ -419,6 +504,7 @@ const Dashboard = () => {
               </div>
             </div>
           </Card>
+          )}
 
           {/* Receipt cards list with swipe actions */}
           <div className="space-y-3">
