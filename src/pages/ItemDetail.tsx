@@ -76,7 +76,8 @@ const ItemDetail = () => {
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      navigate('/login');
+      // Guest mode: don't force login; send user back to dashboard
+      navigate('/dashboard');
       return;
     }
 
