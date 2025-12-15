@@ -12,7 +12,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import SwipeableCard from '@/components/SwipeableCard';
 import { useToastNotification } from '@/components/CenteredToast';
 import { Logo } from '@/components/Logo';
-import { getGuestReceipts, hasGuestReceipts, getRemainingGuestScans, type GuestReceipt } from '@/lib/guestStorage';
+import { getGuestReceipts, hasGuestReceipts, getRemainingGuestScans, isGuestPremium, type GuestReceipt } from '@/lib/guestStorage';
 
 type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv' | 'expiring';
 
@@ -454,17 +454,34 @@ const Dashboard = () => {
 
           {/* Guest mode banner */}
           {isGuest && (
-            <Card className="p-4 mb-4 bg-primary/10 border-l-4 border-l-primary rounded-xl">
+            <Card className={`p-4 mb-4 border-l-4 rounded-xl ${
+              isGuestPremium() 
+                ? 'bg-success/10 border-l-success' 
+                : 'bg-primary/10 border-l-primary'
+            }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-sm">
-                    {getRemainingGuestScans()} av 3 gratis scanninger gjenstående
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Opprett konto for ubegrenset lagring og varsler
-                  </p>
+                  {isGuestPremium() ? (
+                    <>
+                      <p className="font-medium text-sm text-success">
+                        ✨ Premium aktiv
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Opprett konto for å synkronisere på tvers av enheter
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-sm">
+                        {getRemainingGuestScans()} av 3 gratis scanninger gjenstående
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Opprett konto for ubegrenset lagring og varsler
+                      </p>
+                    </>
+                  )}
                 </div>
-                <Button size="sm" onClick={() => navigate('/signup')}>
+                <Button size="sm" variant={isGuestPremium() ? "outline" : "default"} onClick={() => navigate('/signup')}>
                   Opprett konto
                 </Button>
               </div>
