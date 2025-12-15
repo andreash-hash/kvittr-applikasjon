@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles, Key, Check, X } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles, Key, Check, X, LogIn, UserPlus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
+import { getRemainingGuestScans, isGuestPremium } from '@/lib/guestStorage';
 // Helper to safely get platform
 const getPlatform = (): string => {
   try {
@@ -55,6 +56,7 @@ const Settings = () => {
   const [theme, setTheme] = useState<Theme>('system');
   const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   
   // Password change state
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -83,6 +85,7 @@ const Settings = () => {
     const loadSettings = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        setIsGuest(false);
         setUserId(user.id);
         setUserEmail(user.email || null);
         
@@ -107,6 +110,13 @@ const Settings = () => {
         if (profile) {
           setSubscriptionTier(profile.subscription_tier || 'free');
           setSubscriptionExpiresAt(profile.subscription_expires_at);
+        }
+      } else {
+        // Guest mode
+        setIsGuest(true);
+        // Check if guest has premium
+        if (isGuestPremium()) {
+          setSubscriptionTier('premium');
         }
       }
     };
@@ -315,6 +325,36 @@ const Settings = () => {
           </Button>
           <h1 className="text-2xl font-bold ml-2">Innstillinger</h1>
         </div>
+
+        {/* Guest Account Section */}
+        {isGuest && (
+          <Card className="border-primary">
+            <CardHeader>
+              <CardTitle>Gjestemodus</CardTitle>
+              <CardDescription>
+                {isGuestPremium() 
+                  ? 'Du har Premium - opprett konto for å synkronisere'
+                  : `${getRemainingGuestScans()} av 3 gratis scanninger gjenstående`
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Opprett en konto for å lagre kvitteringene dine trygt i skyen og få tilgang til alle funksjoner.
+              </p>
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={() => navigate('/signup')}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Opprett konto
+                </Button>
+                <Button variant="outline" className="flex-1" onClick={() => navigate('/login')}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Logg inn
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Theme / Dark Mode */}
         <Card>
