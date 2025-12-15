@@ -131,77 +131,115 @@ const Signup = () => {
             <div className="flex justify-center mb-4">
               <Logo size="medium" />
             </div>
-            <CardDescription>Opprett din konto</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">E-post</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  placeholder="din@epost.no"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+          <CardContent className="space-y-6">
+            {/* Benefits Section */}
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-center">Opprett gratis konto og få:</h2>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Ubegrenset kvitteringer</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Push-varsler før garanti utløper</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Synkronisering mellom enheter</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Trygg skylagring (GDPR-kompatibel)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Aldri miste kvitteringer igjen</span>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Passord</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                {password && (
-                  <div className="space-y-1 text-xs">
-                    <div className={`flex items-center gap-1 ${passwordRequirements.minLength ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {passwordRequirements.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                      <span>Minst 8 tegn</span>
+            </div>
+
+            <div className="border-t pt-4">
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-post</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    placeholder="din@epost.no"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Passord</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  {password && (
+                    <div className="space-y-1 text-xs">
+                      <div className={`flex items-center gap-1 ${passwordRequirements.minLength ? 'text-green-600' : 'text-muted-foreground'}`}>
+                        {passwordRequirements.minLength ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        <span>Minst 8 tegn</span>
+                      </div>
+                      <div className={`flex items-center gap-1 ${passwordRequirements.hasUppercase ? 'text-green-600' : 'text-muted-foreground'}`}>
+                        {passwordRequirements.hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        <span>Minst én stor bokstav</span>
+                      </div>
+                      <div className={`flex items-center gap-1 ${passwordRequirements.hasLowercase ? 'text-green-600' : 'text-muted-foreground'}`}>
+                        {passwordRequirements.hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        <span>Minst én liten bokstav</span>
+                      </div>
+                      <div className={`flex items-center gap-1 ${passwordRequirements.hasNumber ? 'text-green-600' : 'text-muted-foreground'}`}>
+                        {passwordRequirements.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        <span>Minst ett tall</span>
+                      </div>
                     </div>
-                    <div className={`flex items-center gap-1 ${passwordRequirements.hasUppercase ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {passwordRequirements.hasUppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                      <span>Minst én stor bokstav</span>
-                    </div>
-                    <div className={`flex items-center gap-1 ${passwordRequirements.hasLowercase ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {passwordRequirements.hasLowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                      <span>Minst én liten bokstav</span>
-                    </div>
-                    <div className={`flex items-center gap-1 ${passwordRequirements.hasNumber ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {passwordRequirements.hasNumber ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                      <span>Minst ett tall</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Bekreft passord</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Oppretter konto...' : 'Registrer deg'}
-              </Button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Bekreft passord</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Oppretter konto...' : 'Opprett gratis konto'}
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  Ved å opprette konto godtar du våre{' '}
+                  <a href="/terms" className="underline hover:text-foreground">Vilkår</a>
+                  {' '}og{' '}
+                  <a href="/privacy" className="underline hover:text-foreground">Personvern</a>
+                </p>
+              </form>
+            </div>
+
+            <div className="border-t pt-4 text-center">
+              <p className="text-sm text-muted-foreground mb-2">Har du allerede konto?</p>
               <Button
                 type="button"
                 variant="outline"
                 className="w-full"
                 onClick={() => navigate('/login')}
               >
-                Har du allerede konto? Logg inn
+                Logg inn
               </Button>
-            </form>
+            </div>
           </CardContent>
         </Card>
       </div>
