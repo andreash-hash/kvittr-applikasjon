@@ -134,7 +134,33 @@ const Scan = () => {
     }
   };
 
+  // Check if user can scan BEFORE starting camera
+  const canUserScan = (): boolean => {
+    // Guest mode check
+    if (isGuest) {
+      if (isGuestPremium()) return true;
+      if (!canGuestScan()) {
+        setShowSignupPrompt(true);
+        return false;
+      }
+      return true;
+    }
+    
+    // Logged-in user check
+    if (scanLimitStatus && !scanLimitStatus.canScan && !scanLimitStatus.isPremium) {
+      setShowUpgradePrompt(true);
+      return false;
+    }
+    
+    return true;
+  };
+
   const takePhoto = async () => {
+    // Check limit FIRST - block if limit reached
+    if (!canUserScan()) {
+      return;
+    }
+
     // Native Capacitor camera
     if (isNative) {
       try {
@@ -210,6 +236,11 @@ const Scan = () => {
   };
 
   const pickFromGallery = async () => {
+    // Check limit FIRST - block if limit reached
+    if (!canUserScan()) {
+      return;
+    }
+
     // Native Capacitor photo picker
     if (isNative) {
       try {
@@ -258,6 +289,13 @@ const Scan = () => {
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Check limit FIRST - block if limit reached
+    if (!canUserScan()) {
+      // Reset file input
+      if (event.target) event.target.value = '';
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
