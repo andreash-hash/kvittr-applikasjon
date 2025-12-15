@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import Onboarding from '@/components/Onboarding';
+import { hasGuestData } from '@/lib/guestStorage';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -28,15 +29,17 @@ const Index = () => {
     if (session) {
       navigate('/dashboard');
     } else {
-      navigate('/login');
+      // Guest mode: If user has guest data, go to dashboard
+      // Otherwise, go to dashboard as new guest (can scan 3 times)
+      navigate('/dashboard');
     }
     setIsChecking(false);
   };
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-    // Redirect to signup after onboarding
-    navigate('/signup');
+    // Go directly to dashboard as guest (no forced signup)
+    navigate('/dashboard');
   };
 
   if (isChecking) {

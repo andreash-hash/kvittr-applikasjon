@@ -31,14 +31,10 @@ const Dashboard = () => {
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        // Check for guest receipts
-        if (hasGuestReceipts()) {
-          setIsGuest(true);
-          setGuestReceipts(getGuestReceipts());
-          setIsLoading(false);
-        } else {
-          navigate('/login');
-        }
+        // Guest mode - always allow access
+        setIsGuest(true);
+        setGuestReceipts(getGuestReceipts());
+        setIsLoading(false);
       } else if (event === 'SIGNED_IN') {
         setIsGuest(false);
         loadReceipts(session.user.id);
@@ -83,14 +79,10 @@ const Dashboard = () => {
   const checkAuthAndLoadReceipts = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      // Guest mode - load local receipts
-      if (hasGuestReceipts()) {
-        setIsGuest(true);
-        setGuestReceipts(getGuestReceipts());
-        setIsLoading(false);
-      } else {
-        navigate('/login');
-      }
+      // Guest mode - always allow access (they can scan up to 3 times)
+      setIsGuest(true);
+      setGuestReceipts(getGuestReceipts());
+      setIsLoading(false);
       return;
     }
 

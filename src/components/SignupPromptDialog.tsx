@@ -1,7 +1,7 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Bell, Sparkles } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 
 interface SignupPromptDialogProps {
   isOpen: boolean;
@@ -17,9 +17,14 @@ export const SignupPromptDialog = ({ isOpen, onClose, receiptCount }: SignupProm
     navigate('/signup', { state: { migrateGuest: true } });
   };
 
-  const handleLogin = () => {
+  const handlePremium = () => {
     onClose();
-    navigate('/login', { state: { migrateGuest: true } });
+    navigate('/premium');
+  };
+
+  const handleLater = () => {
+    onClose();
+    navigate('/dashboard');
   };
 
   return (
@@ -27,36 +32,54 @@ export const SignupPromptDialog = ({ isOpen, onClose, receiptCount }: SignupProm
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-xl">
-            🎉 Du har skannet {receiptCount} kvitteringer!
+            🎉 Du har brukt dine 3 gratis scanninger!
           </DialogTitle>
-          <DialogDescription className="text-center pt-2">
-            Opprett en gratis konto for å lagre kvitteringene dine permanent og få tilgang til alle funksjoner.
+          <DialogDescription asChild>
+            <div className="text-left space-y-4 pt-4">
+              <p className="text-foreground font-medium">
+                Opprett gratis konto for å:
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 text-success flex-shrink-0" />
+                  <span>Lagre ubegrenset kvitteringer</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 text-success flex-shrink-0" />
+                  <span>Få push-varsler før garanti utløper</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 text-success flex-shrink-0" />
+                  <span>Synkronisere mellom alle enheter</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 text-success flex-shrink-0" />
+                  <span>Aldri miste dine kvitteringer</span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
+                Dine {receiptCount} kvitteringer blir automatisk lagret når du registrerer deg.
+              </p>
+            </div>
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-3 py-4">
-          <div className="flex items-center gap-3 text-sm">
-            <Shield className="h-5 w-5 text-primary flex-shrink-0" />
-            <span>Lagre kvitteringer trygt i skyen</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Bell className="h-5 w-5 text-primary flex-shrink-0" />
-            <span>Få varsler før garanti utløper</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Sparkles className="h-5 w-5 text-primary flex-shrink-0" />
-            <span>Hold styr på gavekort og byttelapper</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 pt-2">
+        <DialogFooter className="flex-col gap-2 sm:flex-col pt-2">
           <Button onClick={handleSignup} className="w-full">
             Opprett gratis konto
           </Button>
-          <Button variant="outline" onClick={handleLogin} className="w-full">
-            Har allerede konto? Logg inn
+          <Button variant="outline" onClick={handlePremium} className="w-full">
+            <Sparkles className="h-4 w-4 mr-2" />
+            Kjøp Premium direkte
           </Button>
-        </div>
+          <Button 
+            variant="ghost" 
+            onClick={handleLater}
+            className="w-full text-muted-foreground"
+          >
+            Senere
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
