@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ArrowLeft, Camera, Bell, Gift, Heart, Sparkles, UserPlus, Cloud } from 'lucide-react';
+import { ArrowLeft, Camera, Bell, Gift, Heart, Sparkles, UserPlus, Cloud, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { setGuestPremium, isGuestPremium } from '@/lib/guestStorage';
 import { useToastNotification } from '@/components/CenteredToast';
@@ -137,6 +137,17 @@ const Premium = () => {
           </div>
 
           <Button 
+            variant="default"
+            className="w-full"
+            onClick={() => {
+              // Opens platform-specific subscription management
+              showToast('Åpne innstillinger for å administrere abonnement', 'success');
+            }}
+          >
+            Administrer abonnement
+          </Button>
+
+          <Button 
             variant="outline"
             className="w-full"
             onClick={() => navigate(-1)}
@@ -162,91 +173,129 @@ const Premium = () => {
         <div className="text-center space-y-2 py-4">
           <div className="flex items-center justify-center gap-2">
             <Sparkles className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Kvittr Premium</h1>
+            <h1 className="text-2xl font-bold">Kvittr Premium</h1>
           </div>
           <p className="text-lg text-muted-foreground">Aldri mer tapt garanti!</p>
         </div>
 
-        {/* Features */}
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Camera className="h-5 w-5 text-primary" />
+        {/* Comparison Table */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Free Plan */}
+          <Card className="border-border">
+            <CardContent className="pt-4 pb-4 space-y-3">
+              <div className="text-center">
+                <h3 className="font-semibold text-sm">Gratis</h3>
+                <p className="text-xs text-muted-foreground">0 kr/mnd</p>
               </div>
-              <div>
-                <h3 className="font-medium">Ubegrenset kvitteringer</h3>
-                <p className="text-sm text-muted-foreground">Skann så mange kvitteringer du vil</p>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-success flex-shrink-0 mt-0.5" />
+                  <span>2 kvitteringer per måned</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-success flex-shrink-0 mt-0.5" />
+                  <span>Skylagring og synkronisering</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-success flex-shrink-0 mt-0.5" />
+                  <span>Garanti-tracking</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-success flex-shrink-0 mt-0.5" />
+                  <span>Byttelapper og gavekort</span>
+                </div>
+                <div className="flex items-start gap-2 text-muted-foreground">
+                  <X className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                  <span>Push-varsler</span>
+                </div>
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="flex items-start gap-4">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Bell className="h-5 w-5 text-primary" />
+          {/* Premium Plan */}
+          <Card className="border-primary bg-primary/5">
+            <CardContent className="pt-4 pb-4 space-y-3">
+              <div className="text-center">
+                <h3 className="font-semibold text-sm text-primary">Premium ✨</h3>
+                <p className="text-xs text-muted-foreground">19 kr/mnd</p>
               </div>
-              <div>
-                <h3 className="font-medium">Push-varsler før garanti utløper</h3>
-                <p className="text-sm text-muted-foreground">Få varsel 30 og 7 dager før</p>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                  <span className="font-medium">Ubegrenset kvitteringer</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                  <span>Skylagring og synkronisering</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                  <span>Garanti-tracking</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                  <span>Byttelapper og gavekort</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                  <span className="font-medium">Push-varsler 30 dager før utløp</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                  <span>Prioritert support</span>
+                </div>
               </div>
-            </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            <div className="flex items-start gap-4">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Gift className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-medium">Byttelapper & Gavekort tracking</h3>
-                <p className="text-sm text-muted-foreground">Hold styr på alle bytteretter</p>
-              </div>
-            </div>
+        {/* Value proposition */}
+        <div className="text-center text-sm text-muted-foreground bg-muted/50 rounded-lg p-4">
+          <p className="font-medium text-foreground mb-1">2 kvitteringer per måned er begrensende</p>
+          <p>Med Premium får du frihet til å skanne alt – kvitteringer, garantier, byttelapper og gavekort.</p>
+        </div>
 
-            <div className="flex items-start gap-4">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Heart className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-medium">Prioritert support</h3>
-                <p className="text-sm text-muted-foreground">Få hjelp raskt når du trenger det</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pricing */}
+        {/* Pricing highlight */}
         <Card className="border-primary">
-          <CardContent className="pt-6 text-center space-y-2">
-            <div className="text-4xl font-bold">19 kr</div>
-            <div className="text-muted-foreground">per måned</div>
-            <div className="text-sm text-muted-foreground pt-2">
-              Kanseller når som helst · Automatisk fornyet
-            </div>
+          <CardContent className="py-4 text-center">
+            <div className="text-3xl font-bold text-primary">19 kr</div>
+            <div className="text-sm text-muted-foreground">per måned · Kanseller når som helst</div>
           </CardContent>
         </Card>
 
-        {/* Guest notice */}
-        {!isLoggedIn && (
-          <div className="text-center text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
-            <p>Du kan kjøpe Premium uten konto.</p>
-            <p className="text-xs mt-1">Opprett konto senere for å synkronisere på tvers av enheter.</p>
-          </div>
-        )}
-
-        {/* CTA */}
+        {/* CTA based on user state */}
         <div className="space-y-3 pb-6">
-          <Button 
-            className="w-full h-12 text-lg"
-            onClick={handleSubscribe}
-          >
-            <Sparkles className="h-5 w-5 mr-2" />
-            Kjøp Premium
-          </Button>
+          {!isLoggedIn ? (
+            <>
+              <Button 
+                className="w-full h-12 text-lg"
+                onClick={() => navigate('/signup')}
+              >
+                <UserPlus className="h-5 w-5 mr-2" />
+                Opprett konto først
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Du trenger en konto for å bruke Premium
+              </p>
+            </>
+          ) : (
+            <Button 
+              className="w-full h-12 text-lg"
+              onClick={handleSubscribe}
+            >
+              <Sparkles className="h-5 w-5 mr-2" />
+              Start Premium
+            </Button>
+          )}
           
-          <button
-            onClick={handleRestorePurchase}
-            className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            Gjenopprett kjøp
-          </button>
+          {isLoggedIn && (
+            <button
+              onClick={handleRestorePurchase}
+              className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              Gjenopprett kjøp
+            </button>
+          )}
         </div>
 
         {/* Footer */}
