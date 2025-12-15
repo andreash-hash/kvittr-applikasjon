@@ -12,6 +12,7 @@ import {
   getRemainingGuestScans, 
   canGuestScan, 
   getGuestScanCount,
+  isGuestPremium,
   type GuestReceipt 
 } from '@/lib/guestStorage';
 import { SignupPromptDialog } from '@/components/SignupPromptDialog';
@@ -446,14 +447,21 @@ const Scan = () => {
 
         {/* Content area with buttons */}
         <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-6">
-          {/* Guest mode counter */}
-          {isGuest && remainingScans > 0 && (
+          {/* Guest mode counter - show different content for premium vs free */}
+          {isGuest && !isGuestPremium() && remainingScans > 0 && (
             <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-4 text-center">
               <p className="text-sm font-medium text-primary">
                 {remainingScans} av 3 gratis scanninger gjenstående
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Opprett konto for ubegrenset lagring
+              </p>
+            </div>
+          )}
+          {isGuest && isGuestPremium() && (
+            <div className="w-full max-w-md bg-success/10 border border-success/20 rounded-xl p-4 text-center">
+              <p className="text-sm font-medium text-success">
+                ✨ Premium - Ubegrenset scanninger
               </p>
             </div>
           )}

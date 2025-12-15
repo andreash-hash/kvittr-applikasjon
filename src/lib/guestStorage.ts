@@ -1,7 +1,8 @@
-// Guest mode storage utility for receipts before signup
+// Guest mode storage utility for receipts and premium before signup
 
 const GUEST_RECEIPTS_KEY = 'kvittr_guest_receipts';
 const GUEST_SCAN_COUNT_KEY = 'kvittr_guest_scan_count';
+const GUEST_PREMIUM_KEY = 'kvittr_guest_premium';
 const MAX_GUEST_SCANS = 3;
 
 export interface GuestReceipt {
@@ -15,6 +16,12 @@ export interface GuestReceipt {
   status: string;
   processing_status: string;
   created_at: string;
+}
+
+export interface GuestPremium {
+  isPremium: boolean;
+  purchaseDate: string;
+  transactionId?: string;
 }
 
 export const getGuestReceipts = (): GuestReceipt[] => {
@@ -43,10 +50,18 @@ export const getGuestScanCount = (): number => {
 };
 
 export const getRemainingGuestScans = (): number => {
+  // Premium guests get unlimited scans
+  if (isGuestPremium()) {
+    return Infinity;
+  }
   return Math.max(0, MAX_GUEST_SCANS - getGuestScanCount());
 };
 
 export const canGuestScan = (): boolean => {
+  // Premium guests can always scan
+  if (isGuestPremium()) {
+    return true;
+  }
   return getGuestScanCount() < MAX_GUEST_SCANS;
 };
 
@@ -62,4 +77,36 @@ export const clearGuestData = (): void => {
 
 export const hasGuestReceipts = (): boolean => {
   return getGuestReceipts().length > 0;
+};
+
+// Guest Premium functions
+export const getGuestPremium = (): GuestPremium | null => {
+  try {
+    const stored = localStorage.getItem(GUEST_PREMIUM_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const isGuestPremium = (): boolean => {
+  const premium = getGuestPremium();
+  return premium?.isPremium === true;
+};
+
+export const setGuestPremium = (transactionId?: string): void => {
+  const premium: GuestPremium = {
+    isPremium: true,
+    purchaseDate: new Date().toISOString(),
+    transactionId,
+  };
+  localStorage.setItem(GUEST_PREMIUM_KEY, JSON.stringify(premium));
+};
+
+export const clearGuestPremium = (): void => {
+  localStorage.removeItem(GUEST_PREMIUM_KEY);
+};
+
+export const hasGuestData = (): boolean => {
+  return hasGuestReceipts() || isGuestPremium();
 };
