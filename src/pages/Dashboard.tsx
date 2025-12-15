@@ -37,7 +37,8 @@ const Dashboard = () => {
         setIsGuest(true);
         setGuestReceipts(getGuestReceipts());
         setIsLoading(false);
-      } else if (event === 'SIGNED_IN') {
+      } else {
+        // Any session means user is logged in
         setIsGuest(false);
         loadReceipts(session.user.id);
         loadScanLimit(session.user.id);
