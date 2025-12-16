@@ -3,22 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ArrowLeft, Camera, Bell, Gift, Heart, Sparkles, UserPlus, Cloud, Check, X } from 'lucide-react';
+import { ArrowLeft, Cloud, Check, X, Sparkles, UserPlus, Loader2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { setGuestPremium, isGuestPremium } from '@/lib/guestStorage';
 import { useToastNotification } from '@/components/CenteredToast';
+import { getOfferings, purchasePackage, restorePurchases, handleRevenueCatError, syncSubscriptionStatus, showPaywallUI, showCustomerCenterUI } from '@/lib/revenuecat';
+import { PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui';
 
 const Premium = () => {
   const navigate = useNavigate();
   const { showToast } = useToastNotification();
-  const [showLaunchDialog, setShowLaunchDialog] = useState(false);
   const [showSyncDialog, setShowSyncDialog] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [purchasing, setPurchasing] = useState(false);
+  const [offerings, setOfferings] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuthAndPremium();
+    loadOfferings();
   }, []);
 
   const checkAuthAndPremium = async () => {
@@ -26,6 +32,13 @@ const Premium = () => {
     
     if (session) {
       setIsLoggedIn(true);
+      setUserId(session.user.id);
+      
+      // Sync with RevenueCat first if on native
+      if (Capacitor.isNativePlatform()) {
+        await syncSubscriptionStatus(session.user.id);
+      }
+      
       // Check Supabase premium status
       const { data: profile } = await supabase
         .from('profiles')
@@ -42,40 +55,128 @@ const Premium = () => {
     setIsLoading(false);
   };
 
-  const handleSubscribe = async () => {
-    // For now, show launch dialog (replace with actual IAP when ready)
-    // This is where you would integrate native IAP
-    setShowLaunchDialog(true);
+  const loadOfferings = async () => {
+    const result = await getOfferings();
+    if (result) {
+      setOfferings(result);
+      console.log('Offerings loaded:', result);
+    }
   };
 
-  const handlePurchaseComplete = async (transactionId?: string) => {
-    if (isLoggedIn) {
-      // Save to Supabase for logged-in users
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await supabase
-          .from('profiles')
-          .update({
-            subscription_tier: 'premium',
-            subscription_status: 'active',
-            subscription_started_at: new Date().toISOString(),
-          })
-          .eq('id', session.user.id);
+  const showPaywall = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      showToast('Last ned iOS/Android-appen for å oppgradere', 'error');
+      return;
+    }
+
+    setPurchasing(true);
+    
+    try {
+      const result = await showPaywallUI(offerings);
+      
+      console.log('Paywall result:', result);
+      
+      if (result.result === PAYWALL_RESULT.PURCHASED) {
+        await handlePurchaseComplete();
+      } else if (result.result === PAYWALL_RESULT.RESTORED) {
+        showToast('Premium gjenopprettet!', 'success');
+        setIsPremium(true);
+        navigate('/dashboard');
       }
-      showToast('Premium aktivert!', 'success');
+    } catch (error: any) {
+      if (error.code !== 'PAYWALL_CANCELLED' && error.message !== 'PLATFORM_NOT_SUPPORTED') {
+        console.error('Paywall error:', error);
+        showToast('Kunne ikke vise kjøpsside', 'error');
+      }
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const handleManualPurchase = async (packageType: 'MONTHLY' | 'ANNUAL' | 'LIFETIME') => {
+    if (!Capacitor.isNativePlatform()) {
+      showToast('Last ned iOS/Android-appen for å oppgradere', 'error');
+      return;
+    }
+
+    if (!offerings) {
+      showToast('Produkter laster...', 'error');
+      return;
+    }
+
+    setPurchasing(true);
+    
+    try {
+      const success = await purchasePackage(packageType, offerings);
+      if (success) {
+        await handlePurchaseComplete();
+      }
+    } catch (error: any) {
+      const message = handleRevenueCatError(error);
+      if (message !== 'cancelled') {
+        showToast(message, 'error');
+      }
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const handlePurchaseComplete = async () => {
+    if (isLoggedIn && userId) {
+      // Sync with Supabase
+      await syncSubscriptionStatus(userId);
+      showToast('🎉 Premium aktivert!', 'success');
       setIsPremium(true);
+      navigate('/dashboard');
     } else {
       // Save locally for guest users
-      setGuestPremium(transactionId);
+      setGuestPremium('revenuecat_purchase');
       setIsPremium(true);
-      showToast('Premium aktivert!', 'success');
-      // Show sync prompt for guests
+      showToast('🎉 Premium aktivert!', 'success');
       setShowSyncDialog(true);
     }
   };
 
-  const handleRestorePurchase = () => {
-    setShowLaunchDialog(true);
+  const handleRestorePurchase = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      showToast('Kun tilgjengelig i iOS/Android-appen', 'error');
+      return;
+    }
+
+    setPurchasing(true);
+    
+    try {
+      const hasPremium = await restorePurchases();
+      if (hasPremium) {
+        if (userId) {
+          await syncSubscriptionStatus(userId);
+        }
+        showToast('Premium gjenopprettet!', 'success');
+        setIsPremium(true);
+        navigate('/dashboard');
+      } else {
+        showToast('Ingen aktive kjøp funnet', 'error');
+      }
+    } catch (error) {
+      const message = handleRevenueCatError(error);
+      showToast(message, 'error');
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const showCustomerCenter = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      showToast('Kun tilgjengelig i appen', 'error');
+      return;
+    }
+
+    try {
+      await showCustomerCenterUI();
+    } catch (error) {
+      console.error('Customer center error:', error);
+      showToast('Kunne ikke åpne kundecenter', 'error');
+    }
   };
 
   const handleCreateAccount = () => {
@@ -139,10 +240,7 @@ const Premium = () => {
           <Button 
             variant="default"
             className="w-full"
-            onClick={() => {
-              // Opens platform-specific subscription management
-              showToast('Åpne innstillinger for å administrere abonnement', 'success');
-            }}
+            onClick={showCustomerCenter}
           >
             Administrer abonnement
           </Button>
@@ -278,20 +376,68 @@ const Premium = () => {
                 Du trenger en konto for å bruke Premium
               </p>
             </>
+          ) : Capacitor.isNativePlatform() ? (
+            <>
+              {/* Primary: RevenueCat Paywall */}
+              <Button 
+                className="w-full h-12 text-lg"
+                onClick={showPaywall}
+                disabled={purchasing}
+              >
+                {purchasing ? (
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-5 w-5 mr-2" />
+                )}
+                {purchasing ? 'Laster...' : 'Se alle planer'}
+              </Button>
+              
+              {/* Manual purchase buttons (fallback) */}
+              {offerings?.availablePackages && (
+                <div className="grid grid-cols-3 gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleManualPurchase('MONTHLY')}
+                    disabled={purchasing}
+                    className="text-xs"
+                  >
+                    Måned
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleManualPurchase('ANNUAL')}
+                    disabled={purchasing}
+                    className="text-xs"
+                  >
+                    År
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleManualPurchase('LIFETIME')}
+                    disabled={purchasing}
+                    className="text-xs"
+                  >
+                    Livstid
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
-            <Button 
-              className="w-full h-12 text-lg"
-              onClick={handleSubscribe}
-            >
-              <Sparkles className="h-5 w-5 mr-2" />
-              Start Premium
-            </Button>
+            <div className="text-center p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Last ned iOS/Android-appen for å oppgradere til Premium
+              </p>
+            </div>
           )}
           
           {isLoggedIn && (
             <button
               onClick={handleRestorePurchase}
-              className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+              disabled={purchasing}
+              className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
             >
               Gjenopprett kjøp
             </button>
@@ -315,37 +461,6 @@ const Premium = () => {
           </button>
         </div>
       </div>
-
-      {/* Premium Launch Dialog */}
-      <Dialog open={showLaunchDialog} onOpenChange={setShowLaunchDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-center text-xl">
-              Premium lanseres snart! 🎉
-            </DialogTitle>
-            <DialogDescription asChild>
-              <div className="text-left space-y-4 pt-2">
-                <p>
-                  Kvittr Premium med ubegrenset kvitteringer og push-varsler lanseres snart.
-                </p>
-                <div>
-                  <p className="font-medium text-foreground mb-2">Funksjoner:</p>
-                  <ul className="space-y-1 text-sm">
-                    <li>• Ubegrenset kvitteringer</li>
-                    <li>• Push-varsler 30 dager før garanti utløper</li>
-                    <li>• Prioritert support</li>
-                  </ul>
-                </div>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setShowLaunchDialog(false)} className="w-full">
-              OK
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Sync Account Dialog (shown after guest purchase) */}
       <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
