@@ -8,16 +8,18 @@ import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles, Key, Check, X, LogIn, UserPlus, LogOut } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import { getRemainingGuestScans, isGuestPremium } from '@/lib/guestStorage';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
+
 // Helper to safely get platform
 const getPlatform = (): string => {
   try {
-    const { Capacitor } = require('@capacitor/core');
     return Capacitor.getPlatform();
   } catch {
     return 'web';
@@ -35,12 +37,6 @@ const openExternalUrl = async (url: string): Promise<boolean> => {
     return false;
   }
 };
-declare global {
-  interface Window {
-    firebaseMessaging?: any;
-    FIREBASE_VAPID_KEY?: string;
-  }
-}
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -140,107 +136,139 @@ const Settings = () => {
     applyTheme(newTheme);
   };
 
+  // Register for native push notifications
+  const registerPushNotifications = async (): Promise<boolean> => {
+    // Only works on native platforms
+    if (!Capacitor.isNativePlatform()) {
+      toast.error('Push-varsler fungerer kun i iOS/Android-appen');
+      return false;
+    }
+
+    try {
+      // Request permission
+      const permissionResult = await PushNotifications.requestPermissions();
+      
+      if (permissionResult.receive !== 'granted') {
+        toast.error('Du må tillate varsler i systeminnstillinger');
+        return false;
+      }
+
+      // Register for push notifications
+      await PushNotifications.register();
+      return true;
+      
+    } catch (error) {
+      console.error('Push registration error:', error);
+      toast.error('Kunne ikke aktivere push-varsler');
+      return false;
+    }
+  };
+
+  // Set up push notification listeners
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !userId) return;
+    
+    // Token received
+    const tokenListener = PushNotifications.addListener(
+      'registration',
+      async (token) => {
+        console.log('Push token received:', token.value);
+        
+        // Save to Supabase profiles table
+        const { error } = await supabase
+          .from('profiles')
+          .update({ fcm_token: token.value })
+          .eq('id', userId);
+          
+        if (!error) {
+          // Also update user_settings
+          await supabase.from('user_settings').upsert({
+            user_id: userId,
+            notification_enabled: true
+          });
+          
+          setPushEnabled(true);
+          toast.success('Push-varsler aktivert! 🔔');
+        } else {
+          console.error('Failed to save push token:', error);
+          toast.error('Kunne ikke lagre push-token');
+        }
+        setIsLoading(false);
+      }
+    );
+
+    // Registration error
+    const errorListener = PushNotifications.addListener(
+      'registrationError',
+      (error) => {
+        console.error('Push registration failed:', error);
+        toast.error('Push-aktivering feilet. Prøv igjen.');
+        setPushEnabled(false);
+        setIsLoading(false);
+      }
+    );
+
+    // Notification received while app in foreground
+    const receivedListener = PushNotifications.addListener(
+      'pushNotificationReceived',
+      (notification) => {
+        console.log('Push received in foreground:', notification);
+        // Optionally show in-app notification
+        toast.info(notification.title || 'Ny varsling', {
+          description: notification.body
+        });
+      }
+    );
+
+    // Cleanup
+    return () => {
+      tokenListener.then(l => l.remove());
+      errorListener.then(l => l.remove());
+      receivedListener.then(l => l.remove());
+    };
+  }, [userId]);
+
   const handlePushToggle = async (enabled: boolean) => {
+    // Check if Premium
+    if (subscriptionTier !== 'premium') {
+      toast.error('Push-varsler er kun tilgjengelig for Premium');
+      return;
+    }
+
     if (!userId) return;
     
     setIsLoading(true);
     
     try {
-      setPushEnabled(enabled);
-      
       if (enabled) {
-        // Check if we're in a browser that supports notifications
-        if (typeof Notification === 'undefined') {
+        // Enable push - the listener will handle success
+        const success = await registerPushNotifications();
+        if (!success) {
           setPushEnabled(false);
-          toast.error('Denne nettleseren støtter ikke push-varsler');
           setIsLoading(false);
-          return;
         }
-        
-        console.log('Current Notification.permission:', Notification.permission);
-        
-        let permission = Notification.permission;
-        
-        if (permission === 'default') {
-          permission = await Notification.requestPermission();
-        }
-        
-        if (permission === 'denied') {
-          setPushEnabled(false);
-          toast.error('Du må tillate varsler i systeminnstillinger');
-          setIsLoading(false);
-          return;
-        }
-        
-        if (permission !== 'granted') {
-          setPushEnabled(false);
-          toast.error('Du må gi tillatelse for å motta varsler');
-          setIsLoading(false);
-          return;
-        }
-
-        // Wait a moment for Firebase to initialize
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        if (!window.firebaseMessaging) {
-          console.error('Firebase messaging not available on window');
-          setPushEnabled(false);
-          toast.error('Push-varsler er ikke tilgjengelig. Prøv å laste siden på nytt.');
-          setIsLoading(false);
-          return;
-        }
-
-        try {
-          const token = await window.firebaseMessaging.getToken({
-            vapidKey: window.FIREBASE_VAPID_KEY
-          });
-          
-          if (!token) {
-            throw new Error('Kunne ikke hente FCM token');
-          }
-          
-          console.log('FCM token received:', token.substring(0, 20) + '...');
-          
-          // Save FCM token to profiles table
-          const { error: tokenError } = await supabase
-            .from('profiles')
-            .update({ fcm_token: token })
-            .eq('id', userId);
-          
-          if (tokenError) {
-            throw new Error('Kunne ikke lagre push token');
-          }
-        } catch (fcmError) {
-          console.error('FCM error:', fcmError);
-          setPushEnabled(false);
-          toast.error('Kunne ikke aktivere push-varsler. Prøv igjen.');
-          setIsLoading(false);
-          return;
-        }
+        // Note: setIsLoading(false) happens in the listener on success
       } else {
-        // Clear FCM token when disabling
+        // Disable push (keep token, just disable in DB)
+        setPushEnabled(false);
+        
         await supabase
           .from('profiles')
           .update({ fcm_token: null })
           .eq('id', userId);
+          
+        await supabase.from('user_settings').upsert({
+          user_id: userId,
+          notification_enabled: false
+        });
+        
+        toast.info('Push-varsler deaktivert');
+        setIsLoading(false);
       }
-      
-      const { error } = await supabase.from('user_settings').upsert({
-        user_id: userId,
-        notification_enabled: enabled
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      toast.success(enabled ? 'Push-varsler aktivert' : 'Push-varsler deaktivert');
-      
     } catch (error) {
-      console.error('Settings update error:', error);
+      console.error('Push toggle error:', error);
       setPushEnabled(!enabled);
-      toast.error(error instanceof Error ? error.message : 'Vennligst prøv igjen');
-    } finally {
+      toast.error('Kunne ikke oppdatere innstillinger');
       setIsLoading(false);
     }
   };
