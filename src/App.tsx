@@ -45,21 +45,29 @@ const NativePushSetup = () => {
 const RevenueCatSetup = () => {
   useEffect(() => {
     const initRC = async () => {
-      if (!Capacitor.isNativePlatform()) return;
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      await initializeRevenueCat(session?.user?.id);
+      try {
+        if (!Capacitor.isNativePlatform()) return;
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        await initializeRevenueCat(session?.user?.id);
+      } catch (error) {
+        console.error('RevenueCat setup error:', error);
+      }
     };
     
     initRC();
     
     // Sync on app resume
     const handleResume = async () => {
-      if (Capacitor.isNativePlatform()) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.id) {
-          await syncSubscriptionStatus(session.user.id);
+      try {
+        if (Capacitor.isNativePlatform()) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.id) {
+            await syncSubscriptionStatus(session.user.id);
+          }
         }
+      } catch (error) {
+        console.error('RevenueCat resume sync error:', error);
       }
     };
     
@@ -72,46 +80,50 @@ const RevenueCatSetup = () => {
 
 const App = () => {
   useEffect(() => {
-    // Apply saved theme on app load
-    const savedTheme = localStorage.getItem('theme') || 'system';
-    const root = document.documentElement;
-    
-    if (savedTheme === 'system') {
-      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.toggle('dark', systemPrefersDark);
-    } else {
-      root.classList.toggle('dark', savedTheme === 'dark');
-    }
-
-    // Disable automatic scroll restoration to prevent jump to top
-    if ('scrollRestoration' in history) {
-      history.scrollRestoration = 'manual';
-    }
-
-    // Listen for system theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      if (localStorage.getItem('theme') === 'system') {
-        root.classList.toggle('dark', e.matches);
+    try {
+      // Apply saved theme on app load
+      const savedTheme = localStorage.getItem('theme') || 'system';
+      const root = document.documentElement;
+      
+      if (savedTheme === 'system') {
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        root.classList.toggle('dark', systemPrefersDark);
+      } else {
+        root.classList.toggle('dark', savedTheme === 'dark');
       }
-    };
-    mediaQuery.addEventListener('change', handleChange);
 
-    // Register Firebase Cloud Messaging service worker (for web)
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/firebase-messaging-sw.js')
-        .then((registration) => {
-          console.log('Firebase Service Worker registered:', registration);
-        })
-        .catch((error) => {
-          console.error('Service Worker registration failed:', error);
-        });
+      // Disable automatic scroll restoration to prevent jump to top
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+      }
+
+      // Listen for system theme changes
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = (e: MediaQueryListEvent) => {
+        if (localStorage.getItem('theme') === 'system') {
+          root.classList.toggle('dark', e.matches);
+        }
+      };
+      mediaQuery.addEventListener('change', handleChange);
+
+      // Register Firebase Cloud Messaging service worker (for web only, not native)
+      if ('serviceWorker' in navigator && !Capacitor.isNativePlatform()) {
+        navigator.serviceWorker
+          .register('/firebase-messaging-sw.js')
+          .then((registration) => {
+            console.log('Firebase Service Worker registered:', registration);
+          })
+          .catch((error) => {
+            console.error('Service Worker registration failed:', error);
+          });
+      }
+
+      return () => {
+        mediaQuery.removeEventListener('change', handleChange);
+      };
+    } catch (error) {
+      console.error('App initialization error:', error);
     }
-
-    return () => {
-      mediaQuery.removeEventListener('change', handleChange);
-    };
   }, []);
 
   return (
