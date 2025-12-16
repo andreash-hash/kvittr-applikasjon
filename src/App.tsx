@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ToastProvider, setGlobalToast, useToastNotification } from "@/components/CenteredToast";
 import { useNativePushNotifications } from "@/hooks/useNativePushNotifications";
+import { Capacitor } from '@capacitor/core';
+import { initializeRevenueCat, syncSubscriptionStatus } from '@/lib/revenuecat';
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -36,6 +38,35 @@ const GlobalToastSetup = () => {
 // Component to initialize native push notifications
 const NativePushSetup = () => {
   useNativePushNotifications();
+  return null;
+};
+
+// Component to initialize RevenueCat
+const RevenueCatSetup = () => {
+  useEffect(() => {
+    const initRC = async () => {
+      if (!Capacitor.isNativePlatform()) return;
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      await initializeRevenueCat(session?.user?.id);
+    };
+    
+    initRC();
+    
+    // Sync on app resume
+    const handleResume = async () => {
+      if (Capacitor.isNativePlatform()) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          await syncSubscriptionStatus(session.user.id);
+        }
+      }
+    };
+    
+    document.addEventListener('resume', handleResume);
+    return () => document.removeEventListener('resume', handleResume);
+  }, []);
+  
   return null;
 };
 
@@ -88,6 +119,7 @@ const App = () => {
       <ToastProvider>
         <GlobalToastSetup />
         <NativePushSetup />
+        <RevenueCatSetup />
         <TooltipProvider>
           <Toaster />
           <BrowserRouter>
