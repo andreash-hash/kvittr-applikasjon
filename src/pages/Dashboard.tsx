@@ -381,20 +381,13 @@ const Dashboard = () => {
               <Logo size="small" clickable />
             </div>
             <div className="flex items-center gap-2">
-              {isGuest ? (
-                <Button variant="default" size="sm" onClick={() => navigate('/signup')}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Opprett konto
+              <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+                <Settings className="h-5 w-5" />
+              </Button>
+              {!isGuest && (
+                <Button variant="ghost" size="icon" onClick={handleLogout}>
+                  <LogOut className="h-5 w-5" />
                 </Button>
-              ) : (
-                <>
-                  <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-                    <Settings className="h-5 w-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={handleLogout}>
-                    <LogOut className="h-5 w-5" />
-                  </Button>
-                </>
               )}
             </div>
           </div>
