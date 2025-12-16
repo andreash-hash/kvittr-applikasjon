@@ -149,12 +149,27 @@ const Settings = () => {
       setPushEnabled(enabled);
       
       if (enabled) {
+        // Check if we're in a browser that supports notifications
+        if (typeof Notification === 'undefined') {
+          setPushEnabled(false);
+          toast.error('Denne nettleseren støtter ikke push-varsler');
+          setIsLoading(false);
+          return;
+        }
+        
         console.log('Current Notification.permission:', Notification.permission);
         
         let permission = Notification.permission;
         
         if (permission === 'default') {
           permission = await Notification.requestPermission();
+        }
+        
+        if (permission === 'denied') {
+          setPushEnabled(false);
+          toast.error('Du må tillate varsler i systeminnstillinger');
+          setIsLoading(false);
+          return;
         }
         
         if (permission !== 'granted') {
@@ -164,26 +179,43 @@ const Settings = () => {
           return;
         }
 
+        // Wait a moment for Firebase to initialize
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         if (!window.firebaseMessaging) {
-          throw new Error('Firebase ikke lastet');
+          console.error('Firebase messaging not available on window');
+          setPushEnabled(false);
+          toast.error('Push-varsler er ikke tilgjengelig. Prøv å laste siden på nytt.');
+          setIsLoading(false);
+          return;
         }
 
-        const token = await window.firebaseMessaging.getToken({
-          vapidKey: window.FIREBASE_VAPID_KEY
-        });
-        
-        if (!token) {
-          throw new Error('Kunne ikke hente FCM token');
-        }
-        
-        // Save FCM token to profiles table
-        const { error: tokenError } = await supabase
-          .from('profiles')
-          .update({ fcm_token: token })
-          .eq('id', userId);
-        
-        if (tokenError) {
-          throw new Error('Kunne ikke lagre push token');
+        try {
+          const token = await window.firebaseMessaging.getToken({
+            vapidKey: window.FIREBASE_VAPID_KEY
+          });
+          
+          if (!token) {
+            throw new Error('Kunne ikke hente FCM token');
+          }
+          
+          console.log('FCM token received:', token.substring(0, 20) + '...');
+          
+          // Save FCM token to profiles table
+          const { error: tokenError } = await supabase
+            .from('profiles')
+            .update({ fcm_token: token })
+            .eq('id', userId);
+          
+          if (tokenError) {
+            throw new Error('Kunne ikke lagre push token');
+          }
+        } catch (fcmError) {
+          console.error('FCM error:', fcmError);
+          setPushEnabled(false);
+          toast.error('Kunne ikke aktivere push-varsler. Prøv igjen.');
+          setIsLoading(false);
+          return;
         }
       } else {
         // Clear FCM token when disabling

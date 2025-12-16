@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDuWM-puru4dAVUnQjKeEHYQvtViix8tBU",
@@ -10,6 +11,63 @@ const firebaseConfig = {
   measurementId: "G-T8BHF37F67"
 };
 
+// VAPID key for web push
+const VAPID_KEY = "BKagOny0KF7t0xJxD17nHQNQbPqRIWFgNqyPqkPuWFQXQrXXPmOgcDbWKKaE4Y7f_1D4PUuSpMPuJvJn9nKnhSI";
+
 const app = initializeApp(firebaseConfig);
 
-export { app, firebaseConfig };
+let messaging: Messaging | null = null;
+
+// Initialize Firebase Messaging (only works in browser with service worker support)
+const initializeMessaging = async () => {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    // Check if service workers are supported
+    if (!('serviceWorker' in navigator)) {
+      console.log('Service workers not supported');
+      return null;
+    }
+    
+    // Register the Firebase service worker
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    console.log('Firebase service worker registered:', registration);
+    
+    messaging = getMessaging(app);
+    
+    // Set on window for Settings.tsx to use
+    window.firebaseMessaging = {
+      getToken: async (options?: { vapidKey?: string }) => {
+        if (!messaging) throw new Error('Messaging not initialized');
+        return getToken(messaging, { 
+          vapidKey: options?.vapidKey || VAPID_KEY,
+          serviceWorkerRegistration: registration
+        });
+      }
+    };
+    window.FIREBASE_VAPID_KEY = VAPID_KEY;
+    
+    // Listen for foreground messages
+    onMessage(messaging, (payload) => {
+      console.log('Foreground message received:', payload);
+      // Show notification manually for foreground
+      if (Notification.permission === 'granted' && payload.notification) {
+        new Notification(payload.notification.title || 'Kvittr', {
+          body: payload.notification.body,
+          icon: '/kvittr-app-icon-light.png'
+        });
+      }
+    });
+    
+    console.log('Firebase Messaging initialized for web');
+    return messaging;
+  } catch (error) {
+    console.error('Failed to initialize Firebase Messaging:', error);
+    return null;
+  }
+};
+
+// Auto-initialize when module loads
+initializeMessaging();
+
+export { app, firebaseConfig, messaging, initializeMessaging, VAPID_KEY };
