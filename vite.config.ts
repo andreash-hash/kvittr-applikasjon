@@ -4,25 +4,33 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+export default defineConfig(({ mode }) => {
+  const isDev = mode === "development";
+
+  return {
+    server: {
+      host: "::",
+      port: 8080,
     },
-  },
-  build: {
-    rollupOptions: {
-      external: [
-        '@capacitor/core',
-        '@capacitor/camera',
-        '@capacitor/filesystem',
-        '@capacitor/push-notifications'
-      ]
-    }
-  }
-}));
+    plugins: [react(), isDev && componentTagger()].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+    build: {
+      rollupOptions: {
+        // Capacitor packages must be bundled for native builds.
+        // We keep them external only in dev (Lovable preview) to avoid web sandbox issues.
+        external: isDev
+          ? [
+              "@capacitor/core",
+              "@capacitor/camera",
+              "@capacitor/filesystem",
+              "@capacitor/push-notifications",
+            ]
+          : [],
+      },
+    },
+  };
+});
