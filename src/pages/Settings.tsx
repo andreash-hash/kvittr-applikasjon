@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles, Key, Check, X, LogIn, UserPlus } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles, Key, Check, X, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -458,72 +458,102 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Push Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Push-varsler</CardTitle>
-            <CardDescription>
-              Få varsel når garantier og bytteretter snart utløper
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="push-notifications" className="flex-1">
-                <div className="font-medium">Push-varsler</div>
-                <div className="text-sm text-muted-foreground">
-                  Aktiver for å motta varsler
+        {/* Push Notifications - only show for logged in users */}
+        {!isGuest && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Push-varsler</CardTitle>
+              <CardDescription>
+                Få varsel når garantier og bytteretter snart utløper
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {subscriptionTier === 'premium' ? (
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="push-notifications" className="flex-1">
+                    <div className="font-medium">Push-varsler</div>
+                    <div className="text-sm text-muted-foreground">
+                      Aktiver for å motta varsler
+                    </div>
+                  </Label>
+                  <Switch
+                    id="push-notifications"
+                    checked={pushEnabled}
+                    onCheckedChange={handlePushToggle}
+                    disabled={isLoading}
+                  />
                 </div>
-              </Label>
-              <Switch
-                id="push-notifications"
-                checked={pushEnabled}
-                onCheckedChange={handlePushToggle}
-                disabled={isLoading}
-              />
-            </div>
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex-1">
+                      <div className="font-medium text-muted-foreground">Push-varsler</div>
+                      <div className="text-sm text-muted-foreground">
+                        Kun for Premium-brukere
+                      </div>
+                    </Label>
+                    <Switch
+                      checked={false}
+                      disabled={true}
+                    />
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => setShowPremiumDialog(true)}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Oppgrader for push-varsler
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Notification Timing */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Varslingsinnstillinger</CardTitle>
-            <CardDescription>
-              Når skal du få varsel før utløp?
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notify-30" className="flex-1">
-                <div className="font-medium">30-dagers varsel</div>
-                <div className="text-sm text-muted-foreground">
-                  Varsle meg 30 dager før utløp
-                </div>
-              </Label>
-              <Switch
-                id="notify-30"
-                checked={notify30Days}
-                onCheckedChange={setNotify30Days}
-                disabled={!pushEnabled}
-              />
-            </div>
+        {/* Notification Timing - only for Premium users */}
+        {!isGuest && subscriptionTier === 'premium' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Varslingsinnstillinger</CardTitle>
+              <CardDescription>
+                Når skal du få varsel før utløp?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notify-30" className="flex-1">
+                  <div className="font-medium">30-dagers varsel</div>
+                  <div className="text-sm text-muted-foreground">
+                    Varsle meg 30 dager før utløp
+                  </div>
+                </Label>
+                <Switch
+                  id="notify-30"
+                  checked={notify30Days}
+                  onCheckedChange={setNotify30Days}
+                  disabled={!pushEnabled}
+                />
+              </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notify-7" className="flex-1">
-                <div className="font-medium">7-dagers varsel</div>
-                <div className="text-sm text-muted-foreground">
-                  Varsle meg 7 dager før utløp
-                </div>
-              </Label>
-              <Switch
-                id="notify-7"
-                checked={notify7Days}
-                onCheckedChange={setNotify7Days}
-                disabled={!pushEnabled}
-              />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notify-7" className="flex-1">
+                  <div className="font-medium">7-dagers varsel</div>
+                  <div className="text-sm text-muted-foreground">
+                    Varsle meg 7 dager før utløp
+                  </div>
+                </Label>
+                <Switch
+                  id="notify-7"
+                  checked={notify7Days}
+                  onCheckedChange={setNotify7Days}
+                  disabled={!pushEnabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* App Info */}
         <Card>
@@ -556,61 +586,77 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Account Management */}
-        <Card className="border-destructive/50">
-          <CardHeader>
-            <CardTitle>Kontohåndtering</CardTitle>
-            <CardDescription>
-              Administrer kontoen din
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => setShowPasswordDialog(true)}
-            >
-              <Key className="h-4 w-4 mr-2" />
-              Endre passord
-            </Button>
-            
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Slett konto permanent
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Slett konto?</AlertDialogTitle>
-                  <AlertDialogDescription className="text-left space-y-2">
-                    <span>Dette vil permanent slette:</span>
-                    <ul className="list-disc list-inside space-y-1 mt-2">
-                      <li>All dine kvitteringer</li>
-                      <li>Alle byttelapper og gavekort</li>
-                      <li>Din brukerinformasjon</li>
-                      <li>Abonnement (hvis aktivt)</li>
-                    </ul>
-                    <p className="font-medium text-destructive mt-3">
-                      Denne handlingen kan ikke angres.
-                    </p>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Avbryt</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleDeleteAccount}
-                    disabled={isDeleting}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {isDeleting ? 'Sletter...' : 'Slett konto permanent'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardContent>
-        </Card>
+        {/* Account Management - only for logged in users */}
+        {!isGuest && (
+          <Card className="border-destructive/50">
+            <CardHeader>
+              <CardTitle>Kontohåndtering</CardTitle>
+              <CardDescription>
+                Administrer kontoen din
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setShowPasswordDialog(true)}
+              >
+                <Key className="h-4 w-4 mr-2" />
+                Endre passord
+              </Button>
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="w-full">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Slett konto permanent
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Slett konto?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-left space-y-2">
+                      <span>Dette vil permanent slette:</span>
+                      <ul className="list-disc list-inside space-y-1 mt-2">
+                        <li>All dine kvitteringer</li>
+                        <li>Alle byttelapper og gavekort</li>
+                        <li>Din brukerinformasjon</li>
+                        <li>Abonnement (hvis aktivt)</li>
+                      </ul>
+                      <p className="font-medium text-destructive mt-3">
+                        Denne handlingen kan ikke angres.
+                      </p>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleDeleteAccount}
+                      disabled={isDeleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isDeleting ? 'Sletter...' : 'Slett konto permanent'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <Separator className="my-3" />
+              
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  navigate('/login');
+                }}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logg ut
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Password Change Dialog */}
         <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
