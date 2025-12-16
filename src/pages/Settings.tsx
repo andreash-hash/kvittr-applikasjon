@@ -103,14 +103,9 @@ const Settings = () => {
           .eq('id', user.id)
           .maybeSingle();
         
-        console.log('=== PROFILE DATA ===');
-        console.log('Profile:', profile);
-        console.log('subscription_tier:', profile?.subscription_tier);
-        
         if (profile) {
           setSubscriptionTier(profile.subscription_tier || 'free');
           setSubscriptionExpiresAt(profile.subscription_expires_at);
-          console.log('Set subscriptionTier to:', profile.subscription_tier || 'free');
         }
       } else {
         // Guest mode
@@ -234,18 +229,8 @@ const Settings = () => {
   }, [userId]);
 
   const handlePushToggle = async (enabled: boolean) => {
-    console.log('=== PUSH TOGGLE DEBUG ===');
-    console.log('Toggle clicked! Enabled:', enabled);
-    console.log('subscriptionTier:', subscriptionTier);
-    console.log('isPremium:', subscriptionTier === 'premium');
-    console.log('userId:', userId);
-    console.log('isLoading:', isLoading);
-    console.log('Platform:', getPlatform());
-    console.log('isNativePlatform:', Capacitor.isNativePlatform());
-    
     // Check if Premium
     if (subscriptionTier !== 'premium') {
-      console.log('BLOCKED: User is not premium');
       toast.error('Push-varsler er kun tilgjengelig for Premium');
       return;
     }
@@ -554,10 +539,7 @@ const Settings = () => {
                   <Switch
                     id="push-notifications"
                     checked={pushEnabled}
-                    onCheckedChange={(checked) => {
-                      console.log('Switch onCheckedChange fired:', checked);
-                      handlePushToggle(checked);
-                    }}
+                    onCheckedChange={handlePushToggle}
                     disabled={isLoading}
                   />
                 </div>
@@ -565,7 +547,7 @@ const Settings = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="flex-1">
-                      <div className="font-medium text-muted-foreground">Push-varsler (Debug: tier={subscriptionTier})</div>
+                      <div className="font-medium text-muted-foreground">Push-varsler</div>
                       <div className="text-sm text-muted-foreground">
                         Kun for Premium-brukere
                       </div>
