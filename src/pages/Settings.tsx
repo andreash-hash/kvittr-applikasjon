@@ -478,7 +478,7 @@ const Settings = () => {
             ) : (
               <div className="space-y-3">
                 <div className="font-medium">Gratis plan</div>
-                <p className="text-sm text-muted-foreground">5 kvitteringer per måned</p>
+                <p className="text-sm text-muted-foreground">2 kvitteringer per måned</p>
                 <Button 
                   className="w-full"
                   onClick={() => setShowPremiumDialog(true)}
