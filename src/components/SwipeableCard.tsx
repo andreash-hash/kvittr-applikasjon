@@ -11,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useHaptics } from '@/hooks/useHaptics';
 
 interface SwipeableCardProps {
   children: React.ReactNode;
@@ -25,6 +26,8 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { impact, notification } = useHaptics();
+  const hasTriggeredHaptic = useRef(false);
 
   const threshold = 100; // pixels to trigger action
   const maxSwipe = 120;
@@ -56,6 +59,15 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
     if (disabled) return;
 
     const offset = info.offset.x;
+    
+    // Trigger haptic when crossing threshold
+    if ((Math.abs(offset) > threshold) && !hasTriggeredHaptic.current) {
+      hasTriggeredHaptic.current = true;
+      impact('medium');
+    } else if (Math.abs(offset) < threshold) {
+      hasTriggeredHaptic.current = false;
+    }
+    
     if (offset < -20) {
       setSwipeDirection('left');
     } else if (offset > 20) {
@@ -67,6 +79,7 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
 
   const handleConfirmDelete = async () => {
     setShowDeleteConfirm(false);
+    notification('warning');
     await controls.start({ x: -maxSwipe * 2, opacity: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } });
     onDelete();
     await controls.start({ x: 0, opacity: 1 });
@@ -74,6 +87,7 @@ const SwipeableCard = ({ children, onDelete, onArchive, disabled }: SwipeableCar
 
   const handleConfirmArchive = async () => {
     setShowArchiveConfirm(false);
+    notification('success');
     await controls.start({ x: maxSwipe * 2, opacity: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } });
     onArchive();
     await controls.start({ x: 0, opacity: 1 });
