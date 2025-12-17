@@ -1,7 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
-import { isMobileApp } from '@/utils/platform';
+import { isMobileApp, getMobilePlatform } from '@/utils/platform';
 
-const REVENUECAT_API_KEY = 'test_xCaycFXDGXUFhHvJzrMTDkZEtPg';
+// Production key for iOS, test key for development/Android
+const REVENUECAT_IOS_KEY = 'sk_gqPlXeqZSVAvxwlWbYHLsHbHRYnDd';
+const REVENUECAT_TEST_KEY = 'test_xCaycFXDGXUFhHvJzrMTDkZEtPg';
 
 export const initializeRevenueCat = async (userId?: string) => {
   if (!isMobileApp()) {
@@ -10,11 +12,17 @@ export const initializeRevenueCat = async (userId?: string) => {
   }
 
   try {
-    const { Purchases, LOG_LEVEL } = await import('@revenuecat/purchases-capacitor');
+    const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    
+    // Use production key for iOS, test key for other platforms
+    const platform = getMobilePlatform();
+    const apiKey = platform === 'ios' ? REVENUECAT_IOS_KEY : REVENUECAT_TEST_KEY;
+    
+    console.log(`RevenueCat: Configuring for ${platform} with ${platform === 'ios' ? 'production' : 'test'} key`);
     
     // Configure RevenueCat
     await Purchases.configure({
-      apiKey: REVENUECAT_API_KEY,
+      apiKey,
       appUserID: userId || undefined
     });
     
