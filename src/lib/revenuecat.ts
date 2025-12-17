@@ -4,7 +4,7 @@ import { isMobileApp, getMobilePlatform } from '@/utils/platform';
 // Public API keys for RevenueCat (NOT secret keys - those start with sk_)
 // iOS public key should start with 'appl_'
 // Android public key should start with 'goog_'
-const REVENUECAT_IOS_KEY = 'appl_YOUR_IOS_PUBLIC_KEY_HERE'; // Replace with your actual iOS public key from RevenueCat
+const REVENUECAT_IOS_KEY = 'appl_HmmhscVDvicXCGtVkIrgWWqRyBB';
 const REVENUECAT_ANDROID_KEY = 'goog_YOUR_ANDROID_PUBLIC_KEY_HERE'; // Replace with your actual Android public key
 
 export const initializeRevenueCat = async (userId?: string) => {
