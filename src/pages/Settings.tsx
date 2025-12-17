@@ -379,8 +379,8 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background safe-area-all">
-      <div className="container max-w-2xl mx-auto p-4 space-y-6">
-        <div className="flex items-center mb-6" style={{ paddingTop: 'calc(40px + env(safe-area-inset-top))' }}>
+      <div className="container max-w-2xl mx-auto p-4 space-y-6" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
+        <div className="flex items-center mb-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>

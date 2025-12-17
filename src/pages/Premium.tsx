@@ -199,8 +199,8 @@ const Premium = () => {
   if (isPremium) {
     return (
       <div className="min-h-screen bg-background safe-area-all">
-        <div className="container max-w-md mx-auto p-4 space-y-6">
-          <div className="flex items-center" style={{ paddingTop: 'calc(40px + env(safe-area-inset-top))' }}>
+        <div className="container max-w-md mx-auto p-4 space-y-6" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
+          <div className="flex items-center">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -262,9 +262,9 @@ const Premium = () => {
 
   return (
     <div className="min-h-screen bg-background safe-area-all">
-      <div className="container max-w-md mx-auto p-4 space-y-6">
+      <div className="container max-w-md mx-auto p-4 space-y-6" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
         {/* Header */}
-        <div className="flex items-center" style={{ paddingTop: 'calc(40px + env(safe-area-inset-top))' }}>
+        <div className="flex items-center">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>

@@ -371,8 +371,8 @@ const ItemDetail = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 safe-area-all">
-      <div className="container max-w-2xl mx-auto p-4 safe-area-left safe-area-right">
-        <div className="flex items-center justify-between mb-6" style={{ paddingTop: 'calc(40px + env(safe-area-inset-top))' }}>
+      <div className="container max-w-2xl mx-auto p-4 safe-area-left safe-area-right" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
+        <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
