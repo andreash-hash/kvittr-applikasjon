@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import { getRemainingGuestScans, isGuestPremium } from '@/lib/guestStorage';
 import { isMobileApp, getMobilePlatform } from '@/utils/platform';
+import { showPaywallUI, showCustomerCenterUI, handleRevenueCatError } from '@/lib/revenuecat';
 
 
 // Helper to safely get platform
@@ -484,21 +485,13 @@ const Settings = () => {
                   variant="outline" 
                   className="w-full"
                   onClick={async () => {
-                    const platform = getPlatform();
-                    console.log('Administrer abonnement clicked, platform:', platform);
-                    
-                    if (platform === 'ios') {
-                      const opened = await openExternalUrl('https://apps.apple.com/account/subscriptions');
-                      if (!opened) {
-                        toast.info('Åpne iPhone Innstillinger → [ditt navn] → Abonnementer → Kvittr');
+                    try {
+                      await showCustomerCenterUI();
+                    } catch (error: any) {
+                      const errorMessage = handleRevenueCatError(error);
+                      if (errorMessage !== 'cancelled') {
+                        toast.error(errorMessage);
                       }
-                    } else if (platform === 'android') {
-                      const opened = await openExternalUrl('https://play.google.com/store/account/subscriptions?package=app.kvittr');
-                      if (!opened) {
-                        toast.info('Åpne Google Play Store → Abonnementer');
-                      }
-                    } else {
-                      toast.info('For å administrere abonnement:\n• iOS: Innstillinger → Abonnementer\n• Android: Play Store → Abonnementer');
                     }
                   }}
                 >
@@ -511,7 +504,16 @@ const Settings = () => {
                 <p className="text-sm text-muted-foreground">2 kvitteringer per måned</p>
                 <Button 
                   className="w-full"
-                  onClick={() => setShowPremiumDialog(true)}
+                  onClick={async () => {
+                    try {
+                      await showPaywallUI();
+                    } catch (error: any) {
+                      const errorMessage = handleRevenueCatError(error);
+                      if (errorMessage !== 'cancelled') {
+                        toast.error(errorMessage);
+                      }
+                    }
+                  }}
                 >
                   Oppgrader til Premium
                 </Button>
@@ -563,7 +565,16 @@ const Settings = () => {
                     variant="outline" 
                     size="sm" 
                     className="w-full"
-                    onClick={() => setShowPremiumDialog(true)}
+                    onClick={async () => {
+                      try {
+                        await showPaywallUI();
+                      } catch (error: any) {
+                        const errorMessage = handleRevenueCatError(error);
+                        if (errorMessage !== 'cancelled') {
+                          toast.error(errorMessage);
+                        }
+                      }
+                    }}
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
                     Oppgrader for push-varsler
