@@ -1,45 +1,35 @@
 <!doctype html>
-<html lang="en">
+<html lang="no">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>kvitter-meg</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
-    
-    <!-- Google Fonts - Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Firebase Cloud Messaging CDN -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
-    
-    <!-- Firebase Initialization -->
-    <script>
-      const firebaseConfig = {
-        apiKey: "AIzaSyDuWM-puru4dAVUnQjKeEHYQvtViix8tBU",
-        projectId: "kvittr-push",
-        messagingSenderId: "191789668682",
-        appId: "1:191789668682:web:1c793c0e8e7c03c13749b3"
-      };
-      
-      firebase.initializeApp(firebaseConfig);
-      
-      // Make messaging available globally
-      window.firebaseMessaging = firebase.messaging();
-      window.FIREBASE_VAPID_KEY = "BPM6Gw7dCaWS9-7_0_naLbiXJJLjTSVYVFDDc_bw4P4fz0ktGCkKl0k9LGrS5oVwHr1R83bVa8kVWjCiBiZNZ80";
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <meta property="og:title" content="kvitter-meg" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    <title>Kvittr – kvitteringer, garanti og bytte</title>
+    <meta
+      name="description"
+      content="Skann og lagre kvitteringer, byttelapper og gavekort. Få kontroll på garanti og byttefrister med Kvittr."
+    />
+
+    <link rel="canonical" href="https://kvittr.app/" />
+
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <meta property="og:title" content="Kvittr – kvitteringer, garanti og bytte" />
+    <meta
+      property="og:description"
+      content="Skann og lagre kvitteringer, byttelapper og gavekort. Få kontroll på garanti og byttefrister med Kvittr."
+    />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:image" content="/kvittr-app-icon-light.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:image" content="/kvittr-app-icon-light.png" />
   </head>
 
   <body>
@@ -47,3 +37,4 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
