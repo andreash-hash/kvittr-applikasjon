@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ArrowLeft, Cloud, Check, X, Sparkles, UserPlus, Loader2 } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { setGuestPremium, isGuestPremium } from '@/lib/guestStorage';
 import { useToastNotification } from '@/components/CenteredToast';
 import { getOfferings, purchasePackage, restorePurchases, handleRevenueCatError, syncSubscriptionStatus, showPaywallUI, showCustomerCenterUI } from '@/lib/revenuecat';
-import { PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui';
+import { isMobileApp } from '@/utils/platform';
+
 
 const Premium = () => {
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ const Premium = () => {
       setUserId(session.user.id);
       
       // Sync with RevenueCat first if on native
-      if (Capacitor.isNativePlatform()) {
+      if (isMobileApp()) {
         await syncSubscriptionStatus(session.user.id);
       }
       
@@ -56,6 +56,8 @@ const Premium = () => {
   };
 
   const loadOfferings = async () => {
+    if (!isMobileApp()) return;
+
     const result = await getOfferings();
     if (result) {
       setOfferings(result);
@@ -64,18 +66,19 @@ const Premium = () => {
   };
 
   const showPaywall = async () => {
-    if (!Capacitor.isNativePlatform()) {
+    if (!isMobileApp()) {
       showToast('Last ned iOS/Android-appen for å oppgradere', 'error');
       return;
     }
 
     setPurchasing(true);
-    
+
     try {
+      const { PAYWALL_RESULT } = await import('@revenuecat/purchases-capacitor-ui');
       const result = await showPaywallUI(offerings);
-      
+
       console.log('Paywall result:', result);
-      
+
       if (result.result === PAYWALL_RESULT.PURCHASED) {
         await handlePurchaseComplete();
       } else if (result.result === PAYWALL_RESULT.RESTORED) {
@@ -94,7 +97,7 @@ const Premium = () => {
   };
 
   const handleManualPurchase = async (packageType: 'MONTHLY' | 'ANNUAL' | 'LIFETIME') => {
-    if (!Capacitor.isNativePlatform()) {
+    if (!isMobileApp()) {
       showToast('Last ned iOS/Android-appen for å oppgradere', 'error');
       return;
     }
@@ -138,7 +141,7 @@ const Premium = () => {
   };
 
   const handleRestorePurchase = async () => {
-    if (!Capacitor.isNativePlatform()) {
+    if (!isMobileApp()) {
       showToast('Kun tilgjengelig i iOS/Android-appen', 'error');
       return;
     }
@@ -166,7 +169,7 @@ const Premium = () => {
   };
 
   const showCustomerCenter = async () => {
-    if (!Capacitor.isNativePlatform()) {
+    if (!isMobileApp()) {
       showToast('Kun tilgjengelig i appen', 'error');
       return;
     }
@@ -376,7 +379,7 @@ const Premium = () => {
                 Du trenger en konto for å bruke Premium
               </p>
             </>
-          ) : Capacitor.isNativePlatform() ? (
+          ) : isMobileApp() ? (
             <>
               {/* Primary: RevenueCat Paywall */}
               <Button 

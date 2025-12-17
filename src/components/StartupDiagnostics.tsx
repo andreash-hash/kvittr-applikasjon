@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Capacitor } from "@capacitor/core";
+import { getMobilePlatform, isMobileApp } from "@/utils/platform";
 
 interface DiagnosticLog {
   timestamp: string;
@@ -28,8 +28,8 @@ export function StartupDiagnostics() {
 
     // Start diagnostics
     addLog("info", "Diagnostics started");
-    addLog("info", `Platform: ${Capacitor.getPlatform()}`);
-    addLog("info", `Native: ${Capacitor.isNativePlatform()}`);
+    addLog("info", `Platform: ${getMobilePlatform()}`);
+    addLog("info", `Native: ${isMobileApp()}`);
 
     // Check window object
     try {
@@ -91,7 +91,7 @@ export function StartupDiagnostics() {
   }, []);
 
   // Only show on native or if there are errors
-  if (!Capacitor.isNativePlatform() && !hasErrors) {
+  if (!isMobileApp() && !hasErrors) {
     return null;
   }
 
@@ -107,14 +107,14 @@ export function StartupDiagnostics() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[99999] max-h-[50vh] overflow-auto bg-black/90 p-3 font-mono text-xs"
+      className="fixed bottom-0 left-0 right-0 z-[99999] max-h-[50vh] overflow-auto bg-background/95 p-3 font-mono text-xs text-foreground border-t border-border"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 20px)" }}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="text-white font-bold">Startup Diagnostics</span>
+        <span className="font-bold">Startup Diagnostics</span>
         <button
           onClick={() => setVisible(false)}
-          className="text-white bg-white/20 px-2 py-1 rounded"
+          className="bg-muted text-foreground px-2 py-1 rounded"
         >
           Close
         </button>
@@ -125,10 +125,10 @@ export function StartupDiagnostics() {
             key={i}
             className={`${
               log.type === "error"
-                ? "text-red-400"
+                ? "text-destructive"
                 : log.type === "warn"
-                ? "text-yellow-400"
-                : "text-green-400"
+                ? "text-muted-foreground"
+                : "text-primary"
             }`}
           >
             [{log.timestamp}] {log.message}

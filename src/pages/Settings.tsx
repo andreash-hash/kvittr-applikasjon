@@ -14,16 +14,12 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import { getRemainingGuestScans, isGuestPremium } from '@/lib/guestStorage';
-import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { isMobileApp, getMobilePlatform } from '@/utils/platform';
+
 
 // Helper to safely get platform
 const getPlatform = (): string => {
-  try {
-    return Capacitor.getPlatform();
-  } catch {
-    return 'web';
-  }
+  return getMobilePlatform();
 };
 
 // Helper to open external URLs using Capacitor Browser plugin
@@ -139,15 +135,17 @@ const Settings = () => {
   // Register for native push notifications
   const registerPushNotifications = async (): Promise<boolean> => {
     // Only works on native platforms
-    if (!Capacitor.isNativePlatform()) {
+    if (!isMobileApp()) {
       toast.error('Push-varsler fungerer kun i iOS/Android-appen');
       return false;
     }
 
     try {
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+
       // Request permission
       const permissionResult = await PushNotifications.requestPermissions();
-      
+
       if (permissionResult.receive !== 'granted') {
         toast.error('Du må tillate varsler i systeminnstillinger');
         return false;
@@ -156,7 +154,7 @@ const Settings = () => {
       // Register for push notifications
       await PushNotifications.register();
       return true;
-      
+
     } catch (error) {
       console.error('Push registration error:', error);
       toast.error('Kunne ikke aktivere push-varsler');
@@ -166,65 +164,69 @@ const Settings = () => {
 
   // Set up push notification listeners
   useEffect(() => {
-    if (!Capacitor.isNativePlatform() || !userId) return;
-    
-    // Token received
-    const tokenListener = PushNotifications.addListener(
-      'registration',
-      async (token) => {
-        console.log('Push token received:', token.value);
-        
-        // Save to Supabase profiles table
-        const { error } = await supabase
-          .from('profiles')
-          .update({ fcm_token: token.value })
-          .eq('id', userId);
-          
-        if (!error) {
-          // Also update user_settings
-          await supabase.from('user_settings').upsert({
-            user_id: userId,
-            notification_enabled: true
-          });
-          
-          setPushEnabled(true);
-          toast.success('Push-varsler aktivert! 🔔');
-        } else {
-          console.error('Failed to save push token:', error);
-          toast.error('Kunne ikke lagre push-token');
-        }
-        setIsLoading(false);
-      }
-    );
+    if (!isMobileApp() || !userId) return;
 
-    // Registration error
-    const errorListener = PushNotifications.addListener(
-      'registrationError',
-      (error) => {
-        console.error('Push registration failed:', error);
-        toast.error('Push-aktivering feilet. Prøv igjen.');
-        setPushEnabled(false);
-        setIsLoading(false);
-      }
-    );
+    let tokenListener: any;
+    let errorListener: any;
+    let receivedListener: any;
 
-    // Notification received while app in foreground
-    const receivedListener = PushNotifications.addListener(
-      'pushNotificationReceived',
-      (notification) => {
-        console.log('Push received in foreground:', notification);
-        // Optionally show in-app notification
-        toast.info(notification.title || 'Ny varsling', {
-          description: notification.body
+    const setup = async () => {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+
+        // Token received
+        tokenListener = await PushNotifications.addListener('registration', async (token) => {
+          console.log('Push token received:', token.value);
+
+          // Save to Supabase profiles table
+          const { error } = await supabase
+            .from('profiles')
+            .update({ fcm_token: token.value })
+            .eq('id', userId);
+
+          if (!error) {
+            // Also update user_settings
+            await supabase.from('user_settings').upsert({
+              user_id: userId,
+              notification_enabled: true
+            });
+
+            setPushEnabled(true);
+            toast.success('Push-varsler aktivert! 🔔');
+          } else {
+            console.error('Failed to save push token:', error);
+            toast.error('Kunne ikke lagre push-token');
+          }
+          setIsLoading(false);
         });
+
+        // Registration error
+        errorListener = await PushNotifications.addListener('registrationError', (error) => {
+          console.error('Push registration failed:', error);
+          toast.error('Push-aktivering feilet. Prøv igjen.');
+          setPushEnabled(false);
+          setIsLoading(false);
+        });
+
+        // Notification received while app in foreground
+        receivedListener = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          console.log('Push received in foreground:', notification);
+          toast.info(notification.title || 'Ny varsling', {
+            description: notification.body
+          });
+        });
+      } catch (error) {
+        console.error('Failed to set up push listeners:', error);
       }
-    );
+    };
+
+    setup();
 
     // Cleanup
     return () => {
-      tokenListener.then(l => l.remove());
-      errorListener.then(l => l.remove());
-      receivedListener.then(l => l.remove());
+      tokenListener?.remove?.();
+      errorListener?.remove?.();
+      receivedListener?.remove?.();
     };
   }, [userId]);
 

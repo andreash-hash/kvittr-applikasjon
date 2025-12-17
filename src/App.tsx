@@ -6,8 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ToastProvider, setGlobalToast, useToastNotification } from "@/components/CenteredToast";
 import { useNativePushNotifications } from "@/hooks/useNativePushNotifications";
-import { Capacitor } from "@capacitor/core";
 import { initializeRevenueCat, syncSubscriptionStatus } from "@/lib/revenuecat";
+import { isMobileApp } from "@/utils/platform";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { StartupDiagnostics } from "@/components/StartupDiagnostics";
 import Index from "./pages/Index";
@@ -48,7 +48,7 @@ const RevenueCatSetup = () => {
   useEffect(() => {
     const initRC = async () => {
       try {
-        if (!Capacitor.isNativePlatform()) return;
+        if (!isMobileApp()) return;
 
         const {
           data: { session },
@@ -64,7 +64,7 @@ const RevenueCatSetup = () => {
     // Sync on app resume
     const handleResume = async () => {
       try {
-        if (Capacitor.isNativePlatform()) {
+        if (isMobileApp()) {
           const {
             data: { session },
           } = await supabase.auth.getSession();
@@ -113,7 +113,7 @@ const App = () => {
       mediaQuery.addEventListener("change", handleChange);
 
       // Register Firebase Cloud Messaging service worker (for web only, not native)
-      if ("serviceWorker" in navigator && !Capacitor.isNativePlatform()) {
+      if ("serviceWorker" in navigator && !isMobileApp()) {
         navigator.serviceWorker
           .register("/firebase-messaging-sw.js")
           .then((registration) => {
