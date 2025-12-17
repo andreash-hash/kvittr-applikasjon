@@ -1,10 +1,10 @@
-import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
+import { isMobileApp } from '@/utils/platform';
 
 const REVENUECAT_API_KEY = 'test_xCaycFXDGXUFhHvJzrMTDkZEtPg';
 
 export const initializeRevenueCat = async (userId?: string) => {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isMobileApp()) {
     console.log('RevenueCat: Skipping initialization on web');
     return false;
   }
@@ -47,7 +47,7 @@ export const syncSubscriptionStatus = async (userId?: string) => {
     return;
   }
 
-  if (!Capacitor.isNativePlatform()) {
+  if (!isMobileApp()) {
     return;
   }
 
@@ -75,7 +75,7 @@ export const syncSubscriptionStatus = async (userId?: string) => {
 };
 
 export const getOfferings = async () => {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isMobileApp()) {
     return null;
   }
 
@@ -90,7 +90,7 @@ export const getOfferings = async () => {
 };
 
 export const purchasePackage = async (packageType: 'MONTHLY' | 'ANNUAL' | 'LIFETIME', offerings: any) => {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isMobileApp()) {
     throw new Error('PLATFORM_NOT_SUPPORTED');
   }
 
@@ -112,7 +112,7 @@ export const purchasePackage = async (packageType: 'MONTHLY' | 'ANNUAL' | 'LIFET
 };
 
 export const restorePurchases = async () => {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isMobileApp()) {
     throw new Error('PLATFORM_NOT_SUPPORTED');
   }
 
@@ -123,7 +123,7 @@ export const restorePurchases = async () => {
 };
 
 export const showPaywallUI = async (offerings?: any) => {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isMobileApp()) {
     throw new Error('PLATFORM_NOT_SUPPORTED');
   }
 
@@ -136,7 +136,7 @@ export const showPaywallUI = async (offerings?: any) => {
 };
 
 export const showCustomerCenterUI = async () => {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isMobileApp()) {
     throw new Error('PLATFORM_NOT_SUPPORTED');
   }
 

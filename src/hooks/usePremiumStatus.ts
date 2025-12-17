@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
+import { isMobileApp } from '@/utils/platform';
 
 export const usePremiumStatus = () => {
   const [isPremium, setIsPremium] = useState(false);
@@ -22,7 +22,7 @@ export const usePremiumStatus = () => {
 
       setUserId(session.user.id);
 
-      if (Capacitor.isNativePlatform()) {
+      if (isMobileApp()) {
         // Check via RevenueCat on native
         try {
           const { Purchases } = await import('@revenuecat/purchases-capacitor');
