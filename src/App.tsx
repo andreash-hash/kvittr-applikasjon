@@ -9,6 +9,7 @@ import { useNativePushNotifications } from "@/hooks/useNativePushNotifications";
 import { Capacitor } from "@capacitor/core";
 import { initializeRevenueCat, syncSubscriptionStatus } from "@/lib/revenuecat";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
+import { StartupDiagnostics } from "@/components/StartupDiagnostics";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -134,6 +135,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AppErrorBoundary>
+        <StartupDiagnostics />
         <ToastProvider>
           <GlobalToastSetup />
           <NativePushSetup />
