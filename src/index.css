@@ -183,6 +183,16 @@ All colors MUST be HSL.
     display: none;
   }
 
+  /* Smooth native scrolling for mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Smooth scroll behavior */
+  html {
+    scroll-behavior: smooth;
+  }
+
   /* Kvittr brand gradient for primary CTAs */
   .bg-gradient-brand {
     background: linear-gradient(135deg, hsl(var(--logo-coral)) 0%, hsl(var(--logo-orange)) 50%, hsl(var(--logo-blue)) 100%);
