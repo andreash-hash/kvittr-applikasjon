@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ArrowLeft, Cloud, Check, X, Sparkles, UserPlus, Loader2 } from 'lucide-react';
+import { ArrowLeft, Cloud, Check, X, Sparkles, UserPlus, Loader2, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { setGuestPremium, isGuestPremium } from '@/lib/guestStorage';
 import { useToastNotification } from '@/components/CenteredToast';
@@ -24,8 +24,14 @@ const Premium = () => {
 
   useEffect(() => {
     checkAuthAndPremium();
-    loadMonthlyOffering();
   }, []);
+
+  // Only load RevenueCat offerings after user is confirmed logged in
+  useEffect(() => {
+    if (isLoggedIn && !isLoading) {
+      loadMonthlyOffering();
+    }
+  }, [isLoggedIn, isLoading]);
 
   const checkAuthAndPremium = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -230,6 +236,49 @@ const Premium = () => {
     );
   }
 
+  // Not logged in - show login required screen
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-background safe-area-all">
+        <div className="container max-w-md mx-auto p-4" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
+          <div className="flex items-center mb-8">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </div>
+
+          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12">
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+              <Lock className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold">Logg inn for å oppgradere</h2>
+              <p className="text-muted-foreground">
+                Du må ha en konto for å kjøpe Premium-abonnement.
+              </p>
+            </div>
+            <div className="w-full space-y-3 pt-4">
+              <Button 
+                className="w-full h-12"
+                onClick={() => navigate('/signup')}
+              >
+                <UserPlus className="h-5 w-5 mr-2" />
+                Opprett konto
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full"
+                onClick={() => navigate('/login')}
+              >
+                Eller logg inn
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Already premium view
   if (isPremium) {
     return (
@@ -399,24 +448,10 @@ const Premium = () => {
           </CardContent>
         </Card>
 
-        {/* CTA based on user state */}
+        {/* CTA - user is always logged in at this point */}
         <div className="space-y-3 pb-6">
-          {!isLoggedIn ? (
+          {isMobileApp() ? (
             <>
-              <Button 
-                className="w-full h-12 text-lg"
-                onClick={() => navigate('/signup')}
-              >
-                <UserPlus className="h-5 w-5 mr-2" />
-                Opprett konto først
-              </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                Du trenger en konto for å bruke Premium
-              </p>
-            </>
-          ) : isMobileApp() ? (
-            <>
-              {/* Simple single CTA for monthly subscription */}
               <Button 
                 className="w-full h-12 text-lg"
                 onClick={handleStartPremium}
@@ -444,15 +479,13 @@ const Premium = () => {
             </div>
           )}
           
-          {isLoggedIn && (
-            <button
-              onClick={handleRestorePurchase}
-              disabled={purchasing}
-              className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-            >
-              Gjenopprett kjøp
-            </button>
-          )}
+          <button
+            onClick={handleRestorePurchase}
+            disabled={purchasing}
+            className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+          >
+            Gjenopprett kjøp
+          </button>
         </div>
 
         {/* Footer */}
