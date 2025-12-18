@@ -80,10 +80,11 @@ const Premium = () => {
         product: p.product?.identifier
       })));
       
-      // Find monthly package
+      // Find monthly package - check for RevenueCat standard identifier or product ID
       const monthly = packages.find((p: any) => 
-        p.identifier?.toLowerCase().includes('monthly') || 
-        p.product?.identifier?.includes('com.effi.kvittr.premium.monthly') ||
+        p.identifier === '$rc_monthly' ||
+        p.product?.identifier === 'com.effi.kvittr.premium.monthly' ||
+        p.identifier?.toLowerCase().includes('monthly') ||
         p.packageType === 'MONTHLY'
       );
       
@@ -131,7 +132,7 @@ const Premium = () => {
       console.log('✅ Customer info:', result.customerInfo);
       console.log('✅ Entitlements:', result.customerInfo.entitlements);
       
-      const hasPremium = result.customerInfo.entitlements.active['premium'] !== undefined;
+      const hasPremium = result.customerInfo.entitlements.active['pro'] !== undefined;
       
       if (hasPremium) {
         await handlePurchaseComplete();
@@ -351,8 +352,8 @@ const Premium = () => {
           <Card className="border-primary bg-primary/5">
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="text-center">
-                <h3 className="font-semibold text-sm text-primary">Premium ✨</h3>
-                <p className="text-xs text-muted-foreground">19 kr/mnd</p>
+              <h3 className="font-semibold text-sm text-primary">Premium ✨</h3>
+                <p className="text-xs text-muted-foreground">{monthlyPackage?.product?.priceString || '19 kr'}/mnd</p>
               </div>
               <div className="space-y-2 text-xs">
                 <div className="flex items-start gap-2">
@@ -393,7 +394,7 @@ const Premium = () => {
         {/* Pricing highlight */}
         <Card className="border-primary">
           <CardContent className="py-4 text-center">
-            <div className="text-3xl font-bold text-primary">19 kr</div>
+            <div className="text-3xl font-bold text-primary">{monthlyPackage?.product?.priceString || '19 kr'}</div>
             <div className="text-sm text-muted-foreground">per måned · Kanseller når som helst</div>
           </CardContent>
         </Card>

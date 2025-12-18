@@ -64,9 +64,9 @@ export const syncSubscriptionStatus = async (userId?: string) => {
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
     const { customerInfo } = await Purchases.getCustomerInfo();
-    const isPremium = customerInfo.entitlements.active['premium'] !== undefined;
+    const isPremium = customerInfo.entitlements.active['pro'] !== undefined;
     
-    const expirationDate = customerInfo.entitlements.active['premium']?.expirationDate;
+    const expirationDate = customerInfo.entitlements.active['pro']?.expirationDate;
     
     await supabase
       .from('profiles')
@@ -121,7 +121,7 @@ export const purchasePackage = async (packageType: 'MONTHLY' | 'ANNUAL' | 'LIFET
       aPackage: selectedPackage
     });
     console.log('RevenueCat: Purchase successful', result.customerInfo.entitlements);
-    return result.customerInfo.entitlements.active['premium'] !== undefined;
+    return result.customerInfo.entitlements.active['pro'] !== undefined;
   } catch (error: any) {
     console.error('RevenueCat purchase error:', {
       code: error.code,
@@ -142,7 +142,7 @@ export const restorePurchases = async () => {
   const { Purchases } = await import('@revenuecat/purchases-capacitor');
   const { customerInfo } = await Purchases.restorePurchases();
   
-  return customerInfo.entitlements.active['premium'] !== undefined;
+  return customerInfo.entitlements.active['pro'] !== undefined;
 };
 
 export const showPaywallUI = async (offerings?: any) => {
