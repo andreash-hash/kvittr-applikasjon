@@ -111,14 +111,27 @@ export const purchasePackage = async (packageType: 'MONTHLY' | 'ANNUAL' | 'LIFET
   );
   
   if (!selectedPackage) {
+    console.error('RevenueCat: Package not found', { packageType, availablePackages: offerings?.availablePackages });
     throw new Error('PACKAGE_NOT_FOUND');
   }
 
-  const result = await Purchases.purchasePackage({
-    aPackage: selectedPackage
-  });
-
-  return result.customerInfo.entitlements.active['premium'] !== undefined;
+  try {
+    console.log('RevenueCat: Attempting purchase', { packageType, package: selectedPackage.identifier });
+    const result = await Purchases.purchasePackage({
+      aPackage: selectedPackage
+    });
+    console.log('RevenueCat: Purchase successful', result.customerInfo.entitlements);
+    return result.customerInfo.entitlements.active['premium'] !== undefined;
+  } catch (error: any) {
+    console.error('RevenueCat purchase error:', {
+      code: error.code,
+      message: error.message,
+      underlyingError: error.underlyingErrorMessage,
+      userCancelled: error.userCancelled,
+      fullError: JSON.stringify(error)
+    });
+    throw error;
+  }
 };
 
 export const restorePurchases = async () => {
@@ -155,20 +168,48 @@ export const showCustomerCenterUI = async () => {
 };
 
 export const handleRevenueCatError = (error: any): string => {
-  switch (error.code || error.message) {
+  // Log full error for debugging
+  console.error('RevenueCat handleError:', {
+    code: error.code,
+    message: error.message,
+    underlyingError: error.underlyingErrorMessage,
+    readableError: error.readableErrorCode,
+    fullError: JSON.stringify(error)
+  });
+
+  const errorCode = error.code || error.readableErrorCode || error.message;
+  
+  switch (errorCode) {
     case 'PURCHASE_CANCELLED':
+    case 1:
       return 'cancelled';
     case 'NETWORK_ERROR':
+    case 10:
       return 'Sjekk internettforbindelsen';
     case 'STORE_PROBLEM':
+    case 2:
       return 'Problem med App Store. Prøv igjen senere.';
     case 'INVALID_CREDENTIALS':
+    case 11:
       return 'Konfigurasjonsfeil. Kontakt support.';
     case 'PLATFORM_NOT_SUPPORTED':
       return 'Kjøp kun tilgjengelig i iOS/Android-appen';
     case 'PACKAGE_NOT_FOUND':
       return 'Produkt ikke tilgjengelig';
+    case 'CONFIGURATION_ERROR':
+    case 23:
+      return 'Produkter ikke konfigurert i App Store. Kontakt support.';
+    case 'PRODUCT_NOT_AVAILABLE_FOR_PURCHASE':
+    case 7:
+      return 'Dette produktet er ikke tilgjengelig for kjøp akkurat nå.';
+    case 'INVALID_RECEIPT':
+    case 5:
+      return 'Ugyldig kvittering. Prøv igjen.';
     default:
+      // Return more specific error if available
+      if (error.message) {
+        return `Feil: ${error.message}`;
+      }
       return 'Noe gikk galt. Prøv igjen.';
   }
 };

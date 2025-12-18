@@ -125,10 +125,14 @@ const Signup = () => {
 
   return (
     <>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 md:p-8 safe-area-all overflow-auto relative">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 md:p-8 overflow-auto relative">
         <button
           onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 p-2 flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors safe-area-top"
+          className="absolute p-2 flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+          style={{ 
+            top: 'max(16px, env(safe-area-inset-top, 16px))', 
+            left: 'max(16px, env(safe-area-inset-left, 16px))' 
+          }}
         >
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm">Tilbake</span>

@@ -488,9 +488,12 @@ const Scan = () => {
 
   if (!capturedImage) {
     return (
-      <div className="fixed inset-0 bg-background flex flex-col safe-area-all">
-        {/* Header */}
-        <div className="p-4 flex items-center justify-between bg-card border-b" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
+      <div className="fixed inset-0 bg-background flex flex-col">
+        {/* Header with consistent safe area */}
+        <div 
+          className="p-4 flex items-center justify-between bg-card border-b"
+          style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}
+        >
           <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
