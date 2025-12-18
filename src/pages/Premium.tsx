@@ -7,7 +7,7 @@ import { ArrowLeft, Cloud, Check, X, Sparkles, UserPlus, Loader2 } from 'lucide-
 import { supabase } from '@/integrations/supabase/client';
 import { setGuestPremium, isGuestPremium } from '@/lib/guestStorage';
 import { useToastNotification } from '@/components/CenteredToast';
-import { getOfferings, purchasePackage, restorePurchases, handleRevenueCatError, syncSubscriptionStatus, showPaywallUI, showCustomerCenterUI } from '@/lib/revenuecat';
+import { restorePurchases, handleRevenueCatError, syncSubscriptionStatus, showCustomerCenterUI } from '@/lib/revenuecat';
 import { isMobileApp } from '@/utils/platform';
 
 
@@ -19,12 +19,12 @@ const Premium = () => {
   const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
-  const [offerings, setOfferings] = useState<any>(null);
+  const [monthlyPackage, setMonthlyPackage] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuthAndPremium();
-    loadOfferings();
+    loadMonthlyOffering();
   }, []);
 
   const checkAuthAndPremium = async () => {
@@ -55,66 +55,100 @@ const Premium = () => {
     setIsLoading(false);
   };
 
-  const loadOfferings = async () => {
+  const loadMonthlyOffering = async () => {
     if (!isMobileApp()) return;
 
-    const result = await getOfferings();
-    if (result) {
-      setOfferings(result);
-      console.log('Offerings loaded:', result);
-    }
-  };
-
-  const showPaywall = async () => {
-    if (!isMobileApp()) {
-      showToast('Last ned iOS/Android-appen for å oppgradere', 'error');
-      return;
-    }
-
-    setPurchasing(true);
-
     try {
-      const { PAYWALL_RESULT } = await import('@revenuecat/purchases-capacitor-ui');
-      const result = await showPaywallUI(offerings);
-
-      console.log('Paywall result:', result);
-
-      if (result.result === PAYWALL_RESULT.PURCHASED) {
-        await handlePurchaseComplete();
-      } else if (result.result === PAYWALL_RESULT.RESTORED) {
-        showToast('Premium gjenopprettet!', 'success');
-        setIsPremium(true);
-        navigate('/dashboard');
+      const { Purchases } = await import('@revenuecat/purchases-capacitor');
+      const offerings = await Purchases.getOfferings();
+      
+      console.log('📦 Full offerings response:', JSON.stringify(offerings, null, 2));
+      
+      // Get default offering
+      const defaultOffering = offerings.current || offerings.all?.['default'];
+      console.log('📦 Default offering:', defaultOffering);
+      
+      if (!defaultOffering) {
+        console.error('❌ No default offering found');
+        return;
       }
-    } catch (error: any) {
-      if (error.code !== 'PAYWALL_CANCELLED' && error.message !== 'PLATFORM_NOT_SUPPORTED') {
-        console.error('Paywall error:', error);
-        showToast('Kunne ikke vise kjøpsside', 'error');
+      
+      const packages = defaultOffering.availablePackages || [];
+      console.log('📦 Available packages:', packages.map((p: any) => ({
+        identifier: p.identifier,
+        packageType: p.packageType,
+        product: p.product?.identifier
+      })));
+      
+      // Find monthly package
+      const monthly = packages.find((p: any) => 
+        p.identifier?.toLowerCase().includes('monthly') || 
+        p.product?.identifier?.includes('com.effi.kvittr.premium.monthly') ||
+        p.packageType === 'MONTHLY'
+      );
+      
+      if (monthly) {
+        console.log('✅ Monthly package found:', monthly);
+        setMonthlyPackage(monthly);
+      } else {
+        console.error('❌ Monthly package not found in packages:', packages);
       }
-    } finally {
-      setPurchasing(false);
+    } catch (error) {
+      console.error('❌ Failed to load offerings:', error);
     }
   };
 
-  const handleManualPurchase = async (packageType: 'MONTHLY' | 'ANNUAL' | 'LIFETIME') => {
+  const handleStartPremium = async () => {
     if (!isMobileApp()) {
       showToast('Last ned iOS/Android-appen for å oppgradere', 'error');
       return;
     }
 
-    if (!offerings) {
-      showToast('Produkter laster...', 'error');
+    if (!monthlyPackage) {
+      console.error('❌ No monthly package available');
+      showToast('Produkt ikke tilgjengelig. Prøv igjen.', 'error');
+      await loadMonthlyOffering(); // Try to reload
       return;
     }
 
     setPurchasing(true);
+    console.log('🛒 Starting purchase for package:', monthlyPackage.identifier);
     
     try {
-      const success = await purchasePackage(packageType, offerings);
-      if (success) {
+      const { Purchases } = await import('@revenuecat/purchases-capacitor');
+      
+      console.log('🛒 Calling purchasePackage with:', {
+        identifier: monthlyPackage.identifier,
+        packageType: monthlyPackage.packageType,
+        product: monthlyPackage.product?.identifier
+      });
+      
+      const result = await Purchases.purchasePackage({
+        aPackage: monthlyPackage
+      });
+      
+      console.log('✅ Purchase successful:', result);
+      console.log('✅ Customer info:', result.customerInfo);
+      console.log('✅ Entitlements:', result.customerInfo.entitlements);
+      
+      const hasPremium = result.customerInfo.entitlements.active['premium'] !== undefined;
+      
+      if (hasPremium) {
         await handlePurchaseComplete();
+      } else {
+        console.error('❌ Purchase completed but no premium entitlement');
+        showToast('Kjøp fullført, men Premium ikke aktivert. Kontakt support.', 'error');
       }
     } catch (error: any) {
+      console.error('❌ Purchase error full details:', {
+        code: error.code,
+        message: error.message,
+        underlyingError: error.underlyingErrorMessage,
+        userCancelled: error.userCancelled,
+        readableError: error.readableErrorCode,
+        fullError: JSON.stringify(error)
+      });
+      
       const message = handleRevenueCatError(error);
       if (message !== 'cancelled') {
         showToast(message, 'error');
@@ -381,10 +415,10 @@ const Premium = () => {
             </>
           ) : isMobileApp() ? (
             <>
-              {/* Primary: RevenueCat Paywall */}
+              {/* Simple single CTA for monthly subscription */}
               <Button 
                 className="w-full h-12 text-lg"
-                onClick={showPaywall}
+                onClick={handleStartPremium}
                 disabled={purchasing}
               >
                 {purchasing ? (
@@ -392,40 +426,13 @@ const Premium = () => {
                 ) : (
                   <Sparkles className="h-5 w-5 mr-2" />
                 )}
-                {purchasing ? 'Laster...' : 'Se alle planer'}
+                {purchasing ? 'Laster...' : 'Start Premium'}
               </Button>
               
-              {/* Manual purchase buttons (fallback) */}
-              {offerings?.availablePackages && (
-                <div className="grid grid-cols-3 gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleManualPurchase('MONTHLY')}
-                    disabled={purchasing}
-                    className="text-xs"
-                  >
-                    Måned
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleManualPurchase('ANNUAL')}
-                    disabled={purchasing}
-                    className="text-xs"
-                  >
-                    År
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleManualPurchase('LIFETIME')}
-                    disabled={purchasing}
-                    className="text-xs"
-                  >
-                    Livstid
-                  </Button>
-                </div>
+              {!monthlyPackage && (
+                <p className="text-center text-xs text-muted-foreground">
+                  Laster produkter...
+                </p>
               )}
             </>
           ) : (
