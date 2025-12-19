@@ -374,7 +374,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="container max-w-2xl mx-auto p-4 pb-28 safe-area-top safe-area-left safe-area-right" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
+        <div className="container max-w-2xl mx-auto p-4 pb-28 safe-area-top safe-area-left safe-area-right" style={{ paddingTop: 'calc(24px + env(safe-area-inset-top))' }}>
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
