@@ -20,6 +20,8 @@ const Premium = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [monthlyPackage, setMonthlyPackage] = useState<any>(null);
+  const [offeringsLoading, setOfferingsLoading] = useState(false);
+  const [offeringsError, setOfferingsError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,44 +66,65 @@ const Premium = () => {
   const loadMonthlyOffering = async () => {
     if (!isMobileApp()) return;
 
+    setOfferingsLoading(true);
+    setOfferingsError(null);
+    setMonthlyPackage(null);
+
     try {
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
       const offerings = await Purchases.getOfferings();
-      
-      console.log('📦 Full offerings response:', JSON.stringify(offerings, null, 2));
-      
-      // Get default offering
-      const defaultOffering = offerings.current || offerings.all?.['default'];
-      console.log('📦 Default offering:', defaultOffering);
-      
+
+      // Keep this log for TestFlight debugging
+      console.log('📦 Offerings response:', JSON.stringify(offerings, null, 2));
+
+      // Prefer "current", fall back to a named default offering if present
+      const defaultOffering = offerings.current || offerings.all?.['default'] || offerings.all?.['Default'];
+
       if (!defaultOffering) {
-        console.error('❌ No default offering found');
+        console.error('❌ No offering found (current/default missing)');
+        setOfferingsError('Kunne ikke finne produkter (mangler offering).');
         return;
       }
-      
+
       const packages = defaultOffering.availablePackages || [];
-      console.log('📦 Available packages:', packages.map((p: any) => ({
-        identifier: p.identifier,
-        packageType: p.packageType,
-        product: p.product?.identifier
-      })));
-      
-      // Find monthly package - check for RevenueCat standard identifier or product ID
-      const monthly = packages.find((p: any) => 
-        p.identifier === '$rc_monthly' ||
-        p.product?.identifier === 'com.effi.kvittr.premium.monthly' ||
-        p.identifier?.toLowerCase().includes('monthly') ||
-        p.packageType === 'MONTHLY'
+      console.log(
+        '📦 Available packages:',
+        packages.map((p: any) => ({
+          identifier: p.identifier,
+          packageType: p.packageType,
+          product: p.product?.identifier,
+        })),
       );
-      
+
+      // Find monthly package - check for RevenueCat standard identifier or product ID
+      const monthly = packages.find(
+        (p: any) =>
+          p.identifier === '$rc_monthly' ||
+          p.product?.identifier === 'com.effi.kvittr.premium.monthly' ||
+          p.identifier?.toLowerCase().includes('monthly') ||
+          p.packageType === 'MONTHLY',
+      );
+
       if (monthly) {
         console.log('✅ Monthly package found:', monthly);
         setMonthlyPackage(monthly);
-      } else {
-        console.error('❌ Monthly package not found in packages:', packages);
+        return;
       }
+
+      // If you only have one package configured, use it rather than blocking checkout.
+      if (packages.length === 1) {
+        console.warn('⚠️ Monthly package not found; using the only available package');
+        setMonthlyPackage(packages[0]);
+        return;
+      }
+
+      console.error('❌ Monthly package not found in packages:', packages);
+      setOfferingsError('Produktet er ikke tilgjengelig i App Store akkurat nå.');
     } catch (error) {
       console.error('❌ Failed to load offerings:', error);
+      setOfferingsError('Klarte ikke å laste produkter. Sjekk nett og prøv igjen.');
+    } finally {
+      setOfferingsLoading(false);
     }
   };
 
@@ -111,10 +134,15 @@ const Premium = () => {
       return;
     }
 
+    if (offeringsLoading) {
+      showToast('Laster produkter… vent litt.', 'error');
+      return;
+    }
+
     if (!monthlyPackage) {
       console.error('❌ No monthly package available');
-      showToast('Produkt ikke tilgjengelig. Prøv igjen.', 'error');
-      await loadMonthlyOffering(); // Try to reload
+      showToast(offeringsError || 'Klarte ikke å laste produkter. Prøv igjen.', 'error');
+      await loadMonthlyOffering();
       return;
     }
 
@@ -455,21 +483,34 @@ const Premium = () => {
               <Button 
                 className="w-full h-12 text-lg"
                 onClick={handleStartPremium}
-                disabled={purchasing}
+                disabled={purchasing || offeringsLoading || !monthlyPackage}
               >
-                {purchasing ? (
+                {purchasing || offeringsLoading ? (
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                 ) : (
                   <Sparkles className="h-5 w-5 mr-2" />
                 )}
-                {purchasing ? 'Laster...' : 'Start Premium'}
+                {purchasing ? 'Laster...' : offeringsLoading ? 'Laster produkter...' : 'Start Premium'}
               </Button>
-              
-              {!monthlyPackage && (
+
+              {offeringsError ? (
+                <div className="rounded-md border border-border bg-muted/50 p-3 text-center">
+                  <p className="text-xs text-muted-foreground">{offeringsError}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={loadMonthlyOffering}
+                    disabled={purchasing || offeringsLoading}
+                  >
+                    Prøv igjen
+                  </Button>
+                </div>
+              ) : !monthlyPackage ? (
                 <p className="text-center text-xs text-muted-foreground">
                   Laster produkter...
                 </p>
-              )}
+              ) : null}
             </>
           ) : (
             <div className="text-center p-4 bg-muted rounded-lg">
