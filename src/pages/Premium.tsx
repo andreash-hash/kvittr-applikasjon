@@ -101,11 +101,18 @@ const Premium = () => {
         })),
       );
 
+      // Log detailed package info for debugging
+      console.log('📦 Found packages:', packages.map((p: any) => ({
+        identifier: p.identifier,
+        productId: p.product?.identifier,
+        packageType: p.packageType,
+      })));
+
       // Find monthly package - check for RevenueCat standard identifier or product ID
       const monthly = packages.find(
         (p: any) =>
           p.identifier === '$rc_monthly' ||
-          p.product?.identifier === 'com.effi.kvittr.premium.monthly' ||
+          p.product?.identifier === 'kvittr.premium' ||
           p.identifier?.toLowerCase().includes('monthly') ||
           p.packageType === 'MONTHLY',
       );
