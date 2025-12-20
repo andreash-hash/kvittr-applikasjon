@@ -499,6 +499,18 @@ const Settings = () => {
                   Administrer abonnement
                 </Button>
               </div>
+            ) : isGuest ? (
+              <div className="space-y-3">
+                <div className="font-medium">Gjestemodus</div>
+                <p className="text-sm text-muted-foreground">Opprett konto for å abonnere på Premium</p>
+                <Button 
+                  className="w-full"
+                  onClick={() => navigate('/signup')}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Opprett konto
+                </Button>
+              </div>
             ) : (
               <div className="space-y-3">
                 <div className="font-medium">Gratis plan</div>
