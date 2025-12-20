@@ -476,16 +476,9 @@ const Dashboard = () => {
                     </>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  {!isGuestPremium() && (
-                    <Button size="sm" variant="outline" onClick={() => navigate('/premium')}>
-                      Oppgrader
-                    </Button>
-                  )}
-                  <Button size="sm" variant={isGuestPremium() ? "outline" : "default"} onClick={() => navigate('/signup')}>
-                    Opprett konto
-                  </Button>
-                </div>
+                <Button size="sm" variant="default" onClick={() => navigate('/signup')}>
+                  Opprett konto
+                </Button>
               </div>
             </Card>
           )}
