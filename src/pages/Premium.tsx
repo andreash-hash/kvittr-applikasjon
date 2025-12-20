@@ -7,7 +7,7 @@ import { ArrowLeft, Cloud, Check, X, Sparkles, UserPlus, Loader2, Lock } from 'l
 import { supabase } from '@/integrations/supabase/client';
 import { setGuestPremium, isGuestPremium } from '@/lib/guestStorage';
 import { useToastNotification } from '@/components/CenteredToast';
-import { restorePurchases, handleRevenueCatError, syncSubscriptionStatus, showCustomerCenterUI } from '@/lib/revenuecat';
+import { initializeRevenueCat, restorePurchases, handleRevenueCatError, syncSubscriptionStatus, showCustomerCenterUI } from '@/lib/revenuecat';
 import { isMobileApp } from '@/utils/platform';
 
 
@@ -22,6 +22,7 @@ const Premium = () => {
   const [monthlyPackage, setMonthlyPackage] = useState<any>(null);
   const [offeringsLoading, setOfferingsLoading] = useState(false);
   const [offeringsError, setOfferingsError] = useState<string | null>(null);
+  const [offeringsDebug, setOfferingsDebug] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,9 +69,13 @@ const Premium = () => {
 
     setOfferingsLoading(true);
     setOfferingsError(null);
+    setOfferingsDebug(null);
     setMonthlyPackage(null);
 
     try {
+      // Ensure RevenueCat is configured (cold starts in TestFlight can otherwise fail)
+      await initializeRevenueCat(userId || undefined);
+
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
       const offerings = await Purchases.getOfferings();
 
@@ -120,9 +125,28 @@ const Premium = () => {
 
       console.error('❌ Monthly package not found in packages:', packages);
       setOfferingsError('Produktet er ikke tilgjengelig i App Store akkurat nå.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to load offerings:', error);
-      setOfferingsError('Klarte ikke å laste produkter. Sjekk nett og prøv igjen.');
+
+      const friendly = handleRevenueCatError(error);
+      setOfferingsError(
+        friendly === 'cancelled'
+          ? 'Klarte ikke å laste produkter. Sjekk nett og prøv igjen.'
+          : friendly,
+      );
+
+      setOfferingsDebug(
+        JSON.stringify(
+          {
+            code: error?.code,
+            readableErrorCode: error?.readableErrorCode,
+            message: error?.message,
+            underlyingErrorMessage: error?.underlyingErrorMessage,
+          },
+          null,
+          2,
+        ),
+      );
     } finally {
       setOfferingsLoading(false);
     }
@@ -496,6 +520,16 @@ const Premium = () => {
               {offeringsError ? (
                 <div className="rounded-md border border-border bg-muted/50 p-3 text-center">
                   <p className="text-xs text-muted-foreground">{offeringsError}</p>
+
+                  {offeringsDebug ? (
+                    <details className="mt-2 text-left">
+                      <summary className="cursor-pointer text-xs text-muted-foreground">Vis detaljer</summary>
+                      <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-background p-2 text-[11px] text-muted-foreground">
+                        {offeringsDebug}
+                      </pre>
+                    </details>
+                  ) : null}
+
                   <Button
                     variant="outline"
                     size="sm"

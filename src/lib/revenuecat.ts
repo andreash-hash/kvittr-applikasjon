@@ -7,6 +7,10 @@ import { isMobileApp, getMobilePlatform } from '@/utils/platform';
 const REVENUECAT_IOS_KEY = 'appl_HmmhscVDvicXCGtVkIrgWWqRyBB';
 const REVENUECAT_ANDROID_KEY = 'goog_YOUR_ANDROID_PUBLIC_KEY_HERE'; // Replace with your actual Android public key
 
+// Guard against re-adding listeners / re-configuring multiple times
+let rcListenerAdded = false;
+let rcLastAppUserId: string | undefined;
+
 export const initializeRevenueCat = async (userId?: string) => {
   if (!isMobileApp()) {
     console.log('RevenueCat: Skipping initialization on web');
@@ -15,30 +19,53 @@ export const initializeRevenueCat = async (userId?: string) => {
 
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
-    
+
     // Use platform-specific public API keys
     const platform = getMobilePlatform();
     const apiKey = platform === 'ios' ? REVENUECAT_IOS_KEY : REVENUECAT_ANDROID_KEY;
-    
-    console.log(`RevenueCat: Configuring for ${platform} with ${platform === 'ios' ? 'production' : 'test'} key`);
-    
-    // Configure RevenueCat
-    await Purchases.configure({
-      apiKey,
-      appUserID: userId || undefined
-    });
-    
-    console.log('✅ RevenueCat configured successfully');
-    
-    // Add customer info update listener
-    await Purchases.addCustomerInfoUpdateListener(async (customerInfo) => {
-      console.log('RevenueCat: Customer info updated', customerInfo);
-      await syncSubscriptionStatus(userId);
-    });
-    
+
+    // Ensure configured (can be false on cold starts in TestFlight)
+    const configuredResult = await Purchases.isConfigured().catch(() => ({ isConfigured: false }));
+
+    if (!configuredResult.isConfigured) {
+      console.log(`RevenueCat: Configuring for ${platform}`);
+
+      await Purchases.configure({
+        apiKey,
+        appUserID: userId || undefined,
+      });
+
+      console.log('✅ RevenueCat configured successfully');
+    } else if (userId && userId !== rcLastAppUserId) {
+      // Associate RevenueCat user with the logged-in Supabase user
+      try {
+        await Purchases.logIn({ appUserID: userId });
+      } catch (e) {
+        console.warn('RevenueCat: logIn failed (continuing)', e);
+      }
+    }
+
+    // Enable verbose logs to help TestFlight debugging (no-op if enum import fails)
+    try {
+      const { LOG_LEVEL } = await import('@revenuecat/purchases-typescript-internal-esm');
+      await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
+    } catch {
+      // ignore
+    }
+
+    if (!rcListenerAdded) {
+      await Purchases.addCustomerInfoUpdateListener(async (customerInfo) => {
+        console.log('RevenueCat: Customer info updated', customerInfo);
+        await syncSubscriptionStatus();
+      });
+      rcListenerAdded = true;
+    }
+
+    rcLastAppUserId = userId;
+
     // Initial sync
     await syncSubscriptionStatus(userId);
-    
+
     return true;
   } catch (error) {
     console.error('❌ RevenueCat initialization failed:', error);
@@ -150,11 +177,13 @@ export const showPaywallUI = async (offerings?: any) => {
     throw new Error('PLATFORM_NOT_SUPPORTED');
   }
 
+  await initializeRevenueCat();
+
   const { RevenueCatUI } = await import('@revenuecat/purchases-capacitor-ui');
   const result = await RevenueCatUI.presentPaywall({
-    offering: offerings
+    offering: offerings,
   });
-  
+
   return result;
 };
 
@@ -162,6 +191,8 @@ export const showCustomerCenterUI = async () => {
   if (!isMobileApp()) {
     throw new Error('PLATFORM_NOT_SUPPORTED');
   }
+
+  await initializeRevenueCat();
 
   const { RevenueCatUI } = await import('@revenuecat/purchases-capacitor-ui');
   await RevenueCatUI.presentCustomerCenter();
