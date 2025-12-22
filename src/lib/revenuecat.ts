@@ -91,9 +91,22 @@ export const syncSubscriptionStatus = async (userId?: string) => {
   try {
     const { Purchases } = await import('@revenuecat/purchases-capacitor');
     const { customerInfo } = await Purchases.getCustomerInfo();
-    const isPremium = customerInfo.entitlements.active['pro'] !== undefined;
     
-    const expirationDate = customerInfo.entitlements.active['pro']?.expirationDate;
+    // Check for any of these common entitlement names
+    const activeEntitlements = customerInfo.entitlements.active || {};
+    const isPremium = activeEntitlements['pro'] !== undefined || 
+                      activeEntitlements['premium'] !== undefined ||
+                      activeEntitlements['Premium'] !== undefined ||
+                      Object.keys(activeEntitlements).length > 0;
+    
+    // Get expiration from whichever entitlement is active
+    const activeEntitlement = activeEntitlements['pro'] || 
+                              activeEntitlements['premium'] || 
+                              activeEntitlements['Premium'] ||
+                              Object.values(activeEntitlements)[0];
+    const expirationDate = activeEntitlement?.expirationDate;
+    
+    console.log('RevenueCat: Active entitlements:', Object.keys(activeEntitlements));
     
     await supabase
       .from('profiles')

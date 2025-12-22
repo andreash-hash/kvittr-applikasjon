@@ -195,14 +195,19 @@ const Premium = () => {
       
       console.log('✅ Purchase successful:', result);
       console.log('✅ Customer info:', result.customerInfo);
-      console.log('✅ Entitlements:', result.customerInfo.entitlements);
+      console.log('✅ Active entitlements:', Object.keys(result.customerInfo.entitlements.active || {}));
       
-      const hasPremium = result.customerInfo.entitlements.active['pro'] !== undefined;
+      // Check for any of these common entitlement names
+      const activeEntitlements = result.customerInfo.entitlements.active || {};
+      const hasPremium = activeEntitlements['pro'] !== undefined || 
+                         activeEntitlements['premium'] !== undefined ||
+                         activeEntitlements['Premium'] !== undefined ||
+                         Object.keys(activeEntitlements).length > 0;
       
       if (hasPremium) {
         await handlePurchaseComplete();
       } else {
-        console.error('❌ Purchase completed but no premium entitlement');
+        console.error('❌ Purchase completed but no entitlements found. Active:', Object.keys(activeEntitlements));
         showToast('Kjøp fullført, men Premium ikke aktivert. Kontakt support.', 'error');
       }
     } catch (error: any) {

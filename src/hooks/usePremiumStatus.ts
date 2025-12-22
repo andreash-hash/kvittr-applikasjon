@@ -27,7 +27,13 @@ export const usePremiumStatus = () => {
         try {
           const { Purchases } = await import('@revenuecat/purchases-capacitor');
           const { customerInfo } = await Purchases.getCustomerInfo();
-          const hasPremium = customerInfo.entitlements.active['pro'] !== undefined;
+          // Check for any common entitlement names
+          const activeEntitlements = customerInfo.entitlements.active || {};
+          const hasPremium = activeEntitlements['pro'] !== undefined || 
+                             activeEntitlements['premium'] !== undefined ||
+                             activeEntitlements['Premium'] !== undefined ||
+                             Object.keys(activeEntitlements).length > 0;
+          console.log('usePremiumStatus: Active entitlements:', Object.keys(activeEntitlements));
           setIsPremium(hasPremium);
         } catch (error) {
           console.error('RevenueCat check failed, falling back to Supabase:', error);
