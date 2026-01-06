@@ -16,12 +16,18 @@ export const ImageViewer = ({ imageUrl, isOpen, onClose }: ImageViewerProps) => 
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const lastTapRef = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const velocityRef = useRef({ x: 0, y: 0 });
+  const lastTouchRef = useRef({ x: 0, y: 0, time: 0 });
+  const animationRef = useRef<number | null>(null);
 
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (!isOpen) {
       setScale(1);
       setPosition({ x: 0, y: 0 });
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
     }
   }, [isOpen]);
 
@@ -31,6 +37,16 @@ export const ImageViewer = ({ imageUrl, isOpen, onClose }: ImageViewerProps) => 
       setPosition({ x: 0, y: 0 });
     }
   }, [scale]);
+
+  const getMaxPan = (currentScale: number) => (currentScale - 1) * 150;
+
+  const clampPosition = (x: number, y: number, currentScale: number) => {
+    const maxPan = getMaxPan(currentScale);
+    return {
+      x: Math.max(-maxPan, Math.min(maxPan, x)),
+      y: Math.max(-maxPan, Math.min(maxPan, y))
+    };
+  };
 
   const handleZoomIn = () => setScale(prev => Math.min(prev + 0.5, 3));
   const handleZoomOut = () => {
@@ -44,45 +60,88 @@ export const ImageViewer = ({ imageUrl, isOpen, onClose }: ImageViewerProps) => 
   };
 
   // Double-tap to zoom
-  const handleDoubleTap = (clientX: number, clientY: number) => {
+  const handleDoubleTap = () => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
     if (scale === 1) {
-      // Zoom in to 2x
       setScale(2);
     } else {
-      // Reset to 1x
       setScale(1);
       setPosition({ x: 0, y: 0 });
     }
   };
 
+  // Momentum animation
+  const applyMomentum = () => {
+    const friction = 0.95;
+    const minVelocity = 0.5;
+
+    const animate = () => {
+      velocityRef.current.x *= friction;
+      velocityRef.current.y *= friction;
+
+      if (Math.abs(velocityRef.current.x) < minVelocity && Math.abs(velocityRef.current.y) < minVelocity) {
+        animationRef.current = null;
+        return;
+      }
+
+      setPosition(prev => {
+        const newPos = clampPosition(
+          prev.x + velocityRef.current.x,
+          prev.y + velocityRef.current.y,
+          scale
+        );
+        
+        // Stop if hitting boundaries
+        if (newPos.x !== prev.x + velocityRef.current.x) velocityRef.current.x = 0;
+        if (newPos.y !== prev.y + velocityRef.current.y) velocityRef.current.y = 0;
+        
+        return newPos;
+      });
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  };
+
   // Touch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+
     if (e.touches.length === 2) {
-      // Pinch-to-zoom start
       const distance = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
       setTouchDistance(distance);
     } else if (e.touches.length === 1) {
-      // Check for double-tap
       const now = Date.now();
       const timeSinceLastTap = now - lastTapRef.current;
       
       if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
         e.preventDefault();
-        handleDoubleTap(e.touches[0].clientX, e.touches[0].clientY);
+        handleDoubleTap();
         lastTapRef.current = 0;
       } else {
         lastTapRef.current = now;
         
-        // Start drag if zoomed in
         if (scale > 1) {
           setIsDragging(true);
           setDragStart({
             x: e.touches[0].clientX - position.x,
             y: e.touches[0].clientY - position.y
           });
+          lastTouchRef.current = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY,
+            time: now
+          };
+          velocityRef.current = { x: 0, y: 0 };
         }
       }
     }
@@ -90,7 +149,6 @@ export const ImageViewer = ({ imageUrl, isOpen, onClose }: ImageViewerProps) => 
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && touchDistance) {
-      // Pinch-to-zoom
       const newDistance = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -105,27 +163,39 @@ export const ImageViewer = ({ imageUrl, isOpen, onClose }: ImageViewerProps) => 
       });
       setTouchDistance(newDistance);
     } else if (e.touches.length === 1 && isDragging && scale > 1) {
-      // Pan/drag when zoomed
       e.preventDefault();
+      const now = Date.now();
+      const dt = now - lastTouchRef.current.time;
+      
+      if (dt > 0) {
+        velocityRef.current = {
+          x: (e.touches[0].clientX - lastTouchRef.current.x) * 0.8,
+          y: (e.touches[0].clientY - lastTouchRef.current.y) * 0.8
+        };
+      }
+      
+      lastTouchRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        time: now
+      };
+
       const newX = e.touches[0].clientX - dragStart.x;
       const newY = e.touches[0].clientY - dragStart.y;
-      
-      // Calculate max pan distance based on scale
-      const container = containerRef.current;
-      if (container) {
-        const maxPan = (scale - 1) * 150; // Limit pan based on zoom level
-        setPosition({
-          x: Math.max(-maxPan, Math.min(maxPan, newX)),
-          y: Math.max(-maxPan, Math.min(maxPan, newY))
-        });
-      } else {
-        setPosition({ x: newX, y: newY });
-      }
+      setPosition(clampPosition(newX, newY, scale));
     }
   };
 
   const handleTouchEnd = () => {
     setTouchDistance(null);
+    
+    if (isDragging && scale > 1) {
+      const speed = Math.hypot(velocityRef.current.x, velocityRef.current.y);
+      if (speed > 2) {
+        applyMomentum();
+      }
+    }
+    
     setIsDragging(false);
   };
 
@@ -190,10 +260,11 @@ export const ImageViewer = ({ imageUrl, isOpen, onClose }: ImageViewerProps) => 
           <img
             src={imageUrl}
             alt="Kvittering"
-            className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
+            className="max-w-full max-h-full object-contain select-none"
             style={{ 
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-              cursor: scale > 1 ? 'grab' : 'default'
+              cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+              transition: isDragging ? 'none' : 'transform 0.1s ease-out'
             }}
             draggable={false}
           />
