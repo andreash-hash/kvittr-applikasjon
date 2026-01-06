@@ -28,12 +28,6 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { showToast } = useToastNotification();
 
-  // DEV ONLY: Test toast buttons - remove after testing
-  const testToasts = () => {
-    showToast('Kvittering lagret!', 'success');
-    setTimeout(() => showToast('Noe gikk galt', 'error'), 2000);
-  };
-
   useEffect(() => {
     checkAuthAndLoadReceipts();
     
@@ -385,10 +379,6 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Logo size="small" clickable />
-              {/* DEV ONLY: Test toasts - remove after testing */}
-              <Button variant="outline" size="sm" onClick={testToasts} className="text-xs">
-                Test Toasts
-              </Button>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
