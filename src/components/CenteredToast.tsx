@@ -39,41 +39,44 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       
-      {/* Toast Container - Fixed top with offset */}
-      <div className="fixed left-0 right-0 pointer-events-none z-[9999] flex justify-center" style={{ top: 'calc(90px + env(safe-area-inset-top))' }}>
+      {/* Toast Container - Fixed top with safe area offset */}
+      <div 
+        className="fixed left-0 right-0 pointer-events-none z-[9999] flex justify-center px-4"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
+      >
         <AnimatePresence>
           {toasts.map((toast) => (
             <motion.div
               key={toast.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              style={{
-                width: '85%',
-                maxWidth: '320px',
-                minWidth: '280px',
-              }}
               className={`
                 pointer-events-auto
+                w-full max-w-sm
                 px-5 py-4
                 rounded-xl
-                shadow-[0_4px_16px_rgba(0,0,0,0.24)]
+                shadow-lg
                 flex items-center gap-3
                 ${toast.type === 'success' 
-                  ? 'bg-[#10B981]' 
-                  : 'bg-[#EF4444]'
+                  ? 'bg-[#22c55e]' 
+                  : 'bg-[#fecaca]'
                 }
               `}
             >
-              <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                toast.type === 'success' ? 'bg-white/20' : 'bg-[#991b1b]/20'
+              }`}>
                 {toast.type === 'success' ? (
-                  <Check className="h-3.5 w-3.5 text-white" />
+                  <Check className="h-4 w-4 text-white" />
                 ) : (
-                  <X className="h-3.5 w-3.5 text-white" />
+                  <X className="h-4 w-4 text-[#991b1b]" />
                 )}
               </div>
-              <span className="text-white font-semibold text-[15px] text-center flex-1">
+              <span className={`font-medium text-[15px] flex-1 ${
+                toast.type === 'success' ? 'text-white' : 'text-[#991b1b]'
+              }`}>
                 {toast.message}
               </span>
             </motion.div>

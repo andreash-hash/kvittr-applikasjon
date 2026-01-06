@@ -140,8 +140,15 @@ const App = () => {
           <RevenueCatSetup />
           <TooltipProvider>
             <Toaster />
-            <BrowserRouter>
-              <Routes>
+            <div 
+              className="min-h-screen"
+              style={{
+                paddingTop: 'env(safe-area-inset-top)',
+                paddingBottom: 'env(safe-area-inset-bottom)',
+              }}
+            >
+              <BrowserRouter>
+                <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
@@ -155,8 +162,9 @@ const App = () => {
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/verify-success" element={<VerifySuccess />} />
                 <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
+                </Routes>
+              </BrowserRouter>
+            </div>
           </TooltipProvider>
         </ToastProvider>
       </AppErrorBoundary>
