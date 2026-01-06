@@ -60,6 +60,7 @@ export const ImageViewer = ({ imageUrl, isOpen, onClose }: ImageViewerProps) => 
       >
         <div 
           className="relative w-full h-full flex items-center justify-center overflow-hidden"
+          style={{ touchAction: 'none' }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
