@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 console.log('=== useNativePushNotifications module loading ===');
 
 export const useNativePushNotifications = () => {
-  const [isRegistered, setIsRegistered] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isNative, setIsNative] = useState(false);
   const { toast } = useToast();
@@ -24,6 +24,29 @@ export const useNativePushNotifications = () => {
       }
     };
     checkPlatform();
+  }, []);
+
+  // Check if user already has FCM token (notifications enabled)
+  useEffect(() => {
+    const checkExistingToken = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('fcm_token')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.fcm_token) {
+          setIsEnabled(true);
+        }
+      } catch (error) {
+        console.log('Error checking existing token:', error);
+      }
+    };
+    checkExistingToken();
   }, []);
 
   // Save FCM token to profiles.fcm_token
@@ -46,13 +69,14 @@ export const useNativePushNotifications = () => {
       }
       
       console.log('FCM token saved successfully to profiles table');
+      setIsEnabled(true);
     } catch (error) {
       console.error('Error saving FCM token:', error);
     }
   }, []);
 
-  const registerPush = useCallback(async () => {
-    console.log('=== registerPush FUNCTION CALLED ===');
+  const requestPermissions = useCallback(async () => {
+    console.log('=== requestPermissions FUNCTION CALLED ===');
     
     // Check platform directly instead of relying on state
     let nativePlatform = false;
@@ -99,7 +123,6 @@ export const useNativePushNotifications = () => {
       
       // Register with FCM/APNs
       await PushNotifications.register();
-      setIsRegistered(true);
       
       toast({
         title: "Varsler aktivert",
@@ -110,6 +133,43 @@ export const useNativePushNotifications = () => {
       toast({
         title: "Feil",
         description: "Kunne ikke aktivere varsler",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  const disableNotifications = useCallback(async () => {
+    console.log('=== disableNotifications FUNCTION CALLED ===');
+    setIsLoading(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No user logged in');
+      }
+
+      // Remove FCM token from database
+      const { error } = await supabase
+        .from('profiles')
+        .update({ fcm_token: null })
+        .eq('id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setIsEnabled(false);
+      toast({
+        title: "Varsler deaktivert",
+        description: "Du vil ikke lenger motta push-varsler",
+      });
+    } catch (error) {
+      console.error('Error disabling notifications:', error);
+      toast({
+        title: "Feil",
+        description: "Kunne ikke deaktivere varsler",
         variant: "destructive"
       });
     } finally {
@@ -170,9 +230,6 @@ export const useNativePushNotifications = () => {
             }
           }
         );
-
-        // Auto-register on app start
-        registerPush();
       } catch (error) {
         console.error('Error setting up push listeners:', error);
       }
@@ -187,7 +244,7 @@ export const useNativePushNotifications = () => {
       receivedListener?.remove?.();
       actionListener?.remove?.();
     };
-  }, [isNative, toast, saveFcmToken, registerPush]);
+  }, [isNative, toast, saveFcmToken]);
 
-  return { isRegistered, isLoading, registerPush, isNative };
+  return { isEnabled, isLoading, requestPermissions, disableNotifications, isNative };
 };

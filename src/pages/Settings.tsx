@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles, Key, Check, X, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Moon, Sun, Monitor, Trash2, Sparkles, Key, Check, X, LogIn, UserPlus, LogOut, Bell } from 'lucide-react';
+import { useNativePushNotifications } from '@/hooks/useNativePushNotifications';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -39,17 +40,18 @@ type Theme = 'light' | 'dark' | 'system';
 
 const Settings = () => {
   const navigate = useNavigate();
-  const [pushEnabled, setPushEnabled] = useState(false);
   const [notify30Days, setNotify30Days] = useState(true);
   const [notify7Days, setNotify7Days] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [theme, setTheme] = useState<Theme>('system');
   const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+  
+  // Use the native push notifications hook
+  const { isEnabled: pushEnabled, isLoading, requestPermissions, disableNotifications, isNative } = useNativePushNotifications();
   
   // Password change state
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -57,7 +59,6 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  
 
   // Password validation
   const hasMinLength = newPassword.length >= 8;
@@ -80,17 +81,6 @@ const Settings = () => {
         setUserId(user.id);
         setUserEmail(user.email || null);
         
-        // Fetch current notification setting
-        const { data: settings } = await supabase
-          .from('user_settings')
-          .select('notification_enabled')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (settings) {
-          setPushEnabled(settings.notification_enabled ?? false);
-        }
-
         // Fetch subscription info
         const { data: profile } = await supabase
           .from('profiles')
@@ -131,146 +121,11 @@ const Settings = () => {
     applyTheme(newTheme);
   };
 
-  // Register for native push notifications
-  const registerPushNotifications = async (): Promise<boolean> => {
-    // Only works on native platforms
-    if (!isMobileApp()) {
-      toast.error('Push-varsler fungerer kun i iOS/Android-appen');
-      return false;
-    }
-
-    try {
-      const { PushNotifications } = await import('@capacitor/push-notifications');
-
-      // Request permission
-      const permissionResult = await PushNotifications.requestPermissions();
-
-      if (permissionResult.receive !== 'granted') {
-        toast.error('Du må tillate varsler i systeminnstillinger');
-        return false;
-      }
-
-      // Register for push notifications
-      await PushNotifications.register();
-      return true;
-
-    } catch (error) {
-      console.error('Push registration error:', error);
-      toast.error('Kunne ikke aktivere push-varsler');
-      return false;
-    }
-  };
-
-  // Set up push notification listeners
-  useEffect(() => {
-    if (!isMobileApp() || !userId) return;
-
-    let tokenListener: any;
-    let errorListener: any;
-    let receivedListener: any;
-
-    const setup = async () => {
-      try {
-        const { PushNotifications } = await import('@capacitor/push-notifications');
-
-        // Token received
-        tokenListener = await PushNotifications.addListener('registration', async (token) => {
-          console.log('Push token received:', token.value);
-
-          // Save to Supabase profiles table
-          const { error } = await supabase
-            .from('profiles')
-            .update({ fcm_token: token.value })
-            .eq('id', userId);
-
-          if (!error) {
-            // Also update user_settings
-            await supabase.from('user_settings').upsert({
-              user_id: userId,
-              notification_enabled: true
-            });
-
-            setPushEnabled(true);
-            toast.success('Push-varsler aktivert! 🔔');
-          } else {
-            console.error('Failed to save push token:', error);
-            toast.error('Kunne ikke lagre push-token');
-          }
-          setIsLoading(false);
-        });
-
-        // Registration error
-        errorListener = await PushNotifications.addListener('registrationError', (error) => {
-          console.error('Push registration failed:', error);
-          toast.error('Push-aktivering feilet. Prøv igjen.');
-          setPushEnabled(false);
-          setIsLoading(false);
-        });
-
-        // Notification received while app in foreground
-        receivedListener = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          console.log('Push received in foreground:', notification);
-          toast.info(notification.title || 'Ny varsling', {
-            description: notification.body
-          });
-        });
-      } catch (error) {
-        console.error('Failed to set up push listeners:', error);
-      }
-    };
-
-    setup();
-
-    // Cleanup
-    return () => {
-      tokenListener?.remove?.();
-      errorListener?.remove?.();
-      receivedListener?.remove?.();
-    };
-  }, [userId]);
-
   const handlePushToggle = async (enabled: boolean) => {
-    // Check if Premium
-    if (subscriptionTier !== 'premium') {
-      toast.error('Push-varsler er kun tilgjengelig for Premium');
-      return;
-    }
-
-    if (!userId) return;
-    
-    setIsLoading(true);
-    
-    try {
-      if (enabled) {
-        // Enable push - the listener will handle success
-        const success = await registerPushNotifications();
-        if (!success) {
-          setPushEnabled(false);
-          setIsLoading(false);
-        }
-        // Note: setIsLoading(false) happens in the listener on success
-      } else {
-        // Disable push (keep token, just disable in DB)
-        setPushEnabled(false);
-        
-        await supabase
-          .from('profiles')
-          .update({ fcm_token: null })
-          .eq('id', userId);
-          
-        await supabase.from('user_settings').upsert({
-          user_id: userId,
-          notification_enabled: false
-        });
-        
-        toast.info('Push-varsler deaktivert');
-        setIsLoading(false);
-      }
-    } catch (error) {
-      console.error('Push toggle error:', error);
-      setPushEnabled(!enabled);
-      toast.error('Kunne ikke oppdatere innstillinger');
-      setIsLoading(false);
+    if (enabled) {
+      await requestPermissions();
+    } else {
+      await disableNotifications();
     }
   };
 
@@ -539,22 +394,33 @@ const Settings = () => {
         {!isGuest && (
           <Card>
             <CardHeader>
-              <CardTitle>Push-varsler</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Push-varsler
+              </CardTitle>
               <CardDescription>
-                Få varsel når garantier og bytteretter snart utløper
+                Få beskjed når garantier, gavekort og byttelapper snart utgår
               </CardDescription>
             </CardHeader>
             <CardContent>
-            {subscriptionTier === 'premium' ? (
+              {!isNative ? (
+                <p className="text-sm text-muted-foreground">
+                  Push-varsler er kun tilgjengelig i den nedlastede appen fra App Store eller Google Play
+                </p>
+              ) : subscriptionTier === 'premium' ? (
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="push-notifications" className="flex-1">
-                    <div className="font-medium">Push-varsler</div>
-                    <div className="text-sm text-muted-foreground">
-                      Aktiver for å motta varsler
+                  <div className="space-y-0.5">
+                    <div className="font-medium">
+                      {pushEnabled ? 'Varsler aktivert' : 'Varsler deaktivert'}
                     </div>
-                  </Label>
+                    <div className="text-sm text-muted-foreground">
+                      {pushEnabled 
+                        ? 'Du mottar varsler 7 og 3 dager før utløp'
+                        : 'Aktiver for å motta varsler'
+                      }
+                    </div>
+                  </div>
                   <Switch
-                    id="push-notifications"
                     checked={pushEnabled}
                     onCheckedChange={handlePushToggle}
                     disabled={isLoading}
@@ -563,12 +429,12 @@ const Settings = () => {
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="flex-1">
-                      <div className="font-medium text-muted-foreground">Push-varsler</div>
+                    <div className="space-y-0.5">
+                      <div className="font-medium text-muted-foreground">Varsler deaktivert</div>
                       <div className="text-sm text-muted-foreground">
                         Kun for Premium-brukere
                       </div>
-                    </Label>
+                    </div>
                     <Switch
                       checked={false}
                       disabled={true}
