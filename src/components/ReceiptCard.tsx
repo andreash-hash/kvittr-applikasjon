@@ -263,7 +263,7 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
   
   return (
     <Card 
-      className={`relative overflow-hidden border-l-4 ${typeConfig.borderColor} shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer rounded-xl ${
+      className={`relative overflow-hidden border-l-4 ${typeConfig.borderColor} shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer rounded-xl border border-border/50 ${
         isHovered ? 'scale-[1.01]' : ''
       } ${isUsed ? 'opacity-60 bg-muted/50' : 'bg-card'}`}
       onClick={() => navigate(`/item/${receipt.id}`)}
@@ -272,27 +272,27 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
     >
       {getExpiryWarning()}
       
-      <CardContent className="p-3">
+      <CardContent className="p-4">
         {/* Header with type label and analyzing badge */}
-        <div className="flex justify-between items-center mb-2">
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${typeConfig.badgeBgColor} w-fit`}>
-            <TypeIcon className={`h-3 w-3 ${typeConfig.badgeTextColor}`} />
-            <span className={`text-[10px] font-bold tracking-wide ${typeConfig.badgeTextColor}`}>
+        <div className="flex justify-between items-center mb-3">
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md ${typeConfig.badgeBgColor} w-fit`}>
+            <TypeIcon className={`h-3.5 w-3.5 ${typeConfig.badgeTextColor}`} />
+            <span className={`text-[11px] font-bold tracking-wide ${typeConfig.badgeTextColor}`}>
               {typeConfig.label}
             </span>
           </div>
           
           {receipt.processing_status === 'pending' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary text-white rounded-xl text-[11px] font-semibold flex-shrink-0">
-              <Loader2 className="h-3 w-3 animate-spin" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-xl text-xs font-semibold flex-shrink-0">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
               <span>Analyserer</span>
             </div>
           )}
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           {/* Thumbnail - Increased to 100x100px */}
-          <div className="w-[100px] h-[100px] min-w-[100px] min-h-[100px] rounded-lg bg-muted flex-shrink-0 overflow-hidden">
+          <div className="w-[100px] h-[100px] min-w-[100px] min-h-[100px] rounded-lg bg-muted flex-shrink-0 overflow-hidden shadow-sm">
             {receipt.image_url ? (
               <img 
                 src={receipt.image_url} 
@@ -309,15 +309,15 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
           
           {/* Main content */}
           <div className="flex-1 min-w-0 space-y-2">
-            {/* Main info */}
-            <div className="space-y-0.5">
-              <h3 className="text-sm font-bold text-foreground leading-tight line-clamp-2">
+            {/* Main info - Increased font sizes */}
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-foreground leading-tight line-clamp-2">
                 {receipt.product_name}
               </h3>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {receipt.shop_name}
               </p>
-              <p className="text-[11px] text-muted-foreground/70">
+              <p className="text-xs text-muted-foreground/70">
                 {receipt.type === 'return_slip' || receipt.type === 'gift_card' ? 'Utstedt: ' : 'Kjøpt: '}{formatDate(receipt.purchase_date)}
               </p>
               {isUsed && (
@@ -344,14 +344,14 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
               </div>
             )}
             
-            {/* Info chips */}
-            <div className="flex gap-1.5 flex-wrap">
-              <Badge variant="outline" className="text-[10px] px-2 py-0.5 h-5">
+            {/* Info chips - Increased font sizes */}
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant="outline" className="text-xs px-2.5 py-1 h-6">
                 {formatCurrency(receipt.amount)}
               </Badge>
               
               {!shouldShowWarranty(receipt.has_warranty, receipt.shop_name, receipt.type) && receipt.type === 'receipt' && (
-                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 h-5">
+                <Badge variant="secondary" className="text-xs px-2.5 py-1 h-6">
                   Dagligvare - ingen garanti
                 </Badge>
               )}
@@ -363,18 +363,18 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
           </div>
         </div>
         
-        {/* Action buttons - Removed delete button since we have swipe */}
-        <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+        {/* Action buttons - Improved sizing */}
+        <div className="flex gap-2 mt-4 pt-3 border-t border-border">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 h-9 text-xs rounded-lg border-logo-blue text-logo-blue hover:bg-logo-blue/10"
+            className="flex-1 h-10 text-sm rounded-lg border-logo-blue text-logo-blue hover:bg-logo-blue/10"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/item/${receipt.id}`);
             }}
           >
-            <Eye className="h-3.5 w-3.5 mr-1.5" />
+            <Eye className="h-4 w-4 mr-2" />
             Se detaljer
           </Button>
           
@@ -382,11 +382,11 @@ const ReceiptCard = ({ receipt }: ReceiptCardProps) => {
             <Button
               variant="outline"
               size="sm"
-              className="h-9 px-3 text-xs rounded-lg"
+              className="h-10 px-4 text-sm rounded-lg"
               onClick={handleMarkAsUsed}
               disabled={isMarkingUsed}
             >
-              <Check className="h-3.5 w-3.5 mr-1" />
+              <Check className="h-4 w-4 mr-1.5" />
               Brukt
             </Button>
           )}
