@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Trash2, Save, Loader2, Info, Shield, RefreshCw, Check } from 'lucide-react';
+import { ArrowLeft, Trash2, Save, Loader2, Info, Shield, RefreshCw, Check, ZoomIn } from 'lucide-react';
 import { getReceipts, saveReceipt, deleteReceipt, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ import { isGroceryStore, shouldShowWarranty } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { getGuestReceipts, type GuestReceipt } from '@/lib/guestStorage';
+import { ImageViewer } from '@/components/ImageViewer';
 
 const ItemDetail = () => {
   const { id } = useParams();
@@ -30,6 +31,7 @@ const ItemDetail = () => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollStartTimeRef = useRef<number | null>(null);
 
@@ -210,6 +212,7 @@ const ItemDetail = () => {
     if (!receipt) return;
     
     setIsRetrying(true);
+    setProcessingError(false);
     setRetryCount(prev => prev + 1);
     
     try {
@@ -232,20 +235,18 @@ const ItemDetail = () => {
         .update({ processing_status: 'pending' })
         .eq('id', receipt.id);
       
-      // Clear error and start polling
-      setProcessingError(false);
-      setIsRetrying(false);
-      
       // Reload to trigger polling
       loadReceipt();
     } catch (error) {
       console.error('Retry error:', error);
-      setIsRetrying(false);
+      setProcessingError(true);
       toast({
         title: 'Feil',
         description: 'Kunne ikke starte analyse på nytt',
         variant: 'destructive',
       });
+    } finally {
+      setIsRetrying(false);
     }
   };
 
@@ -398,15 +399,34 @@ const ItemDetail = () => {
         <Card className="mb-6">
           <CardContent className="p-4">
             {receipt.image_url && (
-              <img 
-                src={receipt.image_url} 
-                alt="Receipt"
-                className="w-full rounded-lg object-contain"
-                style={{ maxHeight: '250px' }}
-              />
+              <div 
+                onClick={() => setImageViewerOpen(true)}
+                className="cursor-pointer group relative"
+              >
+                <img 
+                  src={receipt.image_url} 
+                  alt="Receipt"
+                  className="w-full rounded-lg object-contain transition-opacity group-hover:opacity-90"
+                  style={{ maxHeight: '250px' }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="bg-black/50 rounded-full p-3">
+                    <ZoomIn className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Image Viewer Modal */}
+        {receipt.image_url && (
+          <ImageViewer
+            imageUrl={receipt.image_url}
+            isOpen={imageViewerOpen}
+            onClose={() => setImageViewerOpen(false)}
+          />
+        )}
 
         {/* Retry starting indicator */}
         {isRetrying && (
