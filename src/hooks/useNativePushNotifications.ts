@@ -53,9 +53,18 @@ export const useNativePushNotifications = () => {
 
   const registerPush = useCallback(async () => {
     console.log('=== registerPush FUNCTION CALLED ===');
-    console.log('isNative value:', isNative);
     
-    if (!isNative) {
+    // Check platform directly instead of relying on state
+    let nativePlatform = false;
+    try {
+      const { Capacitor } = await import('@capacitor/core');
+      nativePlatform = Capacitor.isNativePlatform();
+      console.log('Direct platform check:', { nativePlatform, platform: Capacitor.getPlatform() });
+    } catch (err) {
+      console.log('Platform check failed:', err);
+    }
+    
+    if (!nativePlatform) {
       console.log('Exiting - not native platform');
       toast({
         title: "Ikke mobil",
@@ -70,10 +79,12 @@ export const useNativePushNotifications = () => {
       
       // Check current permission status
       let permStatus = await PushNotifications.checkPermissions();
+      console.log('Permission status:', permStatus);
       
       // Request permission if needed
       if (permStatus.receive === 'prompt' || permStatus.receive === 'prompt-with-rationale') {
         permStatus = await PushNotifications.requestPermissions();
+        console.log('Permission after request:', permStatus);
       }
       
       if (permStatus.receive !== 'granted') {
@@ -104,7 +115,7 @@ export const useNativePushNotifications = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [isNative, toast]);
+  }, [toast]);
 
   useEffect(() => {
     if (!isNative) return;
