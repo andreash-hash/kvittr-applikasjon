@@ -234,16 +234,20 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Sticky header with proper safe area */}
       <div 
-        className="container max-w-2xl mx-auto p-4 space-y-6"
-        style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}
+        className="sticky top-0 z-10 bg-background border-b border-border/50"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="flex items-center mb-4">
+        <div className="container max-w-2xl mx-auto px-4 py-3 flex items-center">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold ml-2">Innstillinger</h1>
         </div>
+      </div>
+      
+      <div className="container max-w-2xl mx-auto p-4 space-y-6">
 
         {/* Guest Account Section */}
         {isGuest && (
@@ -673,6 +677,9 @@ const Settings = () => {
         </Dialog>
 
       </div>
+      
+      {/* Bottom safe area */}
+      <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }} />
     </div>
   );
 };

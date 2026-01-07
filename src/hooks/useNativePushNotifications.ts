@@ -121,8 +121,35 @@ export const useNativePushNotifications = () => {
         return;
       }
       
+      // Set up one-time listener for registration before calling register
+      const tokenPromise = new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Token timeout')), 10000);
+        
+        PushNotifications.addListener('registration', (token) => {
+          clearTimeout(timeout);
+          console.log('Push registration success, token:', token.value);
+          resolve(token.value);
+        });
+        
+        PushNotifications.addListener('registrationError', (error) => {
+          clearTimeout(timeout);
+          console.error('Push registration error event:', error);
+          reject(error);
+        });
+      });
+      
       // Register with FCM/APNs
       await PushNotifications.register();
+      
+      // Wait for token
+      const token = await tokenPromise;
+      console.log('Got FCM token:', token);
+      
+      // Save token to database
+      await saveFcmToken(token);
+      
+      // Set enabled
+      setIsEnabled(true);
       
       toast({
         title: "Varsler aktivert",
@@ -138,7 +165,7 @@ export const useNativePushNotifications = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, saveFcmToken]);
 
   const disableNotifications = useCallback(async () => {
     console.log('=== disableNotifications FUNCTION CALLED ===');
