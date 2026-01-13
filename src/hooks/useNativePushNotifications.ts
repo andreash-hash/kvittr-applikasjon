@@ -51,28 +51,26 @@ export const useNativePushNotifications = () => {
 
   // Save FCM token to profiles.fcm_token
   const saveFcmToken = useCallback(async (token: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error('No user logged in, cannot save FCM token');
-        return;
-      }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ fcm_token: token })
-        .eq('id', user.id);
-
-      if (updateError) {
-        console.error('Failed to save FCM token:', updateError);
-        throw new Error('Kunne ikke lagre push token');
-      }
-      
-      console.log('FCM token saved successfully to profiles table');
-      setIsEnabled(true);
-    } catch (error) {
-      console.error('Error saving FCM token:', error);
+    if (!user) {
+      throw new Error('No user logged in');
     }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ fcm_token: token })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Failed to save FCM token:', error);
+      throw error;
+    }
+
+    console.log('FCM token saved successfully to profiles table');
+    setIsEnabled(true);
   }, []);
 
   const requestPermissions = useCallback(async () => {
@@ -122,45 +120,65 @@ export const useNativePushNotifications = () => {
       }
       
       // Set up one-time listener for registration before calling register
+      let resolveToken: (token: string) => void;
+      let rejectToken: (error: any) => void;
+
       const tokenPromise = new Promise<string>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Token timeout')), 10000);
-        
-        PushNotifications.addListener('registration', (token) => {
-          clearTimeout(timeout);
-          console.log('Push registration success, token:', token.value);
-          resolve(token.value);
-        });
-        
-        PushNotifications.addListener('registrationError', (error) => {
-          clearTimeout(timeout);
-          console.error('Push registration error event:', error);
-          reject(error);
-        });
+        resolveToken = resolve;
+        rejectToken = reject;
       });
-      
+
+      const timeout = setTimeout(() => rejectToken(new Error('Token timeout')), 12000);
+
+      const registrationHandle = await PushNotifications.addListener('registration', (token) => {
+        clearTimeout(timeout);
+        console.log('Push registration success, token:', token.value);
+        resolveToken(token.value);
+      });
+
+      const errorHandle = await PushNotifications.addListener('registrationError', (error) => {
+        clearTimeout(timeout);
+        console.error('Push registration error event:', error);
+        rejectToken(error);
+      });
+
       // Register with FCM/APNs
       await PushNotifications.register();
-      
+
       // Wait for token
       const token = await tokenPromise;
       console.log('Got FCM token:', token);
-      
+
+      // Cleanup one-time listeners
+      await registrationHandle.remove();
+      await errorHandle.remove();
+
+      // Optimistic UI: switch can show enabled while saving
+      setIsEnabled(true);
+
       // Save token to database
       await saveFcmToken(token);
-      
-      // Set enabled
-      setIsEnabled(true);
-      
+
       toast({
         title: "Varsler aktivert",
         description: "Du vil motta varsler om utgående garantier og gavekort",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Push registration error:', error);
+      setIsEnabled(false);
+
+      const msg =
+        typeof error?.message === 'string'
+          ? error.message
+          : 'Kunne ikke aktivere varsler';
+
       toast({
         title: "Feil",
-        description: "Kunne ikke aktivere varsler",
-        variant: "destructive"
+        description:
+          msg.includes('denied') || msg.toLowerCase().includes('permission')
+            ? 'Varsler er deaktivert i iOS. Gå til Innstillinger → Varsler → Kvittr og slå på.'
+            : msg,
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
