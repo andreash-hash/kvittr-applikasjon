@@ -232,6 +232,9 @@ const Settings = () => {
     </div>
   );
 
+  // Safe area fallback for native platforms (iOS status bar ~47-59pt, Android ~24-48dp)
+  const headerTopPaddingFallback = isNative ? 48 : 0;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Sticky header with proper safe area */}
