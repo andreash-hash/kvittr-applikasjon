@@ -57,9 +57,16 @@ export const NotificationSettings = () => {
           <Switch
             checked={isEnabled}
             onCheckedChange={(checked) => {
+              console.log('=== Switch onCheckedChange called ===', { checked, isEnabled, isLoading });
+              if (isLoading) {
+                console.log('Switch blocked - isLoading is true');
+                return;
+              }
               if (checked) {
+                console.log('Calling requestPermissions...');
                 requestPermissions();
               } else {
+                console.log('Calling disableNotifications...');
                 disableNotifications();
               }
             }}
