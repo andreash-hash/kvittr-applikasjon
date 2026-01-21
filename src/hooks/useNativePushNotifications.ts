@@ -119,6 +119,10 @@ export const useNativePushNotifications = () => {
         return;
       }
       
+      // Remove ALL existing listeners first to avoid conflicts
+      await PushNotifications.removeAllListeners();
+      console.log('Removed all existing listeners');
+      
       // Set up one-time listener for registration before calling register
       let resolveToken: (token: string) => void;
       let rejectToken: (error: any) => void;
@@ -128,7 +132,11 @@ export const useNativePushNotifications = () => {
         rejectToken = reject;
       });
 
-      const timeout = setTimeout(() => rejectToken(new Error('Token timeout')), 12000);
+      // Increase timeout to 30 seconds for slower networks
+      const timeout = setTimeout(() => {
+        console.error('Token timeout after 30 seconds');
+        rejectToken(new Error('Token timeout - vennligst prøv igjen'));
+      }, 30000);
 
       const registrationHandle = await PushNotifications.addListener('registration', (token) => {
         clearTimeout(timeout);
@@ -139,11 +147,13 @@ export const useNativePushNotifications = () => {
       const errorHandle = await PushNotifications.addListener('registrationError', (error) => {
         clearTimeout(timeout);
         console.error('Push registration error event:', error);
-        rejectToken(error);
+        rejectToken(new Error(error?.error || 'Registreringsfeil'));
       });
 
       // Register with FCM/APNs
+      console.log('Calling PushNotifications.register()...');
       await PushNotifications.register();
+      console.log('Register called, waiting for token...');
 
       // Wait for token
       const token = await tokenPromise;
