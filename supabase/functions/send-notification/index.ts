@@ -6,9 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const ONESIGNAL_APP_ID = "289fa2eb-ba97-45e8-8328-08a11095772c";
-const ONESIGNAL_REST_API_KEY = "os_v2_app_fcp2f252s5c6razabcqrbflxfthpzootrzoerzejzznrvkgby2kdesjxnuruwswcmzk4oo275x7pzfnintyabphzuhu3bvuciod4mka";
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -32,60 +29,106 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get user's push token (player_id)
-    const { data: tokenData, error: tokenError } = await supabase
-      .from('push_tokens')
-      .select('token')
-      .eq('user_id', user_id)
-      .eq('enabled', true)
+    // Get user's FCM token from profiles table
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('fcm_token')
+      .eq('id', user_id)
       .maybeSingle();
 
-    if (tokenError) {
-      console.error('Error fetching push token:', tokenError);
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch push token' }),
+        JSON.stringify({ error: 'Failed to fetch user profile' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!tokenData) {
-      console.log('No push token found for user');
+    if (!profileData?.fcm_token) {
+      console.log('No FCM token found for user');
       return new Response(
-        JSON.stringify({ error: 'No push token found for user' }),
+        JSON.stringify({ error: 'No FCM token found for user', user_id }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const playerId = tokenData.token;
-    console.log('Found player_id:', playerId);
+    const fcmToken = profileData.fcm_token;
+    console.log('Found FCM token for user');
 
-    // Send push notification via OneSignal REST API
-    const oneSignalResponse = await fetch('https://api.onesignal.com/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `key=${ONESIGNAL_REST_API_KEY}`,
-      },
-      body: JSON.stringify({
-        app_id: ONESIGNAL_APP_ID,
-        include_player_ids: [playerId],
-        headings: { en: title || 'Kvittr' },
-        contents: { en: message },
-        data: receipt_id ? { receipt_id } : undefined,
-      }),
-    });
-
-    const oneSignalData = await oneSignalResponse.json();
-    
-    if (!oneSignalResponse.ok) {
-      console.error('OneSignal error:', oneSignalData);
+    // Get Firebase Server Key from secrets
+    const firebaseServerKey = Deno.env.get('FIREBASE_SERVER_KEY');
+    if (!firebaseServerKey) {
+      console.error('FIREBASE_SERVER_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'Failed to send push notification', details: oneSignalData }),
+        JSON.stringify({ error: 'Push notification service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Push notification sent successfully:', oneSignalData);
+    // Send push notification via Firebase Cloud Messaging (FCM) Legacy API
+    const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `key=${firebaseServerKey}`,
+      },
+      body: JSON.stringify({
+        to: fcmToken,
+        notification: {
+          title: title || 'Kvittr',
+          body: message,
+          sound: 'default',
+        },
+        data: receipt_id ? { receipt_id } : {},
+        // iOS specific settings
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+            },
+          },
+        },
+      }),
+    });
+
+    const fcmData = await fcmResponse.json();
+    console.log('FCM response:', JSON.stringify(fcmData));
+    
+    if (!fcmResponse.ok) {
+      console.error('FCM error:', fcmData);
+      return new Response(
+        JSON.stringify({ error: 'Failed to send push notification', details: fcmData }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check FCM response for delivery errors
+    if (fcmData.failure > 0) {
+      console.error('FCM delivery failed:', fcmData.results);
+      
+      // If token is invalid, clear it from the profile
+      const results = fcmData.results || [];
+      const invalidTokenErrors = ['InvalidRegistration', 'NotRegistered', 'MismatchSenderId'];
+      
+      for (const result of results) {
+        if (result.error && invalidTokenErrors.includes(result.error)) {
+          console.log('Clearing invalid FCM token for user:', user_id);
+          await supabase
+            .from('profiles')
+            .update({ fcm_token: null })
+            .eq('id', user_id);
+          break;
+        }
+      }
+      
+      return new Response(
+        JSON.stringify({ error: 'Push notification delivery failed', details: fcmData }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Push notification sent successfully');
 
     // Log notification to database
     if (receipt_id) {
@@ -100,8 +143,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        notification_id: oneSignalData.id,
-        recipients: oneSignalData.recipients 
+        message_id: fcmData.results?.[0]?.message_id,
+        multicast_id: fcmData.multicast_id,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
