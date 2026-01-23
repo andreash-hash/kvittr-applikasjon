@@ -232,34 +232,16 @@ export const useNativePushNotifications = () => {
     }
   }, [toast]);
 
+  // Foreground notification handlers only - registration is handled in requestPermissions
   useEffect(() => {
     if (!isNative) return;
 
-    let registrationListener: any;
-    let errorListener: any;
     let receivedListener: any;
     let actionListener: any;
 
-    const setupListeners = async () => {
+    const setupNotificationHandlers = async () => {
       try {
         const { PushNotifications } = await import('@capacitor/push-notifications');
-
-        // Listen for successful registration
-        registrationListener = await PushNotifications.addListener(
-          'registration',
-          async (token) => {
-            console.log('Push registration success, token:', token.value);
-            await saveFcmToken(token.value);
-          }
-        );
-
-        // Listen for registration errors
-        errorListener = await PushNotifications.addListener(
-          'registrationError',
-          (error) => {
-            console.error('Push registration error:', error);
-          }
-        );
 
         // Listen for push notifications received while app is in foreground
         receivedListener = await PushNotifications.addListener(
@@ -278,7 +260,6 @@ export const useNativePushNotifications = () => {
           'pushNotificationActionPerformed',
           (notification) => {
             console.log('Push notification action performed:', notification);
-            // Handle navigation based on notification data
             const data = notification.notification.data;
             if (data?.receipt_id) {
               window.location.href = `/item/${data.receipt_id}`;
@@ -286,20 +267,17 @@ export const useNativePushNotifications = () => {
           }
         );
       } catch (error) {
-        console.error('Error setting up push listeners:', error);
+        console.error('Error setting up notification handlers:', error);
       }
     };
 
-    setupListeners();
+    setupNotificationHandlers();
 
-    // Cleanup listeners on unmount
     return () => {
-      registrationListener?.remove?.();
-      errorListener?.remove?.();
       receivedListener?.remove?.();
       actionListener?.remove?.();
     };
-  }, [isNative, toast, saveFcmToken]);
+  }, [isNative, toast]);
 
   return { isEnabled, isLoading, requestPermissions, disableNotifications, isNative };
 };
