@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
   },
   ios: {
     scheme: 'App',
-    buildNumber: '50',
+    buildNumber: '51',
     backgroundColor: '#F5F1E8',
     contentMode: 'center',
     // Ensure iOS push entitlements are available in cloud/native builds
