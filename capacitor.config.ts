@@ -11,7 +11,9 @@ const config: CapacitorConfig = {
     scheme: 'App',
     buildNumber: '50',
     backgroundColor: '#F5F1E8',
-    contentMode: 'center'
+    contentMode: 'center',
+    // Ensure iOS push entitlements are available in cloud/native builds
+    path: 'ios/App/App/App.entitlements'
   },
   plugins: {
     PushNotifications: {
