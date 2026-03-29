@@ -32,7 +32,7 @@ const ItemDetail = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
