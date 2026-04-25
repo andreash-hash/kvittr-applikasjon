@@ -23,12 +23,16 @@ interface ReceiptRow {
   warranty_until: string | null;
   return_until: string | null;
   expiry_date: string | null;
+  // All nine notification flags (correct names after 20260425 migration)
+  warranty_notified_30d: boolean;
   warranty_notified_7d: boolean;
   warranty_notified_3d: boolean;
+  return_notified_30d: boolean;
   return_notified_7d: boolean;
   return_notified_3d: boolean;
-  giftcard_notified_7d: boolean;
-  giftcard_notified_3d: boolean;
+  gift_card_notified_30d: boolean;
+  gift_card_notified_7d: boolean;
+  gift_card_notified_3d: boolean;
 }
 
 function daysUntil(dateStr: string): number {
@@ -43,7 +47,7 @@ function buildMessage(
   token: string,
   receipt: ReceiptRow,
   days: number,
-  expiryType: 'warranty' | 'return' | 'giftcard',
+  expiryType: 'warranty' | 'return' | 'gift_card',
 ): ExpoMessage {
   const name = receipt.shop_name ?? receipt.product_name ?? 'Kvittering';
   const dayLabel = days === 0 ? 'i dag' : days === 1 ? 'i morgen' : `om ${days} dager`;
@@ -51,7 +55,7 @@ function buildMessage(
   const titles: Record<string, string> = {
     warranty: `Garanti utløper ${dayLabel}`,
     return: `Returrett utløper ${dayLabel}`,
-    giftcard: `Gavekort utløper ${dayLabel}`,
+    gift_card: `Gavekort utløper ${dayLabel}`,
   };
 
   return {
@@ -69,15 +73,17 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  // Fetch receipts expiring in 1–7 days that haven't been notified
+  // Fetch active receipts that have at least one expiry date set
   const { data: receipts, error: fetchError } = await supabase
     .from('receipts')
-    .select(
-      'id, user_id, shop_name, product_name, receipt_type, warranty_until, return_until, expiry_date, warranty_notified_7d, warranty_notified_3d, return_notified_7d, return_notified_3d, giftcard_notified_7d, giftcard_notified_3d',
-    )
-    .or(
-      'warranty_until.not.is.null,return_until.not.is.null,expiry_date.not.is.null',
-    )
+    .select([
+      'id', 'user_id', 'shop_name', 'product_name', 'receipt_type',
+      'warranty_until', 'return_until', 'expiry_date',
+      'warranty_notified_30d', 'warranty_notified_7d', 'warranty_notified_3d',
+      'return_notified_30d',   'return_notified_7d',   'return_notified_3d',
+      'gift_card_notified_30d','gift_card_notified_7d','gift_card_notified_3d',
+    ].join(', '))
+    .or('warranty_until.not.is.null,return_until.not.is.null,expiry_date.not.is.null')
     .eq('status', 'active');
 
   if (fetchError) {
@@ -88,7 +94,7 @@ Deno.serve(async (req) => {
   const updates: Array<{ id: string; patch: Record<string, boolean> }> = [];
 
   for (const receipt of (receipts ?? []) as ReceiptRow[]) {
-    // Fetch the user's push token
+    // Fetch the user's Expo push token
     const { data: profile } = await supabase
       .from('profiles')
       .select('expo_push_token')
@@ -100,10 +106,13 @@ Deno.serve(async (req) => {
 
     const patch: Record<string, boolean> = {};
 
-    // Warranty notifications
+    // Warranty notifications (30d / 7d / 3d)
     if (receipt.warranty_until) {
       const days = daysUntil(receipt.warranty_until);
-      if (days === 7 && !receipt.warranty_notified_7d) {
+      if (days === 30 && !receipt.warranty_notified_30d) {
+        messages.push(buildMessage(token, receipt, days, 'warranty'));
+        patch.warranty_notified_30d = true;
+      } else if (days === 7 && !receipt.warranty_notified_7d) {
         messages.push(buildMessage(token, receipt, days, 'warranty'));
         patch.warranty_notified_7d = true;
       } else if (days === 3 && !receipt.warranty_notified_3d) {
@@ -112,10 +121,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Return slip notifications
+    // Return-slip notifications (30d / 7d / 3d)
     if (receipt.return_until) {
       const days = daysUntil(receipt.return_until);
-      if (days === 7 && !receipt.return_notified_7d) {
+      if (days === 30 && !receipt.return_notified_30d) {
+        messages.push(buildMessage(token, receipt, days, 'return'));
+        patch.return_notified_30d = true;
+      } else if (days === 7 && !receipt.return_notified_7d) {
         messages.push(buildMessage(token, receipt, days, 'return'));
         patch.return_notified_7d = true;
       } else if (days === 3 && !receipt.return_notified_3d) {
@@ -124,15 +136,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Gift card expiry notifications
+    // Gift-card expiry notifications (30d / 7d / 3d)
     if (receipt.receipt_type === 'gift_card' && receipt.expiry_date) {
       const days = daysUntil(receipt.expiry_date);
-      if (days === 7 && !receipt.giftcard_notified_7d) {
-        messages.push(buildMessage(token, receipt, days, 'giftcard'));
-        patch.giftcard_notified_7d = true;
-      } else if (days === 3 && !receipt.giftcard_notified_3d) {
-        messages.push(buildMessage(token, receipt, days, 'giftcard'));
-        patch.giftcard_notified_3d = true;
+      if (days === 30 && !receipt.gift_card_notified_30d) {
+        messages.push(buildMessage(token, receipt, days, 'gift_card'));
+        patch.gift_card_notified_30d = true;
+      } else if (days === 7 && !receipt.gift_card_notified_7d) {
+        messages.push(buildMessage(token, receipt, days, 'gift_card'));
+        patch.gift_card_notified_7d = true;
+      } else if (days === 3 && !receipt.gift_card_notified_3d) {
+        messages.push(buildMessage(token, receipt, days, 'gift_card'));
+        patch.gift_card_notified_3d = true;
       }
     }
 
@@ -141,7 +156,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Send in batches of 100 (Expo limit)
+  // Send in batches of 100 (Expo Push API limit)
   let sent = 0;
   for (let i = 0; i < messages.length; i += 100) {
     const batch = messages.slice(i, i + 100);
@@ -153,7 +168,7 @@ Deno.serve(async (req) => {
     if (res.ok) sent += batch.length;
   }
 
-  // Mark notified flags so we don't double-send
+  // Persist notification flags so we never double-send
   for (const { id, patch } of updates) {
     await supabase.from('receipts').update(patch).eq('id', id);
   }
