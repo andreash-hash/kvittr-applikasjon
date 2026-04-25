@@ -98,13 +98,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ],
   extra: {
     eas: {
-      projectId: 'REPLACE_WITH_EAS_PROJECT_ID',
+      projectId: '9a9f44ff-d636-4619-a7aa-a04072918a34',
     },
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
   },
   updates: {
-    url: 'https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID',
+    url: 'https://u.expo.dev/9a9f44ff-d636-4619-a7aa-a04072918a34',
   },
   runtimeVersion: {
     policy: 'appVersion',
