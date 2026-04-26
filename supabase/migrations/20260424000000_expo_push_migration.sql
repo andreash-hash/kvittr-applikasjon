@@ -41,6 +41,12 @@ CREATE EXTENSION IF NOT EXISTS pg_net;
 --   SELECT vault.create_secret('<service_role_key_value>', 'supabase_service_role_key');
 -- The cron job reads the key from Vault at execution time — never stored in plaintext.
 
+DO $$
+BEGIN
+  PERFORM cron.unschedule('kvittr-daily-notifications')
+  WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'kvittr-daily-notifications');
+END $$;
+
 SELECT cron.schedule(
   'kvittr-daily-notifications',
   '0 8 * * *',
@@ -54,8 +60,7 @@ SELECT cron.schedule(
     body     := '{"trigger":"daily-cron"}'::jsonb
   )
   $$
-) ON CONFLICT (jobname) DO UPDATE
-  SET schedule = '0 8 * * *';
+);
 
 -- =============================================================================
 -- Verification queries (run these after migration to confirm success)
