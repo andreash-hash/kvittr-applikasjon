@@ -37,10 +37,9 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- 5. Cron job: daily notification dispatch at 08:00 UTC
--- IMPORTANT: Replace <YOUR_SERVICE_ROLE_KEY> with your actual Supabase service role key
--- RECOMMENDED: Use Supabase Vault instead — see https://supabase.com/docs/guides/vault
--- To use Vault: SELECT vault.create_secret('<key>', 'supabase_service_role_key');
---   then replace the hardcoded key with: (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_service_role_key')
+-- PRE-REQUISITE: store the service role key in Vault before running this migration:
+--   SELECT vault.create_secret('<service_role_key_value>', 'supabase_service_role_key');
+-- The cron job reads the key from Vault at execution time — never stored in plaintext.
 
 SELECT cron.schedule(
   'kvittr-daily-notifications',
@@ -49,7 +48,7 @@ SELECT cron.schedule(
   SELECT net.http_post(
     url      := 'https://wdfxfhchugungurebbcc.supabase.co/functions/v1/send-expo-push',
     headers  := jsonb_build_object(
-      'Authorization', 'Bearer <YOUR_SERVICE_ROLE_KEY>',
+      'Authorization', 'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_service_role_key'),
       'Content-Type',  'application/json'
     ),
     body     := '{"trigger":"daily-cron"}'::jsonb

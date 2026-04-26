@@ -2,3 +2,12 @@ project_id = "wdfxfhchugungurebbcc"
 
 [functions.send-notification]
 verify_jwt = false
+
+[functions.send-expo-push]
+verify_jwt = false
+
+[functions.process-receipt-ocr]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = true
