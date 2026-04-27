@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { Camera, Image as ImageIcon } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, RefreshCw } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
@@ -23,6 +23,14 @@ export default function ScanScreen() {
   const queryClient = useQueryClient();
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  // Holds a realtime channel so we can clean it up on unmount or retry.
+  const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      realtimeChannel.current?.unsubscribe();
+    };
+  }, []);
 
   const checkCanScan = async (): Promise<boolean> => {
     if (isPremium) return true;
@@ -47,12 +55,50 @@ export default function ScanScreen() {
     return true;
   };
 
+  const subscribeToReceipt = (receiptId: string) => {
+    // Safety-net realtime subscription. The Gemini function is synchronous and
+    // returns the final status, but if the connection drops mid-flight this
+    // subscription catches the DB update so the UI stays responsive.
+    realtimeChannel.current?.unsubscribe();
+
+    const channel = supabase
+      .channel(`receipt-status-${receiptId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'receipts',
+          filter: `id=eq.${receiptId}`,
+        },
+        (payload) => {
+          const status = (payload.new as { processing_status?: string }).processing_status;
+          if (status === 'completed') {
+            channel.unsubscribe();
+            queryClient.invalidateQueries({ queryKey: ['receipts'] });
+            setScanState('done');
+            notification('success');
+            Toast.show({ type: 'success', text1: 'Kvittering analysert!' });
+            setTimeout(() => router.replace(`/(app)/item/${receiptId}`), 1000);
+          } else if (status === 'failed') {
+            channel.unsubscribe();
+            setScanState('error');
+            notification('error');
+            Toast.show({ type: 'error', text1: 'Analyse feilet', text2: 'Prøv igjen.' });
+          }
+        },
+      )
+      .subscribe();
+
+    realtimeChannel.current = channel;
+  };
+
   const processImage = async (uri: string) => {
     if (!isAuthenticated || !user) {
       Toast.show({
         type: 'info',
         text1: 'Logg inn for å skanne',
-        text2: 'Gjester kan se eksempelkvitteringer, men ikke laste opp.',
+        text2: 'Du må logge inn for å lagre kvitteringer.',
       });
       return;
     }
@@ -78,11 +124,25 @@ export default function ScanScreen() {
 
       setScanState('processing');
 
-      const { error: fnError } = await supabase.functions.invoke('process-receipt-ocr', {
-        body: { image_url: urlData.publicUrl, user_id: user.id },
-      });
+      // Invoke OCR function. It creates the receipt row, calls Gemini, and
+      // returns { receipt_id, status } synchronously when OCR finishes.
+      const { data: fnData, error: fnError } = await supabase.functions.invoke(
+        'process-receipt-ocr',
+        { body: { image_url: urlData.publicUrl, user_id: user.id } },
+      );
+
+      const receiptId = (fnData as { receipt_id?: string } | null)?.receipt_id;
+      const ocrStatus = (fnData as { status?: string } | null)?.status;
+
+      // Subscribe to realtime in case we need it (network hiccup, etc.)
+      if (receiptId) subscribeToReceipt(receiptId);
 
       if (fnError) throw fnError;
+      if (ocrStatus === 'failed') throw new Error('OCR processing failed');
+
+      // Happy path — function returned 'completed' synchronously.
+      realtimeChannel.current?.unsubscribe();
+      realtimeChannel.current = null;
 
       await incrementScanCount(user.id);
       await queryClient.invalidateQueries({ queryKey: ['receipts'] });
@@ -92,13 +152,28 @@ export default function ScanScreen() {
       Toast.show({ type: 'success', text1: 'Kvittering analysert!' });
 
       setTimeout(() => {
-        router.replace('/(app)/dashboard');
-      }, 1200);
+        if (receiptId) {
+          router.replace(`/(app)/item/${receiptId}`);
+        } else {
+          router.replace('/(app)/dashboard');
+        }
+      }, 1000);
     } catch (err) {
-      setScanState('error');
-      notification('error');
-      Toast.show({ type: 'error', text1: 'Analyse feilet', text2: 'Prøv igjen.' });
+      // If we have a realtime subscription running, let it handle recovery.
+      // Otherwise show the error immediately.
+      if (!realtimeChannel.current) {
+        setScanState('error');
+        notification('error');
+        Toast.show({ type: 'error', text1: 'Analyse feilet', text2: 'Prøv igjen.' });
+      }
     }
+  };
+
+  const reset = () => {
+    realtimeChannel.current?.unsubscribe();
+    realtimeChannel.current = null;
+    setScanState('idle');
+    setImageUri(null);
   };
 
   const pickFromCamera = async () => {
@@ -152,7 +227,11 @@ export default function ScanScreen() {
 
           {imageUri && (
             <View className="rounded-2xl overflow-hidden mb-6 bg-muted" style={{ height: 220 }}>
-              <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              <Image
+                source={{ uri: imageUri }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
             </View>
           )}
 
@@ -170,6 +249,18 @@ export default function ScanScreen() {
             <View className="items-center py-12">
               <Text style={{ fontSize: 60 }}>✅</Text>
               <Text className="text-xl font-bold text-foreground mt-4">Ferdig!</Text>
+            </View>
+          ) : scanState === 'error' ? (
+            <View className="items-center py-12 gap-4">
+              <Text style={{ fontSize: 60 }}>❌</Text>
+              <Text className="text-xl font-bold text-foreground">Analyse feilet</Text>
+              <Text className="text-muted-foreground text-center">
+                Vi klarte ikke å lese kvitteringen. Prøv igjen med et klarere bilde.
+              </Text>
+              <Button onPress={reset} variant="outline" className="mt-2">
+                <RefreshCw size={16} color="#6366F1" />
+                {' '}Prøv igjen
+              </Button>
             </View>
           ) : (
             <View className="gap-4">
@@ -199,7 +290,7 @@ export default function ScanScreen() {
             </View>
           )}
 
-          {!isPremium && (
+          {!isPremium && scanState === 'idle' && (
             <TouchableOpacity
               onPress={() => router.push('/(app)/premium')}
               className="mt-8 bg-primary/10 rounded-2xl p-4 flex-row items-center gap-3"
@@ -207,9 +298,7 @@ export default function ScanScreen() {
               <Text style={{ fontSize: 28 }}>👑</Text>
               <View className="flex-1">
                 <Text className="text-foreground font-semibold">Kvittr Premium</Text>
-                <Text className="text-muted-foreground text-sm">
-                  Ubegrenset skanning og mer
-                </Text>
+                <Text className="text-muted-foreground text-sm">Ubegrenset skanning og mer</Text>
               </View>
               <Text className="text-primary text-sm font-medium">Se mer →</Text>
             </TouchableOpacity>
