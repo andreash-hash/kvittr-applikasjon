@@ -1,11 +1,81 @@
 # Kvittr Expo App — Handoff Document
 
-## Status
-
-All application code is complete. The app is ready for dependency installation,
-local testing, and EAS build submission.
-
 **Branch:** `claude/kvittr-migration-audit-IKz5U`
+**Last updated:** 2026-04-27
+
+---
+
+## Production Status
+
+| Component | Status | Notes |
+|---|---|---|
+| DB migration `20260424000000` | ✅ Applied | expo_push_token, notification flags, indexes |
+| DB migration `20260425000000` | ✅ Applied | Completes 9 notification flags, renames gift_card_ columns |
+| Edge fn `send-expo-push` | ✅ Deployed | Smoke test: `{"sent":0,"queued":0,"updated":0}` ✓ |
+| Edge fn `process-receipt-ocr` | ⚠️ Needs redeploy | Rewritten to call Gemini directly (commit `8b2f4fe`) |
+| Edge fn `delete-account` | ✅ Deployed | |
+| pg_cron job `kvittr-daily-notifications` | ✅ Active | Runs 08:00 UTC daily |
+| Supabase Vault secret `supabase_service_role_key` | ✅ Set | Used by cron job |
+| `GEMINI_API_KEY` Supabase secret | ❌ Not yet set | **Must set before redeploying process-receipt-ocr** |
+
+---
+
+## What's Left Before Launch
+
+### Must-do (in order)
+
+**1. Set GEMINI_API_KEY in Supabase edge function secrets**
+```powershell
+supabase secrets set GEMINI_API_KEY=<your_key> --project-ref wdfxfhchugungurebbcc
+```
+Get the key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+
+**2. Redeploy process-receipt-ocr** (after setting the secret)
+```powershell
+supabase functions deploy process-receipt-ocr --project-ref wdfxfhchugungurebbcc
+```
+
+**3. Set Android RevenueCat key**
+- Get from RevenueCat dashboard → Projects → Kvittr → Apps → Android
+- Add to `.env` as `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`
+- Add as EAS secret: `eas secret:create --name EXPO_PUBLIC_REVENUECAT_ANDROID_KEY --value <key>`
+
+**4. EAS production build — iOS**
+```powershell
+eas build --profile production --platform ios
+```
+Uses bundle ID `app.kvittr`, build number `52` (> 51, the last Capacitor build).
+
+**5. EAS production build — Android**
+```powershell
+eas build --profile production --platform android
+```
+Fresh Play Console listing. versionCode `1`, package `app.kvittr`.
+Run `eas credentials` first to set up Android signing key.
+
+**6. Submit to stores (explicit approval required before running)**
+```powershell
+eas submit --platform ios --latest
+eas submit --platform android --latest
+```
+
+**7. Android closed testing setup**
+- Create app in Google Play Console with package `app.kvittr`
+- Upload AAB from step 5
+- Create closed testing track, add internal testers
+
+### Non-blocking but track before GA
+
+- **RevenueCat entitlement ID** — `showPaywallUI` in `src/lib/revenuecat.ts` uses the
+  default paywall. Confirm entitlement identifier matches RC dashboard (assumed `premium`).
+- **FCM → Expo token migration** — existing users have `fcm_token` set but
+  `expo_push_token` is NULL until first open of the new app. No notifications until
+  first launch. No data loss.
+- **Deep link smoke test** — after first dev build, test `kvittr://verify-success`
+  and `kvittr://reset-password` on a physical device.
+- **gift_card_balance column name** — `storage.ts:31` reads `r.gift_card_balance`.
+  Confirm n8n (legacy) was writing to `gift_card_balance`; Gemini now writes it
+  correctly from `gift_card_value`.
 
 ---
 
@@ -13,201 +83,129 @@ local testing, and EAS build submission.
 
 ### Prerequisites
 - Node.js 20+
-- Expo CLI: `npm install -g expo-cli`
 - EAS CLI: `npm install -g eas-cli`
-- Supabase CLI (for edge functions): `npm install -g supabase`
+- Supabase CLI: download binary from https://github.com/supabase/cli/releases
 
 ### Setup
-
 ```bash
 cd expo-app
 cp .env.example .env
-# Fill in EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY,
-# EXPO_PUBLIC_RC_IOS_KEY (existing), EXPO_PUBLIC_RC_ANDROID_KEY (new — get from RC dashboard)
-
+# Fill in: EXPO_PUBLIC_SUPABASE_ANON_KEY, EXPO_PUBLIC_REVENUECAT_ANDROID_KEY
 npm install
 ```
 
-### Run on device / simulator
-
+### Run
 ```bash
-npx expo start          # opens Expo Go / dev client
-npx expo start --ios    # iOS simulator
+npx expo start           # Metro bundler
+npx expo start --ios     # iOS simulator
 npx expo start --android # Android emulator
 ```
 
-> Push notifications require a physical device with Expo Dev Client
-> (not Expo Go) because `expo-notifications` uses native modules.
+> Push notifications and RevenueCat require a physical device with Expo Dev Client
+> (not Expo Go). Build a dev client first: `eas build --profile development`.
 
-### Run tests
-
+### Tests
 ```bash
-npm test                # Jest with jest-expo preset
-npm test -- --watch    # watch mode
+npm test
+# 22 passing — warrantyUtils (isGroceryStore, shouldShowWarranty)
 ```
 
 ---
 
-## Database Migration
+## Supabase Setup (already done — for reference)
 
-The migration file at `supabase/migrations/20260424000000_expo_push_migration.sql`
-must be applied to the production Supabase project before the app ships.
-
-```bash
-# From expo-app/ directory (or repo root with --project-dir flag)
-supabase db push --project-ref wdfxfhchugungurebbcc
+### Migrations applied
+```
+supabase/migrations/
+  20251106155626_…   (Lovable original)
+  20251127103255_…   (Lovable original)
+  20251202225533_…   (Lovable original)
+  20251215211557_…   (Lovable original)
+  20260424000000_expo_push_migration.sql          ✅ applied (e2e5a0d)
+  20260425000000_complete_notification_flags.sql  ✅ applied (87d6c45)
 ```
 
-What the migration does:
-- Adds `profiles.expo_push_token` (replaces dead `fcm_token`)
-- Adds 6 notification-flag columns to `receipts` (prevents duplicate pushes)
-- Enables `pg_cron` and `pg_net` extensions
-- Registers cron job `kvittr-daily-notifications` running at `08:00 Oslo` daily
-
----
-
-## Deploy Edge Functions
-
+### Edge functions deployed
 ```bash
 supabase functions deploy send-expo-push --project-ref wdfxfhchugungurebbcc
-supabase functions deploy process-receipt-ocr --project-ref wdfxfhchugungurebbcc
+supabase functions deploy process-receipt-ocr --project-ref wdfxfhchugungurebbcc  # redeploy needed
 supabase functions deploy delete-account --project-ref wdfxfhchugungurebbcc
 ```
 
-Set secrets in Supabase dashboard (Settings → Edge Functions → Secrets):
-- `N8N_WEBHOOK_URL` — keep existing n8n URL during transition period
+### Secrets required
+| Secret | Where set | Status |
+|---|---|---|
+| `SUPABASE_URL` | auto-injected | ✅ |
+| `SUPABASE_SERVICE_ROLE_KEY` | auto-injected | ✅ |
+| `SUPABASE_ANON_KEY` | auto-injected | ✅ |
+| `supabase_service_role_key` (Vault) | SQL editor | ✅ |
+| `GEMINI_API_KEY` | Supabase secrets | ❌ needs setting |
 
 ---
 
-## Trigger Builds
-
-### Development build (device testing)
-
-```bash
-eas build --profile development --platform ios
-eas build --profile development --platform android
-```
-
-### Production build
-
-```bash
-eas build --profile production --platform ios
-eas build --profile production --platform android
-```
-
-> **iOS:** Uses existing `app.kvittr` bundle ID and existing Apple certificate.
-> Build number is `52` (must be > 51, the last Capacitor build).
-
-> **Android:** Fresh Play Console listing. `versionCode: 1`, package `app.kvittr`.
-> Requires signing key setup in EAS (run `eas credentials` interactively).
-
-### Submit to stores (do NOT run without explicit approval)
-
-```bash
-eas submit --platform ios --latest
-eas submit --platform android --latest
-```
-
----
-
-## Known Issues / Next Steps
-
-### Critical (must fix before launch)
-
-1. **Android RevenueCat key** — `EXPO_PUBLIC_RC_ANDROID_KEY` is a placeholder.
-   Get the real key from [RevenueCat dashboard](https://app.revenuecat.com) →
-   Projects → Kvittr → Apps → Android. Set in `.env` and in EAS secrets.
-
-2. **FCM → Expo push token migration** — existing users have `fcm_token` set but
-   `expo_push_token` will be NULL until they open the new app. The daily cron
-   job skips users without a valid `ExponentPushToken[…]` token, so no
-   notifications until first open. No data loss, but users need to open the app
-   once after update.
-
-3. **RevenueCat iOS entitlement ID** — `showPaywallUI` in `src/lib/revenuecat.ts`
-   shows the default paywall. Confirm the entitlement identifier matches
-   what's configured in RevenueCat (currently assumed `premium`).
-
-### Non-critical
-
-4. **n8n → inline OCR** — `process-receipt-ocr` edge function currently proxies
-   to the existing n8n webhook. Replace with direct GPT-4o Vision call when n8n
-   is retired.
-
-5. **Gift card remaining value** — n8n must write `gift_card_balance` back to DB.
-   If n8n currently writes a different column name, update `storage.ts:30`
-   (`remaining_value: r.gift_card_balance`).
-
-6. **Deep link scheme** — `kvittr://` is configured in `app.config.ts`. Test
-   `kvittr://verify-success` and `kvittr://reset-password` with a physical device
-   after installing the dev build.
-
-7. **EAS project ID** — `app.config.ts` has a placeholder `extra.eas.projectId`.
-   Run `eas init` once to link the project and get the real UUID.
-
----
-
-## File Structure
+## Architecture
 
 ```
 expo-app/
-├── app/                        # expo-router screens
-│   ├── _layout.tsx             # root layout (QueryClient, SafeArea, Toast)
-│   ├── index.tsx               # onboarding gate → dashboard
-│   ├── success.tsx             # post-payment confirmation
-│   ├── verify-success.tsx      # email verification confirmation
+├── app/                          # expo-router file-based routing
+│   ├── _layout.tsx               # QueryClient, SafeArea, Toast, Android channel setup
+│   ├── index.tsx                 # Onboarding gate → dashboard
+│   ├── success.tsx               # Post-payment confirmation
+│   ├── verify-success.tsx        # Email verification
 │   ├── +not-found.tsx
-│   ├── (auth)/
-│   │   ├── _layout.tsx
-│   │   ├── login.tsx
-│   │   ├── signup.tsx
-│   │   └── reset-password.tsx
-│   └── (app)/
-│       ├── _layout.tsx         # tab navigator + push registration
-│       ├── dashboard.tsx       # receipt list with filter tabs
-│       ├── scan.tsx            # camera / gallery upload
+│   ├── (auth)/                   # login, signup, reset-password
+│   └── (app)/                    # Tab navigator
+│       ├── _layout.tsx           # Tabs + push token registration
+│       ├── dashboard.tsx         # Receipt list, filter tabs, swipe-to-delete
+│       ├── scan.tsx              # Camera/gallery → Gemini OCR → item detail
+│       ├── item/[id].tsx         # Receipt detail with realtime status
 │       ├── settings.tsx
-│       ├── premium.tsx         # paywall screen
-│       └── item/[id].tsx       # receipt detail
+│       └── premium.tsx           # RevenueCat paywall
 ├── src/
-│   ├── components/
-│   │   ├── ui/                 # Button, Input, Card
-│   │   ├── Logo.tsx
-│   │   ├── Onboarding.tsx
-│   │   ├── ReceiptCard.tsx
-│   │   └── SwipeableCard.tsx
+│   ├── components/ui/            # Button, Input, Card
+│   ├── components/               # Logo, Onboarding, ReceiptCard, SwipeableCard
 │   ├── hooks/
 │   │   ├── useAuth.ts
-│   │   useHaptics.ts
+│   │   ├── useHaptics.ts
 │   │   ├── usePremiumStatus.ts
-│   │   └── usePushNotifications.ts
+│   │   └── usePushNotifications.ts  # Expo push token, Android channel, deep-link
 │   ├── lib/
-│   │   ├── supabase.ts         # Supabase client (AsyncStorage adapter)
-│   │   ├── storage.ts          # Supabase CRUD (receipt_type→type mapping)
-│   │   ├── guestStorage.ts     # AsyncStorage guest data
-│   │   ├── scanLimit.ts        # FREE_MONTHLY_SCANS=2 gate
-│   │   └── revenuecat.ts       # RC SDK wrapper
-│   ├── types/
-│   │   ├── database.ts         # Full DB TypeScript interface
-│   │   └── receipt.ts          # Receipt, GuestReceipt
-│   ├── utils/
-│   │   ├── warrantyUtils.ts    # isGroceryStore, shouldShowWarranty (verbatim port)
-│   │   ├── receiptStatus.ts    # calculateStatus, isExpiringSoon
-│   │   ├── platform.ts         # isMobileApp, getMobilePlatform
-│   │   └── __tests__/
-│   │       └── warrantyUtils.test.ts
-│   └── global.css              # NativeWind entry
-├── supabase/
-│   ├── migrations/
-│   │   └── 20260424000000_expo_push_migration.sql
-│   └── functions/
-│       ├── send-expo-push/index.ts        # replaces FCM send-notification
-│       ├── process-receipt-ocr/index.ts   # proxies to n8n, creates pending row
-│       └── delete-account/index.ts
-├── app.config.ts               # bundleId: app.kvittr, buildNumber: 52, versionCode: 1
-├── eas.json
-├── tailwind.config.js
-├── babel.config.js
-├── tsconfig.json
-└── package.json
+│   │   ├── supabase.ts           # Client with AsyncStorage adapter
+│   │   ├── storage.ts            # CRUD (receipt_type→type mapping)
+│   │   ├── guestStorage.ts       # AsyncStorage guest mode
+│   │   ├── scanLimit.ts          # Free tier gate (2 scans/month)
+│   │   └── revenuecat.ts         # RevenueCat SDK wrapper
+│   ├── types/                    # database.ts, receipt.ts
+│   └── utils/
+│       ├── warrantyUtils.ts      # isGroceryStore, shouldShowWarranty (verbatim port)
+│       ├── receiptStatus.ts      # calculateStatus, isExpiringSoon
+│       └── __tests__/warrantyUtils.test.ts
+└── supabase/                     # now in repo root /supabase/, not here
 ```
+
+```
+supabase/                         # root-level (CLI reads this automatically)
+├── config.toml                   # project_id + function registrations
+├── migrations/                   # 4 Lovable + 2 Expo migrations
+└── functions/
+    ├── send-expo-push/           # Daily notification dispatch (Expo Push API)
+    ├── process-receipt-ocr/      # Gemini 2.0 Flash vision OCR
+    ├── delete-account/           # Hard-delete with storage cleanup
+    └── send-notification/        # Legacy FCM (kept, not deployed)
+```
+
+---
+
+## Key Technical Decisions
+
+| Decision | Rationale |
+|---|---|
+| `expo-notifications` + Expo Push Service | FCM Legacy API dead since June 2024 |
+| Gemini 2.0 Flash for OCR | Replaces n8n webhook; direct, no extra infra |
+| `AsyncStorage` auth adapter | Replaces `localStorage` (not available in RN) |
+| `receipt_type` → `type` mapping in `storage.ts` | DB column name preserved, TS interface normalised |
+| `pg_cron` + `pg_net` for scheduler | Replaces missing Capacitor notification scheduler |
+| Vault for service role key in cron | Never stores secrets in plaintext SQL |
+| Bundle ID `app.kvittr` unchanged | iOS live update — must match App Store record |
+| Android `versionCode: 1` | Fresh Play Console listing |
+| EAS projectId `9a9f44ff-d636-4619-a7aa-a04072918a34` | Set via `eas init` on 2026-04-27 |
