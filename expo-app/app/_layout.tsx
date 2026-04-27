@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '@/lib/supabase';
 import { initializeRevenueCat, syncSubscriptionStatus } from '@/lib/revenuecat';
-import { useNotificationDeepLink, useForegroundNotifications } from '@/hooks/usePushNotifications';
+import { useNotificationDeepLink, useForegroundNotifications, setupAndroidNotificationChannel } from '@/hooks/usePushNotifications';
 import { isMobileApp } from '@/utils/platform';
 
 const queryClient = new QueryClient({
@@ -19,6 +19,9 @@ function AppInit() {
   useForegroundNotifications();
 
   useEffect(() => {
+    // Ensure Android notification channel exists before any permission prompt.
+    setupAndroidNotificationChannel().catch(() => null);
+
     const initRC = async () => {
       if (!isMobileApp()) return;
       const { data: { session } } = await supabase.auth.getSession();

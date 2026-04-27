@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -16,11 +16,26 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Call once on app start (Android only) so the channel exists even before
+// the user grants notification permissions.
+export async function setupAndroidNotificationChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name: 'Kvittr varsler',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#6366F1',
+  });
+}
+
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
   if (!Device.isDevice) {
     console.warn('Push notifications require a physical device');
     return null;
   }
+
+  // Set up Android channel before requesting permissions.
+  await setupAndroidNotificationChannel();
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -43,17 +58,9 @@ export async function registerForPushNotifications(userId: string): Promise<stri
     return null;
   }
 
+  // projectId resolves to '9a9f44ff-d636-4619-a7aa-a04072918a34' from app.config.ts
   const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
   const token = tokenData.data;
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Kvittr varsler',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#6366F1',
-    });
-  }
 
   const { error } = await supabase
     .from('profiles')
@@ -85,25 +92,46 @@ export async function hasExistingToken(userId: string): Promise<boolean> {
   return !!data?.expo_push_token;
 }
 
-// Root-level hook — mount once in _layout.tsx
+function routeToReceipt(receiptId: string | undefined) {
+  if (receiptId) router.push(`/(app)/item/${receiptId}`);
+}
+
+// Root-level hook — mount once in _layout.tsx.
+// Handles three notification tap scenarios:
+//   1. App foregrounded/backgrounded — addNotificationResponseReceivedListener
+//   2. App killed and relaunched from tap — getLastNotificationResponseAsync
 export function useNotificationDeepLink(): void {
-  const responseRef = useRef<Notifications.NotificationResponse | null>(null);
+  const handled = useRef<string | null>(null);
 
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      responseRef.current = response;
+    // Scenario 2: app was killed; relaunched via notification tap.
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const id = response.notification.request.identifier;
+      if (handled.current === id) return; // already handled
+      handled.current = id;
       const receiptId = response.notification.request.content.data?.receipt_id as
         | string
         | undefined;
-      if (receiptId) {
-        router.push(`/(app)/item/${receiptId}`);
-      }
+      routeToReceipt(receiptId);
     });
+
+    // Scenario 1: app already running (foreground or background).
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const id = response.notification.request.identifier;
+      if (handled.current === id) return; // guard against double-fire
+      handled.current = id;
+      const receiptId = response.notification.request.content.data?.receipt_id as
+        | string
+        | undefined;
+      routeToReceipt(receiptId);
+    });
+
     return () => sub.remove();
   }, []);
 }
 
-// Foreground notification display hook
+// Foreground notification display hook — mount once in _layout.tsx.
 export function useForegroundNotifications(): void {
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener((notification) => {
