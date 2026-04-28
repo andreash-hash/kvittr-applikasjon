@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, ArrowRight, X, Settings, UserPlus } from 'lucide-react';
+import { Plus, Search, LogOut, Receipt as ReceiptIcon, Gift, RefreshCw, Archive, ArrowRight, X, Settings, UserPlus, Camera } from 'lucide-react';
 import { getReceipts, calculateStatus, type Receipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import ReceiptCard from '@/components/ReceiptCard';
@@ -12,6 +12,8 @@ import PullToRefresh from '@/components/PullToRefresh';
 import SwipeableCard from '@/components/SwipeableCard';
 import { useToastNotification } from '@/components/CenteredToast';
 import { Logo } from '@/components/Logo';
+import StatsCards from '@/components/StatsCards';
+import EmptyState from '@/components/EmptyState';
 import { getGuestReceipts, hasGuestReceipts, getRemainingGuestScans, isGuestPremium, type GuestReceipt } from '@/lib/guestStorage';
 import { checkScanLimit, FREE_MONTHLY_SCANS, type ScanLimitStatus } from '@/lib/scanLimit';
 
@@ -357,12 +359,23 @@ const Dashboard = () => {
     }
   };
 
+  // Calculate counts for each category
+  const activeReceipts = displayReceipts.filter(r => !(r.is_used === true) && r.status !== 'expired' && r.status !== 'used');
+  const totalActiveCount = activeReceipts.length;
+  const receiptTypeCount = activeReceipts.filter(r => r.type === 'receipt' || !r.type).length;
+  const giftCardTypeCount = activeReceipts.filter(r => r.type === 'gift_card').length;
+  const returnSlipTypeCount = activeReceipts.filter(r => r.type === 'return_slip').length;
+  const archivedCount = displayReceipts.filter(r => r.status === 'expired' || r.status === 'used' || r.is_used === true).length;
+
+  // Calculate total amount saved
+  const totalAmountSaved = activeReceipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+
   const filters = [
-    { id: 'alle' as FilterType, label: 'Alle', icon: ReceiptIcon },
-    { id: 'kvitteringer' as FilterType, label: 'Kvitteringer', icon: ReceiptIcon },
-    { id: 'gavekort' as FilterType, label: 'Gavekort', icon: Gift },
-    { id: 'bytte' as FilterType, label: 'Byttelapper', icon: RefreshCw },
-    { id: 'arkiv' as FilterType, label: 'Arkiv', icon: Archive },
+    { id: 'alle' as FilterType, label: 'Alle', icon: ReceiptIcon, count: totalActiveCount },
+    { id: 'kvitteringer' as FilterType, label: 'Kvitteringer', icon: ReceiptIcon, count: receiptTypeCount },
+    { id: 'gavekort' as FilterType, label: 'Gavekort', icon: Gift, count: giftCardTypeCount },
+    { id: 'bytte' as FilterType, label: 'Byttelapper', icon: RefreshCw, count: returnSlipTypeCount },
+    { id: 'arkiv' as FilterType, label: 'Arkiv', icon: Archive, count: archivedCount },
   ];
   
   const handleScanNew = (preselectedType?: string) => {
@@ -413,6 +426,16 @@ const Dashboard = () => {
             )}
           </div>
 
+          {/* Statistics Cards */}
+          {!isGuest && totalActiveCount > 0 && (
+            <StatsCards
+              totalAmount={totalAmountSaved}
+              receiptCount={receiptTypeCount}
+              giftCardCount={giftCardTypeCount}
+              returnSlipCount={returnSlipTypeCount}
+            />
+          )}
+
           {/* Horizontal scrolling filter cards - refined */}
           <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4">
             {filters.map((filter) => {
@@ -434,14 +457,21 @@ const Dashboard = () => {
                 <button
                   key={filter.id}
                   onClick={() => setSelectedFilter(filter.id)}
-                  className={`flex-shrink-0 w-[90px] h-[56px] rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-200 ${
+                  className={`flex-shrink-0 min-w-[90px] h-[56px] px-3 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200 ${
                     isSelected
                       ? `${getCategoryColor()} text-white shadow-md`
                       : 'bg-card text-muted-foreground border border-border hover:bg-muted'
                   }`}
                 >
-                  <FilterIcon className="h-5 w-5" />
-                  <span className="text-xs font-medium">{filter.label}</span>
+                  <div className="flex items-center gap-1.5">
+                    <FilterIcon className="h-4 w-4" />
+                    {filter.count > 0 && (
+                      <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-foreground'}`}>
+                        {filter.count}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] font-medium">{filter.label}</span>
                 </button>
               );
             })}
@@ -573,10 +603,15 @@ const Dashboard = () => {
                 <p>Laster...</p>
               </div>
             ) : filteredReceipts.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>{getEmptyStateMessage().primary}</p>
-                <p className="text-sm mt-2">{getEmptyStateMessage().secondary}</p>
-              </div>
+              <EmptyState 
+                filter={selectedFilter} 
+                onScan={() => {
+                  let preselectedType = 'receipt';
+                  if (selectedFilter === 'gavekort') preselectedType = 'gift_card';
+                  if (selectedFilter === 'bytte') preselectedType = 'return_slip';
+                  handleScanNew(preselectedType);
+                }} 
+              />
             ) : (
               filteredReceipts.map(receipt => {
                 const isExpiring = expiringReceipts.some(er => er.id === receipt.id);
@@ -598,11 +633,11 @@ const Dashboard = () => {
         </div>
       </PullToRefresh>
 
-      {/* Bottom scan button with safe area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border p-4 safe-area-left safe-area-right" style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
+      {/* Enhanced Bottom Scan Button with safe area */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-6 pb-4 px-4 safe-area-left safe-area-right" style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
         <div className="container max-w-2xl mx-auto">
           <Button
-            className="w-full h-14 text-base font-semibold rounded-xl" 
+            className="w-full h-14 text-base font-semibold rounded-2xl shadow-lg shadow-primary/25 bg-primary hover:bg-primary/90 transition-all active:scale-[0.98]" 
             size="lg"
             onClick={() => {
               let preselectedType = 'receipt';
@@ -611,8 +646,8 @@ const Dashboard = () => {
               handleScanNew(preselectedType);
             }}
           >
-            <Plus className="mr-2 h-5 w-5" />
-            Skann ny
+            <Camera className="mr-2 h-5 w-5" />
+            Skann {selectedFilter === 'gavekort' ? 'gavekort' : selectedFilter === 'bytte' ? 'byttelapp' : 'kvittering'}
           </Button>
         </div>
       </div>
