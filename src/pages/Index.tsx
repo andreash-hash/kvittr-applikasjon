@@ -57,6 +57,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background text-foreground safe-area-all">
         <main className="container max-w-md mx-auto px-4 py-10 flex flex-col items-center justify-center text-center gap-4">
+          <h1 className="sr-only">Kvittr – kvitteringsapp for garanti og bytte</h1>
           <Logo size="medium" />
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
