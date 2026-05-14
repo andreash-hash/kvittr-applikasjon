@@ -3,6 +3,7 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { SEO } from "@/components/SEO";
 
 const VerifySuccess = () => {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ const VerifySuccess = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+      <SEO title="E-post bekreftet – Kvittr" description="E-postadressen din er bekreftet. Logg inn for å bruke Kvittr." path="/verify-success" noindex />
       <div className="w-full max-w-sm flex flex-col items-center text-center space-y-8">
         <Logo size="large" />
 
