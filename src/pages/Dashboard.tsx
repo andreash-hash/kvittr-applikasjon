@@ -375,17 +375,18 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <PullToRefresh onRefresh={handleRefresh}>
         <div className="container max-w-2xl mx-auto p-4 pb-28 safe-area-top safe-area-left safe-area-right" style={{ paddingTop: 'calc(24px + env(safe-area-inset-top))' }}>
+          <h1 className="sr-only">Dine kvitteringer</h1>
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Logo size="small" clickable />
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} aria-label="Innstillinger">
                 <Settings className="h-5 w-5" />
               </Button>
               {!isGuest && (
-                <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Logg ut">
                   <LogOut className="h-5 w-5" />
                 </Button>
               )}

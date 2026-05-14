@@ -142,6 +142,7 @@ const Signup = () => {
             <div className="flex justify-center mb-4">
               <Logo size="medium" />
             </div>
+            <h1 className="sr-only">Opprett konto på Kvittr</h1>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Benefits Section */}

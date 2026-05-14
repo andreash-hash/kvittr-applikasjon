@@ -94,6 +94,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          expo_push_token: string | null
           fcm_token: string | null
           id: string
           onboarding_completed: boolean | null
@@ -107,6 +108,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expo_push_token?: string | null
           fcm_token?: string | null
           id: string
           onboarding_completed?: boolean | null
@@ -120,6 +122,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expo_push_token?: string | null
           fcm_token?: string | null
           id?: string
           onboarding_completed?: boolean | null
@@ -142,6 +145,9 @@ export type Database = {
           expiry_date: string | null
           gift_card_balance: number | null
           gift_card_code: string | null
+          gift_card_notified_30d: boolean | null
+          gift_card_notified_3d: boolean | null
+          gift_card_notified_7d: boolean | null
           gift_card_value: number | null
           guide_generated: boolean | null
           guide_url: string | null
@@ -156,6 +162,9 @@ export type Database = {
           purchase_date: string | null
           raw_ocr_data: Json | null
           receipt_type: string | null
+          return_notified_30d: boolean | null
+          return_notified_3d: boolean | null
+          return_notified_7d: boolean | null
           return_until: string | null
           shop_name: string | null
           status: string | null
@@ -163,6 +172,7 @@ export type Database = {
           used_date: string | null
           user_id: string
           warranty_notified_30d: boolean | null
+          warranty_notified_3d: boolean | null
           warranty_notified_7d: boolean | null
           warranty_until: string | null
         }
@@ -174,6 +184,9 @@ export type Database = {
           expiry_date?: string | null
           gift_card_balance?: number | null
           gift_card_code?: string | null
+          gift_card_notified_30d?: boolean | null
+          gift_card_notified_3d?: boolean | null
+          gift_card_notified_7d?: boolean | null
           gift_card_value?: number | null
           guide_generated?: boolean | null
           guide_url?: string | null
@@ -188,6 +201,9 @@ export type Database = {
           purchase_date?: string | null
           raw_ocr_data?: Json | null
           receipt_type?: string | null
+          return_notified_30d?: boolean | null
+          return_notified_3d?: boolean | null
+          return_notified_7d?: boolean | null
           return_until?: string | null
           shop_name?: string | null
           status?: string | null
@@ -195,6 +211,7 @@ export type Database = {
           used_date?: string | null
           user_id: string
           warranty_notified_30d?: boolean | null
+          warranty_notified_3d?: boolean | null
           warranty_notified_7d?: boolean | null
           warranty_until?: string | null
         }
@@ -206,6 +223,9 @@ export type Database = {
           expiry_date?: string | null
           gift_card_balance?: number | null
           gift_card_code?: string | null
+          gift_card_notified_30d?: boolean | null
+          gift_card_notified_3d?: boolean | null
+          gift_card_notified_7d?: boolean | null
           gift_card_value?: number | null
           guide_generated?: boolean | null
           guide_url?: string | null
@@ -220,6 +240,9 @@ export type Database = {
           purchase_date?: string | null
           raw_ocr_data?: Json | null
           receipt_type?: string | null
+          return_notified_30d?: boolean | null
+          return_notified_3d?: boolean | null
+          return_notified_7d?: boolean | null
           return_until?: string | null
           shop_name?: string | null
           status?: string | null
@@ -227,6 +250,7 @@ export type Database = {
           used_date?: string | null
           user_id?: string
           warranty_notified_30d?: boolean | null
+          warranty_notified_3d?: boolean | null
           warranty_notified_7d?: boolean | null
           warranty_until?: string | null
         }
