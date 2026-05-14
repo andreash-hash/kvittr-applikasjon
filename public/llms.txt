@@ -1,0 +1,15 @@
+# Kvittr
+
+> Kvittr er en norsk kvitteringsapp som hjelper deg å skanne, lagre og organisere kvitteringer digitalt, og holde oversikt over garantitid, byttefrist, reklamasjonsrett og gavekort.
+
+## Pages
+
+- [Hjem](/): Introduksjon til Kvittr og hovedfunksjonene.
+- [Logg inn](/login): Innlogging for eksisterende brukere.
+- [Registrer](/signup): Opprett ny konto for å synkronisere kvitteringer.
+- [Premium](/premium): Informasjon om Premium-abonnement og funksjoner.
+
+## Optional
+
+- [Innstillinger](/settings): Brukerinnstillinger (krever innlogging).
+- [Skann](/scan): Skann ny kvittering med kamera.

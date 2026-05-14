@@ -405,7 +405,7 @@ const ItemDetail = () => {
               >
                 <img 
                   src={receipt.image_url} 
-                  alt="Receipt"
+                  alt={`Bilde av kvittering${receipt.store_name ? ` fra ${receipt.store_name}` : ''}`}
                   className="w-full rounded-lg object-contain transition-opacity group-hover:opacity-90"
                   style={{ maxHeight: '250px' }}
                 />
