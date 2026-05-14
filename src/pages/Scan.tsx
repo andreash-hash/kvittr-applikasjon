@@ -7,6 +7,7 @@ import { saveReceipt } from '@/lib/storage';
 import { supabase } from '@/integrations/supabase/client';
 import imageCompression from 'browser-image-compression';
 import { WebcamModal } from '@/components/WebcamModal';
+import { SEO } from '@/components/SEO';
 import { 
   saveGuestReceipt, 
   getRemainingGuestScans, 
@@ -489,6 +490,7 @@ const Scan = () => {
   if (!capturedImage) {
     return (
       <div className="fixed inset-0 bg-background flex flex-col">
+        <SEO title="Skann kvittering – Kvittr" description="Skann en kvittering for å lagre garantitid og byttefrist." path="/scan" noindex />
         {/* Header with consistent safe area */}
         <div 
           className="p-4 flex items-center justify-between bg-card border-b"
@@ -606,6 +608,7 @@ const Scan = () => {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col safe-area-all">
+      <SEO title="Forhåndsvisning – Kvittr" description="Forhåndsvis og lagre den skannede kvitteringen." path="/scan" noindex />
       <div className="p-4 flex items-center justify-between bg-card border-b" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-5 w-5" />

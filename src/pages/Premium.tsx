@@ -9,6 +9,7 @@ import { setGuestPremium, isGuestPremium } from '@/lib/guestStorage';
 import { useToastNotification } from '@/components/CenteredToast';
 import { initializeRevenueCat, restorePurchases, handleRevenueCatError, syncSubscriptionStatus, showCustomerCenterUI } from '@/lib/revenuecat';
 import { isMobileApp } from '@/utils/platform';
+import { SEO } from '@/components/SEO';
 
 
 const Premium = () => {
@@ -410,6 +411,11 @@ const Premium = () => {
 
   return (
     <div className="min-h-screen bg-background safe-area-all">
+      <SEO
+        title="Premium – Kvittr"
+        description="Oppgrader til Kvittr Premium for ubegrenset kvitteringer, push-varsler og full oversikt over garanti og byttefrister."
+        path="/premium"
+      />
       <div className="container max-w-md mx-auto p-4 space-y-6" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
         {/* Header */}
         <div className="flex items-center">

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Check } from 'lucide-react';
+import { SEO } from '@/components/SEO';
 
 const Success = () => {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ const Success = () => {
 
   return (
     <div className="min-h-screen bg-[#00C853] flex items-center justify-center animate-fade-in">
+      <SEO title="Lagret – Kvittr" description="Bekreftelse på at innholdet er lagret." path="/success" noindex />
       <div className="text-center space-y-6 animate-scale-in">
         {/* Checkmark with bounce animation */}
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm animate-[scale-in_0.5s_cubic-bezier(0.34,1.56,0.64,1)]">
