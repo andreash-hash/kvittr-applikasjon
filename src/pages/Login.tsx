@@ -159,6 +159,7 @@ const Login = () => {
           <div className="flex justify-center mb-4">
             <Logo size="medium" />
           </div>
+          <h1 className="sr-only">Logg inn på Kvittr</h1>
           <CardDescription>Har du allerede konto?</CardDescription>
         </CardHeader>
         <CardContent>
