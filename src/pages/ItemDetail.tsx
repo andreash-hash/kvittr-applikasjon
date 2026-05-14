@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { differenceInDays, differenceInMonths, format } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import { isGroceryStore, shouldShowWarranty } from '@/lib/utils';
+import { SEO } from '@/components/SEO';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { getGuestReceipts, type GuestReceipt } from '@/lib/guestStorage';
@@ -372,6 +373,12 @@ const ItemDetail = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 safe-area-all">
+      <SEO
+        title={`${receipt.shop_name || 'Kvittering'} – Kvittr`}
+        description="Detaljer om kvittering, garantitid og byttefrist."
+        path={`/item/${receipt.id}`}
+        noindex
+      />
       <div className="container max-w-2xl mx-auto p-4 safe-area-left safe-area-right" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
