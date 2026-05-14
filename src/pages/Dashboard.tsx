@@ -12,6 +12,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import SwipeableCard from '@/components/SwipeableCard';
 import { useToastNotification } from '@/components/CenteredToast';
 import { Logo } from '@/components/Logo';
+import { SEO } from '@/components/SEO';
 import { getGuestReceipts, hasGuestReceipts, getRemainingGuestScans, isGuestPremium, type GuestReceipt } from '@/lib/guestStorage';
 import { checkScanLimit, FREE_MONTHLY_SCANS, type ScanLimitStatus } from '@/lib/scanLimit';
 
@@ -373,6 +374,12 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Dine kvitteringer – Kvittr"
+        description="Oversikt over kvitteringer, garantitid, byttefrister og gavekort i Kvittr."
+        path="/dashboard"
+        noindex
+      />
       <PullToRefresh onRefresh={handleRefresh}>
         <div className="container max-w-2xl mx-auto p-4 pb-28 safe-area-top safe-area-left safe-area-right" style={{ paddingTop: 'calc(24px + env(safe-area-inset-top))' }}>
           <h1 className="sr-only">Dine kvitteringer</h1>
