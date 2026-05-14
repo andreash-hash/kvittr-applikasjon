@@ -132,6 +132,10 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
               <img 
                 src={slides[currentSlide].image}
                 alt={slides[currentSlide].title}
+                width={800}
+                height={1200}
+                fetchPriority={currentSlide === 0 ? "high" : undefined}
+                loading={currentSlide === 0 ? "eager" : "lazy"}
                 className={`w-full h-full object-cover object-center ${
                   currentSlide === 0 ? 'blur-[2px]' : ''
                 }`}
