@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import Onboarding from '@/components/Onboarding';
 import { Loader2 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
+import { SEO } from '@/components/SEO';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -69,12 +70,28 @@ const Index = () => {
   }
 
   if (showOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    return (
+      <>
+        <SEO
+          title="Kvittr – Kvitteringsapp for garanti og bytte"
+          description="Skann kvitteringer og hold styr på garanti, byttefrist og gavekort. Få varsel før frister utløper."
+          path="/"
+        />
+        <Onboarding onComplete={handleOnboardingComplete} />
+      </>
+    );
   }
 
   // We redirect to /dashboard; keep a small fallback in case navigation is delayed.
   return (
-    <div className="min-h-screen bg-background" />
+    <>
+      <SEO
+        title="Kvittr – Kvitteringsapp for garanti og bytte"
+        description="Skann kvitteringer og hold styr på garanti, byttefrist og gavekort. Få varsel før frister utløper."
+        path="/"
+      />
+      <div className="min-h-screen bg-background" />
+    </>
   );
 };
 
