@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Logo } from '@/components/Logo';
+import { SEO } from '@/components/SEO';
 import { Mail } from 'lucide-react';
 import {
   Dialog,
@@ -154,6 +155,11 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 safe-area-all">
+      <SEO
+        title="Logg inn – Kvittr"
+        description="Logg inn på Kvittr for å se kvitteringer, garantier og byttefrister på tvers av enhetene dine."
+        path="/login"
+      />
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
