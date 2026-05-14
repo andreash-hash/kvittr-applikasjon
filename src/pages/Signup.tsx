@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Check, X, Mail, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/Logo';
+import { SEO } from '@/components/SEO';
 
 const Signup = () => {
   const [email, setEmail] = useState('');
@@ -125,6 +126,11 @@ const Signup = () => {
 
   return (
     <>
+      <SEO
+        title="Opprett konto – Kvittr"
+        description="Opprett gratis Kvittr-konto. Skann kvitteringer, hold styr på garanti, byttefrist og gavekort."
+        path="/signup"
+      />
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 md:p-8 overflow-auto relative">
         <button
           onClick={() => navigate(-1)}
