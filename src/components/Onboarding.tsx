@@ -134,7 +134,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                 alt={slides[currentSlide].title}
                 width={800}
                 height={1200}
-                fetchpriority={currentSlide === 0 ? "high" : undefined}
+                fetchPriority={currentSlide === 0 ? "high" : undefined}
                 loading={currentSlide === 0 ? "eager" : "lazy"}
                 className={`w-full h-full object-cover object-center ${
                   currentSlide === 0 ? 'blur-[2px]' : ''
