@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Logo } from '@/components/Logo';
+import { SEO } from '@/components/SEO';
 import { Check, X } from 'lucide-react';
 
 const ResetPassword = () => {
@@ -97,6 +98,7 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 safe-area-all">
+      <SEO title="Tilbakestill passord – Kvittr" description="Opprett et nytt passord for din Kvittr-konto." path="/reset-password" noindex />
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
