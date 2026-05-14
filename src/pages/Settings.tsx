@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { SEO } from '@/components/SEO';
 import { nb } from 'date-fns/locale';
 import { getRemainingGuestScans, isGuestPremium } from '@/lib/guestStorage';
 import { isMobileApp, getMobilePlatform } from '@/utils/platform';
@@ -237,6 +238,7 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Innstillinger – Kvittr" description="Administrer konto, varsler og abonnement i Kvittr." path="/settings" noindex />
       {/* Sticky header with proper safe area */}
       <div
         className="sticky top-0 z-10 bg-background border-b border-border/50"
