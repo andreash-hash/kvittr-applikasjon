@@ -4,7 +4,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Kvittr',
   slug: 'kvittr',
-  version: '1.1.0',
+  version: '1.4.0',
   scheme: 'kvittr',
   orientation: 'portrait',
   icon: './assets/icon.png',
@@ -12,13 +12,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',
-    backgroundColor: '#F5F1E8',
+    backgroundColor: '#0F1729',
   },
   ios: {
-    supportsTablet: false,
+    supportsTablet: true,
     bundleIdentifier: 'app.kvittr',
-    buildNumber: '52',
-    backgroundColor: '#F5F1E8',
+    buildNumber: '88',
+    backgroundColor: '#0F1729',
     infoPlist: {
       NSCameraUsageDescription:
         'Kvittr trenger kameratilgang for å scanne kvitteringer.',
@@ -37,7 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     versionCode: 1,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#F5F1E8',
+      backgroundColor: '#0F1729',
     },
     permissions: [
       'CAMERA',
@@ -81,7 +81,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'Kvittr trenger kameratilgang for å scanne kvitteringer.',
       },
     ],
-    'react-native-purchases',
     [
       'expo-build-properties',
       {

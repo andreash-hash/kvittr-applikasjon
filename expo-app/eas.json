@@ -21,9 +21,9 @@
       }
     },
     "production": {
-      "autoIncrement": true,
       "ios": {
         "buildConfiguration": "Release",
+        "image": "latest",
         "credentialsSource": "remote"
       },
       "android": {
@@ -34,11 +34,7 @@
   },
   "submit": {
     "production": {
-      "ios": {
-        "appleId": "REPLACE_WITH_APPLE_ID",
-        "ascAppId": "REPLACE_WITH_ASC_APP_ID",
-        "appleTeamId": "REPLACE_WITH_TEAM_ID"
-      },
+      "ios": {},
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
         "track": "internal"
