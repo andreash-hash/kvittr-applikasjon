@@ -20,6 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     buildNumber: '88',
     backgroundColor: '#0F1729',
     infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
       NSCameraUsageDescription:
         'Kvittr trenger kameratilgang for å scanne kvitteringer.',
       NSPhotoLibraryUsageDescription:
