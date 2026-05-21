@@ -2,12 +2,13 @@
 module.exports = {
   content: ['./app/**/*.{js,ts,jsx,tsx}', './src/**/*.{js,ts,jsx,tsx}'],
   presets: [require('nativewind/preset')],
+  darkMode: 'media',
   theme: {
     extend: {
       colors: {
         primary: '#6366F1',
         'primary-foreground': '#FFFFFF',
-        background: '#F5F1E8',
+        background: '#FAF7F2',
         foreground: '#1A1A2E',
         card: '#FFFFFF',
         'card-foreground': '#1A1A2E',
@@ -18,8 +19,8 @@ module.exports = {
         'destructive-foreground': '#FFFFFF',
         success: '#10B981',
         'category-receipt': '#6366F1',
-        'category-return': '#F59E0B',
-        'category-giftcard': '#EC4899',
+        'category-return': '#D97706',
+        'category-giftcard': '#0D9488',
         'category-expiring': '#EF4444',
       },
       fontFamily: {

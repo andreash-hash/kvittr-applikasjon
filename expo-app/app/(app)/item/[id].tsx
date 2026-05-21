@@ -13,7 +13,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
-import { Trash2, Archive, ChevronLeft, ExternalLink } from 'lucide-react-native';
+import { Trash2, Archive, ChevronLeft, FileText, Scale } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { supabase } from '@/lib/supabase';
 import { getReceipts, deleteReceipt, archiveReceipt } from '@/lib/storage';
@@ -29,10 +29,10 @@ const typeLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  active: 'text-green-600',
+  active: 'text-green-600 dark:text-green-400',
   expiring_soon: 'text-orange-500',
   expired: 'text-destructive',
-  archived: 'text-muted-foreground',
+  archived: 'text-muted-foreground dark:text-slate-400',
 };
 
 const statusLabels: Record<string, string> = {
@@ -45,9 +45,9 @@ const statusLabels: Record<string, string> = {
 function DetailRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
-    <View className="flex-row justify-between py-3 border-b border-border">
-      <Text className="text-muted-foreground text-sm">{label}</Text>
-      <Text className="text-foreground text-sm font-medium">{value}</Text>
+    <View className="flex-row justify-between py-3 border-b border-border dark:border-slate-700">
+      <Text className="text-muted-foreground dark:text-slate-400 text-sm">{label}</Text>
+      <Text className="text-foreground dark:text-slate-100 text-sm font-medium">{value}</Text>
     </View>
   );
 }
@@ -104,7 +104,7 @@ export default function ItemScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center">
+      <SafeAreaView className="flex-1 bg-background dark:bg-slate-900 items-center justify-center">
         <ActivityIndicator color="#6366F1" />
       </SafeAreaView>
     );
@@ -112,9 +112,9 @@ export default function ItemScreen() {
 
   if (!receipt) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center px-8">
-        <Text className="text-xl font-bold text-foreground mb-3">Ikke funnet</Text>
-        <Text className="text-muted-foreground text-center">
+      <SafeAreaView className="flex-1 bg-background dark:bg-slate-900 items-center justify-center px-8">
+        <Text className="text-xl font-bold text-foreground dark:text-slate-100 mb-3">Ikke funnet</Text>
+        <Text className="text-muted-foreground dark:text-slate-400 text-center">
           Kvitteringen ble ikke funnet eller du har ikke tilgang.
         </Text>
         <TouchableOpacity onPress={() => router.back()} className="mt-6">
@@ -127,9 +127,9 @@ export default function ItemScreen() {
   const status = calculateStatus(receipt);
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background dark:bg-slate-900" edges={['top']}>
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
+      <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-slate-700">
         <TouchableOpacity onPress={() => router.back()} className="flex-row items-center gap-1">
           <ChevronLeft size={20} color="#6366F1" />
           <Text className="text-primary text-base">Tilbake</Text>
@@ -156,8 +156,8 @@ export default function ItemScreen() {
             onError={() => setImageError(true)}
           />
         ) : (
-          <View className="w-full h-32 bg-muted items-center justify-center">
-            <Text style={{ fontSize: 40 }}>🧾</Text>
+          <View className="w-full h-32 bg-muted dark:bg-slate-800 items-center justify-center">
+            <FileText size={40} color="#94A3B8" />
           </View>
         )}
 
@@ -165,9 +165,9 @@ export default function ItemScreen() {
           {/* Title row */}
           <View className="flex-row items-start justify-between mb-1">
             <View className="flex-1 mr-3">
-              <Text className="text-2xl font-bold text-foreground">{receipt.shop_name}</Text>
+              <Text className="text-2xl font-bold text-foreground dark:text-slate-100">{receipt.shop_name}</Text>
               {receipt.product_name ? (
-                <Text className="text-muted-foreground mt-1">{receipt.product_name}</Text>
+                <Text className="text-muted-foreground dark:text-slate-400 mt-1">{receipt.product_name}</Text>
               ) : null}
             </View>
             <View className="bg-primary/10 rounded-lg px-3 py-1.5">
@@ -184,23 +184,23 @@ export default function ItemScreen() {
 
           {/* Amount */}
           {receipt.amount > 0 && (
-            <Text className="text-3xl font-bold text-foreground mt-4">
+            <Text className="text-3xl font-bold text-foreground dark:text-slate-100 mt-4">
               {receipt.amount.toFixed(0)} kr
             </Text>
           )}
 
           {/* Gift card remaining */}
           {receipt.type === 'gift_card' && receipt.remaining_value !== undefined && (
-            <View className="mt-3 bg-category-giftcard/10 rounded-xl p-4">
-              <Text className="text-muted-foreground text-sm">Gjenstående saldo</Text>
-              <Text className="text-2xl font-bold text-foreground mt-1">
+            <View className="mt-3 bg-teal-50 dark:bg-teal-900/20 rounded-xl p-4 border border-teal-200 dark:border-teal-800">
+              <Text className="text-muted-foreground dark:text-slate-400 text-sm">Gjenstående saldo</Text>
+              <Text className="text-2xl font-bold text-foreground dark:text-slate-100 mt-1">
                 {receipt.remaining_value} kr
               </Text>
             </View>
           )}
 
           {/* Details */}
-          <View className="mt-6 bg-card rounded-2xl px-4 border border-border">
+          <View className="mt-6 bg-card dark:bg-slate-800 rounded-2xl px-4 border border-border dark:border-slate-700">
             <DetailRow label="Kjøpsdato" value={formatDate(receipt.purchase_date)} />
             <DetailRow label="Garanti til" value={formatDate(receipt.warranty_until)} />
             <DetailRow label="Returrett til" value={formatDate(receipt.return_until)} />
@@ -209,9 +209,10 @@ export default function ItemScreen() {
 
           {/* Warranty disclaimer */}
           {receipt.type === 'receipt' && receipt.warranty_until && (
-            <View className="mt-4 bg-muted rounded-xl p-4">
-              <Text className="text-xs text-muted-foreground leading-5">
-                ⚖️ Reklamasjonsretten er beregnet etter norsk forbrukerkjøpslov. 2 år standard,
+            <View className="mt-4 bg-muted dark:bg-slate-800 rounded-xl p-4 flex-row gap-3">
+              <Scale size={16} color="#6B7280" style={{ marginTop: 1 }} />
+              <Text className="text-xs text-muted-foreground dark:text-slate-400 leading-5 flex-1">
+                Reklamasjonsretten er beregnet etter norsk forbrukerkjøpslov. 2 år standard,
                 5 år for varige forbruksvarer. Kvittr er ikke juridisk rådgivning.
               </Text>
             </View>

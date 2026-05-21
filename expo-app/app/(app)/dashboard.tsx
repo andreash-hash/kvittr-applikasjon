@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { Bell, Crown } from 'lucide-react-native';
+import { Bell, Crown, AlertTriangle, FileText } from 'lucide-react-native';
 import { ReceiptCard } from '@/components/ReceiptCard';
 import { SwipeableCard } from '@/components/SwipeableCard';
 import { Logo } from '@/components/Logo';
@@ -27,7 +27,7 @@ type FilterTab = 'all' | 'expiring' | 'receipt' | 'gift_card' | 'return_slip';
 
 const TABS: { key: FilterTab; label: string }[] = [
   { key: 'all', label: 'Alle' },
-  { key: 'expiring', label: '⚠️ Utløper' },
+  { key: 'expiring', label: 'Utløper' },
   { key: 'receipt', label: 'Kvitteringer' },
   { key: 'gift_card', label: 'Gavekort' },
   { key: 'return_slip', label: 'Byttelapper' },
@@ -97,7 +97,7 @@ export default function DashboardScreen() {
   ).length;
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background dark:bg-slate-900" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3">
         <Logo size="small" />
@@ -127,8 +127,23 @@ export default function DashboardScreen() {
         </View>
       </View>
 
+      {/* Expiry alert banner */}
+      {expiringCount > 0 && (
+        <TouchableOpacity
+          onPress={() => setActiveTab('expiring')}
+          className="mx-4 mb-2 flex-row items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5"
+          activeOpacity={0.8}
+        >
+          <AlertTriangle size={16} color="#D97706" />
+          <Text className="text-amber-700 dark:text-amber-400 text-sm font-medium flex-1">
+            {expiringCount} {expiringCount === 1 ? 'kvittering utløper' : 'kvitteringer utløper'} snart
+          </Text>
+          <Text className="text-amber-600 dark:text-amber-500 text-xs">Se →</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Filter tabs */}
-      <View className="border-b border-border">
+      <View className="border-b border-border dark:border-slate-700">
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -139,12 +154,16 @@ export default function DashboardScreen() {
             <TouchableOpacity
               onPress={() => setActiveTab(item.key)}
               className={`px-3 py-1.5 rounded-full ${
-                activeTab === item.key ? 'bg-primary' : 'bg-muted'
+                activeTab === item.key
+                  ? 'bg-primary'
+                  : 'bg-muted dark:bg-slate-800'
               }`}
             >
               <Text
                 className={`text-sm font-medium ${
-                  activeTab === item.key ? 'text-white' : 'text-muted-foreground'
+                  activeTab === item.key
+                    ? 'text-white'
+                    : 'text-muted-foreground dark:text-slate-400'
                 }`}
               >
                 {item.label}
@@ -161,11 +180,11 @@ export default function DashboardScreen() {
         </View>
       ) : filtered.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Text style={{ fontSize: 60 }}>🧾</Text>
-          <Text className="text-xl font-bold text-foreground mt-4 text-center">
+          <FileText size={56} color="#94A3B8" />
+          <Text className="text-xl font-bold text-foreground dark:text-slate-100 mt-4 text-center">
             {activeTab === 'all' ? 'Ingen kvitteringer ennå' : 'Ingen her'}
           </Text>
-          <Text className="text-muted-foreground text-center mt-2 leading-6">
+          <Text className="text-muted-foreground dark:text-slate-400 text-center mt-2 leading-6">
             {activeTab === 'all'
               ? 'Trykk på skann-knappen for å legge til din første kvittering.'
               : 'Prøv en annen kategori eller skann en ny kvittering.'}

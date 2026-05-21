@@ -5,20 +5,22 @@ interface LogoProps {
   size?: 'small' | 'medium' | 'large';
 }
 
-const sizeMap = {
-  small: { container: 'h-8 w-8 rounded-lg', text: 'text-base font-bold', label: 'text-base font-bold ml-2' },
-  medium: { container: 'h-12 w-12 rounded-xl', text: 'text-xl font-bold', label: 'text-xl font-bold ml-3' },
-  large: { container: 'h-16 w-16 rounded-2xl', text: 'text-3xl font-bold', label: 'text-3xl font-bold ml-4' },
-};
+const LETTERS = ['k', 'v', 'i', 't', 't', 'r'];
+const COLORS = ['#4B3B8C', '#E05C7A', '#F4A13A', '#7B6BB5', '#5B8DD9', '#2AB5A5'];
+const fontSizes: Record<string, number> = { small: 18, medium: 26, large: 36 };
 
 export const Logo: React.FC<LogoProps> = ({ size = 'medium' }) => {
-  const s = sizeMap[size];
+  const fontSize = fontSizes[size];
   return (
-    <View className="flex-row items-center">
-      <View className={`${s.container} bg-primary items-center justify-center`}>
-        <Text className={`${s.text} text-white`}>K</Text>
-      </View>
-      <Text className={`${s.label} text-foreground`}>Kvittr</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {LETTERS.map((letter, i) => (
+        <Text
+          key={i}
+          style={{ fontSize, fontWeight: '800', color: COLORS[i], letterSpacing: -0.5 }}
+        >
+          {letter}
+        </Text>
+      ))}
     </View>
   );
 };

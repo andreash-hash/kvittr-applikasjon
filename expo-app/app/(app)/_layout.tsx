@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import { View, TouchableOpacity } from 'react-native';
-import { Home, ScanLine, Settings } from 'lucide-react-native';
+import { View, TouchableOpacity, useColorScheme } from 'react-native';
+import { Home, ScanLine, Settings, Archive } from 'lucide-react-native';
 import { useHaptics } from '@/hooks/useHaptics';
 import { registerForPushNotifications } from '@/hooks/usePushNotifications';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +32,8 @@ function TabBarButton({
 
 export default function AppLayout() {
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
     if (user?.id) {
@@ -44,10 +46,11 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#6366F1',
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarInactiveTintColor: isDark ? '#64748B' : '#94A3B8',
         tabBarStyle: {
+          backgroundColor: isDark ? '#0F1729' : '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#E2E8F0',
+          borderTopColor: isDark ? '#1E2A45' : '#E2E8F0',
           paddingBottom: 4,
           height: 60,
         },
@@ -89,6 +92,13 @@ export default function AppLayout() {
               <ScanLine size={26} color="#fff" />
             </View>
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="archive"
+        options={{
+          title: 'Arkiv',
+          tabBarIcon: ({ color, size }) => <Archive size={size} color={color} />,
         }}
       />
       <Tabs.Screen
