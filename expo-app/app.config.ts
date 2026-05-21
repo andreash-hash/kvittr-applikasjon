@@ -3,7 +3,7 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Kvittr',
-  slug: 'kvittr',
+  slug: 'kvittr-ccode',
   version: '1.4.0',
   scheme: 'kvittr',
   orientation: 'portrait',
