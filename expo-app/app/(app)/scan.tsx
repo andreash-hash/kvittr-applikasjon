@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,7 +7,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Camera, Image as ImageIcon, RefreshCw, CheckCircle, XCircle, Crown } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
 import { checkScanLimit, incrementScanCount } from '@/lib/scanLimit';
@@ -50,6 +50,26 @@ export default function ScanScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const ocrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref so useFocusEffect can read the latest scanState without stale closure
+  const scanStateRef = useRef<ScanState>('idle');
+  useEffect(() => { scanStateRef.current = scanState; }, [scanState]);
+
+  // When the user navigates back to the Skann tab after a completed or failed
+  // scan, reset to idle so they can scan a new receipt immediately.
+  useFocusEffect(
+    useCallback(() => {
+      if (scanStateRef.current === 'done' || scanStateRef.current === 'error') {
+        realtimeChannel.current?.unsubscribe();
+        realtimeChannel.current = null;
+        if (ocrTimeoutRef.current) {
+          clearTimeout(ocrTimeoutRef.current);
+          ocrTimeoutRef.current = null;
+        }
+        setScanState('idle');
+        setImageUri(null);
+      }
+    }, []),
+  );
 
   useEffect(() => {
     return () => {

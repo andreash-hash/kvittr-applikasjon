@@ -61,8 +61,8 @@ export default function ItemScreen() {
     queryKey: ['receipt', id],
     queryFn: async (): Promise<Receipt | null> => {
       if (!isAuthenticated || !user || !id) return null;
-      // Primary: fetch by ID (works for normal receipts)
-      const direct = await getReceiptById(id);
+      // Primary: fetch by ID + explicit user_id (bypasses RLS ambiguity)
+      const direct = await getReceiptById(id, user.id);
       if (direct) return direct;
       // Fallback: search archived receipts — handles RLS policies that may
       // exclude archived rows from the primary SELECT

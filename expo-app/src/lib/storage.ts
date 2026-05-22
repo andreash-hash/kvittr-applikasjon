@@ -58,14 +58,13 @@ export const getArchivedReceipts = async (userId: string): Promise<Receipt[]> =>
 };
 
 // Fetches a single receipt by ID regardless of archived status.
-// Used by the detail screen so archived receipts can still be viewed.
-export const getReceiptById = async (id: string): Promise<Receipt | null> => {
-  const { data, error } = await supabase
-    .from('receipts')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
-
+// Pass userId to add an explicit user_id filter — necessary when Supabase RLS
+// policies are configured in a way that maybeSingle without a user filter
+// returns no rows even for the authenticated user's own receipts.
+export const getReceiptById = async (id: string, userId?: string): Promise<Receipt | null> => {
+  let query = supabase.from('receipts').select('*').eq('id', id);
+  if (userId) query = query.eq('user_id', userId);
+  const { data, error } = await (query as ReturnType<typeof query.eq>).maybeSingle();
   if (error) throw error;
   return data ? mapRow(data as Record<string, unknown>) : null;
 };
