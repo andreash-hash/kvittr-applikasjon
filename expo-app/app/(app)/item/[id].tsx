@@ -15,7 +15,7 @@ import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import { Trash2, Archive, ChevronLeft, FileText, Scale } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { getReceiptById, getArchivedReceipts, deleteReceipt, archiveReceipt } from '@/lib/storage';
+import { getReceipts, getArchivedReceipts, deleteReceipt, archiveReceipt } from '@/lib/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { calculateStatus } from '@/utils/receiptStatus';
 import type { Receipt } from '@/types/receipt';
@@ -58,18 +58,21 @@ export default function ItemScreen() {
   const [imageError, setImageError] = useState(false);
 
   const { data: receipt, isLoading } = useQuery({
-    queryKey: ['receipt', id],
+    queryKey: ['receipt', id, user?.id],
     queryFn: async (): Promise<Receipt | null> => {
-      if (!isAuthenticated || !user || !id) return null;
-      // Primary: fetch by ID + explicit user_id (bypasses RLS ambiguity)
-      const direct = await getReceiptById(id, user.id);
-      if (direct) return direct;
-      // Fallback: search archived receipts — handles RLS policies that may
-      // exclude archived rows from the primary SELECT
-      const archived = await getArchivedReceipts(user.id);
-      return archived.find((r) => r.id === id) ?? null;
+      if (!user || !id) return null;
+      // Use the same queries that work on dashboard/archive screens.
+      // getReceipts and getArchivedReceipts both filter by user_id explicitly
+      // so they work regardless of how Supabase RLS is configured.
+      const [active, archived] = await Promise.all([
+        getReceipts(user.id),
+        getArchivedReceipts(user.id),
+      ]);
+      return active.find((r) => r.id === id) ?? archived.find((r) => r.id === id) ?? null;
     },
-    enabled: !!id && isAuthenticated,
+    enabled: !!id && !!user,
+    retry: 2,
+    retryDelay: 800,
   });
 
   const deleteMutation = useMutation({
