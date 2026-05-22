@@ -1,75 +1,82 @@
 import React, { useRef } from 'react';
-import {
-  Animated,
-  PanResponder,
-  View,
-  TouchableOpacity,
-  Text,
-} from 'react-native';
-import { Trash2, Archive } from 'lucide-react-native';
+  import { View, TouchableOpacity, Text, Alert } from 'react-native';
+  import Swipeable from 'react-native-gesture-handler/Swipeable';
+  import { Trash2, Archive } from 'lucide-react-native';
 
-interface SwipeableCardProps {
-  children: React.ReactNode;
-  onDelete: () => void;
-  onArchive?: () => void;
-  disabled?: boolean;
-}
+  interface SwipeableCardProps {
+    children: React.ReactNode;
+    onDelete: () => void;
+    onArchive?: () => void;
+  }
 
-export const SwipeableCard: React.FC<SwipeableCardProps> = ({
-  children,
-  onDelete,
-  onArchive,
-  disabled = false,
-}) => {
-  const translateX = useRef(new Animated.Value(0)).current;
+  export const SwipeableCard: React.FC<SwipeableCardProps> = ({
+    children,
+    onDelete,
+    onArchive,
+  }) => {
+    const swipeableRef = useRef<Swipeable>(null);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, gs) => !disabled && Math.abs(gs.dx) > 10,
-      onPanResponderMove: (_e, gs) => {
-        if (gs.dx < 0) {
-          translateX.setValue(Math.max(gs.dx, -160));
-        }
-      },
-      onPanResponderRelease: (_e, gs) => {
-        if (gs.dx < -80) {
-          Animated.spring(translateX, { toValue: -160, useNativeDriver: true }).start();
-        } else {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
-        }
-      },
-    }),
-  ).current;
+    const close = () => swipeableRef.current?.close();
 
-  const close = () => {
-    Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
-  };
+    const handleDelete = () => {
+      close();
+      Alert.alert(
+        'Slett kvittering',
+        'Er du sikker? Dette kan ikke angres.',
+        [
+          { text: 'Avbryt', style: 'cancel' },
+          { text: 'Slett', style: 'destructive', onPress: onDelete },
+        ],
+      );
+    };
 
-  return (
-    <View className="relative mb-2 overflow-hidden rounded-2xl">
-      {/* Hidden action buttons */}
-      <View className="absolute right-0 top-0 bottom-0 flex-row items-center">
+    const renderRightActions = () => (
+      <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
         {onArchive && (
           <TouchableOpacity
-            className="bg-category-return w-20 h-full items-center justify-center"
+            style={{
+              width: 80,
+              backgroundColor: '#D97706',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.8}
             onPress={() => { close(); onArchive(); }}
           >
             <Archive size={20} color="#fff" />
-            <Text className="text-white text-xs mt-1">Arkiver</Text>
+            <Text style={{ color: '#fff', fontSize: 12, marginTop: 4 }}>Arkiver</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          className="bg-destructive w-20 h-full items-center justify-center"
-          onPress={() => { close(); onDelete(); }}
+          style={{
+            width: 80,
+            backgroundColor: '#EF4444',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderTopRightRadius: 16,
+            borderBottomRightRadius: 16,
+          }}
+          activeOpacity={0.8}
+          onPress={handleDelete}
         >
           <Trash2 size={20} color="#fff" />
-          <Text className="text-white text-xs mt-1">Slett</Text>
+          <Text style={{ color: '#fff', fontSize: 12, marginTop: 4 }}>Slett</Text>
         </TouchableOpacity>
       </View>
+    );
 
-      <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
-        {children}
-      </Animated.View>
-    </View>
-  );
-};
+    return (
+      <View style={{ marginBottom: 12 }}>
+        <Swipeable
+          ref={swipeableRef}
+          renderRightActions={renderRightActions}
+          friction={2}
+          rightThreshold={40}
+          overshootRight={false}
+        >
+          {children}
+        </Swipeable>
+      </View>
+    );
+  };
+  
