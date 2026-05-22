@@ -254,8 +254,7 @@ import React, { useState, useCallback } from 'react';
               />
             }
             renderItem={({ item }) => (
-              <View>
-                <SwipeableCard
+              <SwipeableCard
                   onDelete={() => deleteMutation.mutate((item as Receipt).id)}
                   onArchive={
                     isAuthenticated && !isArchivedTab
@@ -266,19 +265,20 @@ import React, { useState, useCallback } from 'react';
                   <ReceiptCard
                     receipt={item as Receipt}
                     isExpiring={isExpiringSoon(item as Receipt)}
+                    footer={
+                      isArchivedTab ? (
+                        <TouchableOpacity
+                          onPress={() => unarchiveMutation.mutate((item as Receipt).id)}
+                          className="bg-muted dark:bg-slate-800 px-4 py-2.5 flex-row items-center gap-2"
+                          activeOpacity={0.7}
+                        >
+                          <ArchiveX size={14} color="#6366F1" />
+                          <Text className="text-primary text-xs font-medium">Hent fra arkiv</Text>
+                        </TouchableOpacity>
+                      ) : undefined
+                    }
                   />
                 </SwipeableCard>
-                {isArchivedTab && (
-                  <TouchableOpacity
-                    onPress={() => unarchiveMutation.mutate((item as Receipt).id)}
-                    className="mb-3 -mt-9 mx-1 bg-muted dark:bg-slate-800 rounded-b-2xl px-4 py-2.5 flex-row items-center gap-2 border border-t-0 border-border dark:border-slate-700"
-                    activeOpacity={0.7}
-                  >
-                    <ArchiveX size={14} color="#6366F1" />
-                    <Text className="text-primary text-xs font-medium">Hent fra arkiv</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
             )}
           />
         )}

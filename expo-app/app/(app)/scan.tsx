@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Camera, Image as ImageIcon, RefreshCw, CheckCircle, XCircle, Crown } from 'lucide-react-native';
@@ -14,7 +15,18 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useHaptics } from '@/hooks/useHaptics';
 
-type ScanState = 'idle' | 'uploading' | 'processing' | 'done' | 'error';
+type ScanState = 'idle' | 'uploading' | 'processing' | 'waiting' | 'done' | 'error';
+
+const OCR_TIMEOUT_MS = 45_000;
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
 export default function ScanScreen() {
   const { user, isAuthenticated } = useAuth();
@@ -24,12 +36,45 @@ export default function ScanScreen() {
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const ocrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       realtimeChannel.current?.unsubscribe();
+      if (ocrTimeoutRef.current) clearTimeout(ocrTimeoutRef.current);
     };
   }, []);
+
+  const finishSuccess = (id: string | null) => {
+    if (ocrTimeoutRef.current) {
+      clearTimeout(ocrTimeoutRef.current);
+      ocrTimeoutRef.current = null;
+    }
+    realtimeChannel.current?.unsubscribe();
+    realtimeChannel.current = null;
+    setScanState('done');
+    notification('success');
+    Toast.show({ type: 'success', text1: 'Kvittering analysert!' });
+    setTimeout(() => {
+      if (id) {
+        router.replace(`/(app)/item/${id}`);
+      } else {
+        router.replace('/(app)/dashboard');
+      }
+    }, 800);
+  };
+
+  const finishError = (msg?: string) => {
+    if (ocrTimeoutRef.current) {
+      clearTimeout(ocrTimeoutRef.current);
+      ocrTimeoutRef.current = null;
+    }
+    realtimeChannel.current?.unsubscribe();
+    realtimeChannel.current = null;
+    setScanState('error');
+    notification('error');
+    Toast.show({ type: 'error', text1: 'Analyse feilet', text2: msg ?? 'Prøv igjen.' });
+  };
 
   const checkCanScan = async (): Promise<boolean> => {
     if (isPremium) return true;
@@ -58,7 +103,7 @@ export default function ScanScreen() {
     realtimeChannel.current?.unsubscribe();
 
     const channel = supabase
-      .channel(`receipt-status-${receiptId}`)
+      .channel(`receipt-ocr-${receiptId}`)
       .on(
         'postgres_changes',
         {
@@ -68,25 +113,26 @@ export default function ScanScreen() {
           filter: `id=eq.${receiptId}`,
         },
         (payload) => {
-          const status = (payload.new as { processing_status?: string }).processing_status;
-          if (status === 'completed') {
-            channel.unsubscribe();
+          const ps = (payload.new as { processing_status?: string }).processing_status;
+          if (ps === 'completed') {
             queryClient.invalidateQueries({ queryKey: ['receipts'] });
-            setScanState('done');
-            notification('success');
-            Toast.show({ type: 'success', text1: 'Kvittering analysert!' });
-            setTimeout(() => router.replace(`/(app)/item/${receiptId}`), 1000);
-          } else if (status === 'failed') {
-            channel.unsubscribe();
-            setScanState('error');
-            notification('error');
-            Toast.show({ type: 'error', text1: 'Analyse feilet', text2: 'Prøv igjen.' });
+            finishSuccess(receiptId);
+          } else if (ps === 'failed') {
+            finishError('OCR-analyse feilet på serveren.');
           }
         },
       )
       .subscribe();
 
     realtimeChannel.current = channel;
+
+    // Safety timeout: navigate after OCR_TIMEOUT_MS regardless
+    ocrTimeoutRef.current = setTimeout(() => {
+      if (realtimeChannel.current) {
+        queryClient.invalidateQueries({ queryKey: ['receipts'] });
+        finishSuccess(receiptId);
+      }
+    }, OCR_TIMEOUT_MS);
   };
 
   const processImage = async (uri: string) => {
@@ -103,16 +149,18 @@ export default function ScanScreen() {
     setImageUri(uri);
 
     try {
-      const ext = uri.split('.').pop() ?? 'jpg';
-      const fileName = `${user.id}/${Date.now()}.${ext}`;
+      // Read file via expo-file-system — reliable for local URIs on iOS/Android
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const arrayBuffer = base64ToArrayBuffer(base64);
 
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
+      // Use JPEG for everything — ImagePicker already converts HEIC→JPEG
+      const fileName = `${user.id}/${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('receipts')
-        .upload(fileName, arrayBuffer, { contentType: `image/${ext}` });
+        .upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 
@@ -125,43 +173,37 @@ export default function ScanScreen() {
         { body: { image_url: urlData.publicUrl, user_id: user.id } },
       );
 
-      const receiptId = (fnData as { receipt_id?: string } | null)?.receipt_id;
+      if (fnError) throw fnError;
+
+      const receiptId = (fnData as { receipt_id?: string } | null)?.receipt_id ?? null;
       const ocrStatus = (fnData as { status?: string } | null)?.status;
 
-      if (receiptId) subscribeToReceipt(receiptId);
-
-      if (fnError) throw fnError;
-      if (ocrStatus === 'failed') throw new Error('OCR processing failed');
-
-      realtimeChannel.current?.unsubscribe();
-      realtimeChannel.current = null;
+      if (ocrStatus === 'failed') throw new Error('OCR returnerte feil fra serveren');
 
       await incrementScanCount(user.id);
-      await queryClient.invalidateQueries({ queryKey: ['receipts'] });
 
-      setScanState('done');
-      notification('success');
-      Toast.show({ type: 'success', text1: 'Kvittering analysert!' });
-
-      setTimeout(() => {
-        if (receiptId) {
-          router.replace(`/(app)/item/${receiptId}`);
-        } else {
-          router.replace('/(app)/dashboard');
-        }
-      }, 1000);
-    } catch (err) {
-      if (!realtimeChannel.current) {
-        setScanState('error');
-        notification('error');
-        Toast.show({ type: 'error', text1: 'Analyse feilet', text2: 'Prøv igjen.' });
+      if (ocrStatus === 'completed' || !receiptId) {
+        // Edge function processed synchronously — navigate immediately
+        await queryClient.invalidateQueries({ queryKey: ['receipts'] });
+        finishSuccess(receiptId);
+        return;
       }
+
+      // Edge function is async — wait for realtime update on processing_status
+      setScanState('waiting');
+      subscribeToReceipt(receiptId);
+
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : undefined;
+      finishError(msg);
     }
   };
 
   const reset = () => {
     realtimeChannel.current?.unsubscribe();
     realtimeChannel.current = null;
+    if (ocrTimeoutRef.current) clearTimeout(ocrTimeoutRef.current);
+    ocrTimeoutRef.current = null;
     setScanState('idle');
     setImageUri(null);
   };
@@ -204,7 +246,20 @@ export default function ScanScreen() {
     }
   };
 
-  const isProcessing = scanState === 'uploading' || scanState === 'processing';
+  const isProcessing =
+    scanState === 'uploading' || scanState === 'processing' || scanState === 'waiting';
+
+  const processingLabel =
+    scanState === 'uploading'
+      ? 'Laster opp bilde…'
+      : scanState === 'processing'
+        ? 'Sender til analyse…'
+        : 'Leser kvittering…';
+
+  const processingSubLabel =
+    scanState === 'waiting'
+      ? 'Henter ut dato, beløp og butikk automatisk'
+      : 'Dette kan ta noen sekunder';
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-slate-900" edges={['top']}>
@@ -230,11 +285,11 @@ export default function ScanScreen() {
           {isProcessing ? (
             <View className="items-center py-12">
               <ActivityIndicator size="large" color="#6366F1" />
-              <Text className="text-foreground dark:text-slate-100 font-medium mt-4">
-                {scanState === 'uploading' ? 'Laster opp bilde…' : 'Analyserer kvittering…'}
+              <Text className="text-foreground dark:text-slate-100 font-medium mt-4 text-center">
+                {processingLabel}
               </Text>
               <Text className="text-muted-foreground dark:text-slate-400 text-sm mt-2 text-center">
-                Dette kan ta noen sekunder
+                {processingSubLabel}
               </Text>
             </View>
           ) : scanState === 'done' ? (

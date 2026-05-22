@@ -1,50 +1,54 @@
 import React from 'react';
-  import { View, Text, TouchableOpacity } from 'react-native';
-  import { differenceInDays } from 'date-fns';
-  import { router } from 'expo-router';
-  import { Clock } from 'lucide-react-native';
-  import type { Receipt } from '../types/receipt';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { differenceInDays } from 'date-fns';
+import { router } from 'expo-router';
+import { Clock } from 'lucide-react-native';
+import type { Receipt } from '../types/receipt';
 
-  interface ReceiptCardProps {
-    receipt: Receipt;
-    isExpiring?: boolean;
-  }
+interface ReceiptCardProps {
+  receipt: Receipt;
+  isExpiring?: boolean;
+  footer?: React.ReactNode;
+}
 
-  const typeBadge: Record<string, { bg: string; label: string }> = {
-    receipt:     { bg: '#6366F1', label: 'Kvittering' },
-    gift_card:   { bg: '#0D9488', label: 'Gavekort' },
-    return_slip: { bg: '#D97706', label: 'Byttelapp' },
-    warranty:    { bg: '#6366F1', label: 'Garanti' },
+const typeBadge: Record<string, { bg: string; label: string }> = {
+  receipt:     { bg: '#6366F1', label: 'Kvittering' },
+  gift_card:   { bg: '#0D9488', label: 'Gavekort' },
+  return_slip: { bg: '#D97706', label: 'Byttelapp' },
+  warranty:    { bg: '#6366F1', label: 'Garanti' },
+};
+
+export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, isExpiring, footer }) => {
+  const expiryDate = receipt.warranty_until ?? receipt.return_until ?? receipt.expiry_date;
+  const daysLeft = expiryDate
+    ? differenceInDays(new Date(expiryDate), new Date())
+    : null;
+
+  const expiryLabel = (): string | null => {
+    if (daysLeft === null) return null;
+    if (daysLeft < 0) return 'Utløpt';
+    if (daysLeft === 0) return 'Utløper i dag!';
+    if (daysLeft === 1) return '1 dag igjen';
+    if (daysLeft < 30) return `${daysLeft} dager igjen`;
+    const months = Math.floor(daysLeft / 30);
+    return `${months} ${months === 1 ? 'måned' : 'måneder'} igjen`;
   };
 
-  export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, isExpiring }) => {
-    const expiryDate = receipt.warranty_until ?? receipt.return_until ?? receipt.expiry_date;
-    const daysLeft = expiryDate
-      ? differenceInDays(new Date(expiryDate), new Date())
-      : null;
+  const badge = typeBadge[receipt.type] ?? typeBadge.receipt;
+  const label = expiryLabel();
+  const urgentExpiry = (daysLeft ?? Infinity) <= 7 && (daysLeft ?? Infinity) >= 0;
 
-    const expiryLabel = (): string | null => {
-      if (daysLeft === null) return null;
-      if (daysLeft < 0) return 'Utløpt';
-      if (daysLeft === 0) return 'Utløper i dag!';
-      if (daysLeft === 1) return '1 dag igjen';
-      if (daysLeft < 30) return `${daysLeft} dager igjen`;
-      const months = Math.floor(daysLeft / 30);
-      return `${months} ${months === 1 ? 'måned' : 'måneder'} igjen`;
-    };
+  const borderColor = isExpiring ? '#F59E0B' : undefined;
 
-    const badge = typeBadge[receipt.type] ?? typeBadge.receipt;
-    const label = expiryLabel();
-    const urgentExpiry = (daysLeft ?? Infinity) <= 7 && (daysLeft ?? Infinity) >= 0;
-
-    return (
+  return (
+    <View
+      className={`rounded-2xl bg-card dark:bg-slate-800 shadow-sm border overflow-hidden ${
+        isExpiring ? 'border-category-expiring' : 'border-border dark:border-slate-700'
+      }`}
+      style={{ elevation: 2, borderColor }}
+    >
       <TouchableOpacity
-        className={`rounded-2xl bg-card dark:bg-slate-800 p-4 shadow-sm border ${
-          isExpiring
-            ? 'border-category-expiring'
-            : 'border-border dark:border-slate-700'
-        }`}
-        style={{ elevation: 2 }}
+        className="p-4"
         activeOpacity={0.75}
         onPress={() => router.push(`/(app)/item/${receipt.id}`)}
       >
@@ -100,6 +104,13 @@ import React from 'react';
           </View>
         )}
       </TouchableOpacity>
-    );
-  };
-  
+
+      {footer && (
+        <>
+          <View className="h-px bg-border dark:bg-slate-700" />
+          {footer}
+        </>
+      )}
+    </View>
+  );
+};

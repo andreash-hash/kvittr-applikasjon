@@ -15,8 +15,7 @@ import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import { Trash2, Archive, ChevronLeft, FileText, Scale } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { supabase } from '@/lib/supabase';
-import { getReceipts, deleteReceipt, archiveReceipt } from '@/lib/storage';
+import { getReceiptById, deleteReceipt, archiveReceipt } from '@/lib/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { calculateStatus } from '@/utils/receiptStatus';
 import type { Receipt } from '@/types/receipt';
@@ -61,9 +60,8 @@ export default function ItemScreen() {
   const { data: receipt, isLoading } = useQuery({
     queryKey: ['receipt', id],
     queryFn: async (): Promise<Receipt | null> => {
-      if (!isAuthenticated || !user) return null;
-      const all = await getReceipts(user.id);
-      return all.find((r) => r.id === id) ?? null;
+      if (!isAuthenticated || !user || !id) return null;
+      return getReceiptById(id);
     },
     enabled: !!id && isAuthenticated,
   });
@@ -72,6 +70,7 @@ export default function ItemScreen() {
     mutationFn: () => deleteReceipt(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      queryClient.invalidateQueries({ queryKey: ['archived-receipts'] });
       router.back();
       Toast.show({ type: 'success', text1: 'Slettet' });
     },
@@ -81,7 +80,9 @@ export default function ItemScreen() {
   const archiveMutation = useMutation({
     mutationFn: () => archiveReceipt(id!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['receipts', 'receipt'] });
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      queryClient.invalidateQueries({ queryKey: ['archived-receipts'] });
+      queryClient.invalidateQueries({ queryKey: ['receipt', id] });
       Toast.show({ type: 'success', text1: 'Arkivert' });
     },
   });
@@ -135,7 +136,7 @@ export default function ItemScreen() {
           <Text className="text-primary text-base">Tilbake</Text>
         </TouchableOpacity>
         <View className="flex-row gap-4">
-          {receipt.status !== 'archived' && (
+          {!receipt.archived && (
             <TouchableOpacity onPress={() => archiveMutation.mutate()}>
               <Archive size={20} color="#64748B" />
             </TouchableOpacity>
