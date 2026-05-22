@@ -15,7 +15,7 @@ import { format } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import { Trash2, Archive, ChevronLeft, FileText, Scale } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { getReceiptById, deleteReceipt, archiveReceipt } from '@/lib/storage';
+import { getReceiptById, getArchivedReceipts, deleteReceipt, archiveReceipt } from '@/lib/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { calculateStatus } from '@/utils/receiptStatus';
 import type { Receipt } from '@/types/receipt';
@@ -61,7 +61,13 @@ export default function ItemScreen() {
     queryKey: ['receipt', id],
     queryFn: async (): Promise<Receipt | null> => {
       if (!isAuthenticated || !user || !id) return null;
-      return getReceiptById(id);
+      // Primary: fetch by ID (works for normal receipts)
+      const direct = await getReceiptById(id);
+      if (direct) return direct;
+      // Fallback: search archived receipts — handles RLS policies that may
+      // exclude archived rows from the primary SELECT
+      const archived = await getArchivedReceipts(user.id);
+      return archived.find((r) => r.id === id) ?? null;
     },
     enabled: !!id && isAuthenticated,
   });

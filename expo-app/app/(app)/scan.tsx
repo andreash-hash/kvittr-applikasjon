@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Image, ScrollView } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Camera, Image as ImageIcon, RefreshCw, CheckCircle, XCircle, Crown } from 'lucide-react-native';
@@ -18,14 +19,26 @@ import { useHaptics } from '@/hooks/useHaptics';
 type ScanState = 'idle' | 'uploading' | 'processing' | 'waiting' | 'done' | 'error';
 
 const OCR_TIMEOUT_MS = 45_000;
+const FUNCTION_TIMEOUT_MS = 30_000;
 
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
+// Compress + resize image before upload: reduces 5 MB camera photo → ~300 KB,
+// making base64 conversion fast and upload quick without hurting OCR quality.
+async function prepareImage(uri: string): Promise<string> {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 1400 } }],
+    { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+  );
+  return result.uri;
+}
+
+function base64ToUint8Array(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return bytes.buffer;
+  return bytes;
 }
 
 export default function ScanScreen() {
@@ -149,18 +162,21 @@ export default function ScanScreen() {
     setImageUri(uri);
 
     try {
-      // Read file via expo-file-system — reliable for local URIs on iOS/Android
-      const base64 = await FileSystem.readAsStringAsync(uri, {
+      // Step 1: compress + resize (5 MB camera → ~300 KB, keeps OCR quality)
+      const compressedUri = await prepareImage(uri);
+      setImageUri(compressedUri);
+
+      // Step 2: read as base64 via FileSystem (reliable on iOS for local URIs)
+      const base64 = await FileSystem.readAsStringAsync(compressedUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      const arrayBuffer = base64ToArrayBuffer(base64);
+      const bytes = base64ToUint8Array(base64);
 
-      // Use JPEG for everything — ImagePicker already converts HEIC→JPEG
       const fileName = `${user.id}/${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('receipts')
-        .upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
+        .upload(fileName, bytes, { contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 
@@ -168,12 +184,23 @@ export default function ScanScreen() {
 
       setScanState('processing');
 
-      const { data: fnData, error: fnError } = await supabase.functions.invoke(
-        'process-receipt-ocr',
-        { body: { image_url: urlData.publicUrl, user_id: user.id } },
-      );
+      // Step 3: call edge function with 30 s hard timeout via AbortController
+      const abortCtrl = new AbortController();
+      const fnTimeoutId = setTimeout(() => abortCtrl.abort(), FUNCTION_TIMEOUT_MS);
+      let fnData: unknown;
+      let fnError: unknown;
+      try {
+        const result = await supabase.functions.invoke('process-receipt-ocr', {
+          body: { image_url: urlData.publicUrl, user_id: user.id },
+          signal: abortCtrl.signal,
+        });
+        fnData = result.data;
+        fnError = result.error;
+      } finally {
+        clearTimeout(fnTimeoutId);
+      }
 
-      if (fnError) throw fnError;
+      if (fnError) throw fnError as Error;
 
       const receiptId = (fnData as { receipt_id?: string } | null)?.receipt_id ?? null;
       const ocrStatus = (fnData as { status?: string } | null)?.status;
