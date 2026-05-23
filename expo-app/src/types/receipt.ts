@@ -5,7 +5,7 @@ export type ReceiptStatus =
   | 'warranty_expired'
   | 'return_expired'
   | 'gift_card_expired'
-  | 'expired'      // legacy — kept so old cached DB rows don't break
+  | 'expired'       // legacy — kept so old cached DB rows don't break
   | 'used'
   | 'archived';
 export type ProcessingStatus = 'pending' | 'completed' | 'failed';
@@ -31,6 +31,10 @@ export interface Receipt {
   is_used?: boolean;
   has_warranty?: boolean | null;
   created_at: string;
+  // OCR metadata (added in migration 20260524)
+  warranty_reasoning?: string;
+  category_description?: string;
+  ocr_raw?: Record<string, unknown>;
 }
 
 export interface GuestReceipt {

@@ -13,20 +13,30 @@ type Category =
 
 type ReceiptType = 'receipt' | 'gift_card' | 'return_slip';
 
+interface WarrantyAssessment {
+  has_warranty: boolean;
+  warranty_months: number | null;
+  reasoning: string;
+  category_description: string;
+}
+
 interface OcrResult {
   shop_name?: string;
   product_name?: string;
   amount?: number;
   purchase_date?: string;
+  purchase_date_source?: string;
   category?: Category;
   receipt_type?: ReceiptType;
   gift_card_value?: number | null;
   gift_card_expiry?: string | null;
   return_until?: string | null;
   has_warranty?: boolean | null;
+  warranty_assessment?: WarrantyAssessment;
 }
 
 // Norwegian consumer law: 2 yr standard, 5 yr durable goods.
+// Kept as fallback if Gemini does not return warranty_assessment.
 function computeWarrantyUntil(
   purchaseDate: string,
   category: Category,
@@ -37,7 +47,7 @@ function computeWarrantyUntil(
   if (hasWarranty === false) return null;
   if (category === 'groceries' || category === 'cosmetics') return null;
 
-  const durableGoods: Category[] = ['electronics', 'appliance', 'furniture', 'tools'];
+  const durableGoods: Category[] = ['electronics', 'appliance', 'furniture', 'tools', 'clothing', 'shoes'];
   const months = durableGoods.includes(category) ? 60 : 24;
 
   const date = new Date(purchaseDate);
@@ -56,20 +66,74 @@ function toBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-const PROMPT = `You are a receipt-scanning assistant. Extract structured data from the image.
-Return ONLY valid JSON with these fields:
-- shop_name: string
-- product_name: string (main item or short description, empty string if none)
-- amount: number (total paid in NOK, 0 if unknown)
-- purchase_date: string (YYYY-MM-DD; use today if not visible)
-- category: one of [electronics, appliance, furniture, tools, clothing, shoes, toys, books, groceries, cosmetics, default]
-- receipt_type: one of [receipt, gift_card, return_slip]
-- gift_card_value: number or null
-- gift_card_expiry: string (YYYY-MM-DD) or null
-- return_until: string (YYYY-MM-DD) or null
-- has_warranty: true if warranty explicitly mentioned, false if explicitly excluded, null if unknown
+const PROMPT = `Du er en norsk kvitteringsskanner-assistent. Trekk ut strukturerte data fra kvitteringsbildet.
 
-Category guide — electronics: phones/computers/TVs/cameras; appliance: white goods; furniture: sofas/tables; tools: power/hand tools; clothing: garments; shoes: footwear; toys: children's toys/games; books: books/media; groceries: food/drink; cosmetics: beauty/personal care; default: anything else.`;
+DOKUMENTTYPE — LES DETTE FORST:
+Se etter disse ordene HVOR SOM HELST på dokumentet:
+
+1. "TILGODESEDDEL", "Tilgodelapp", "Tilgodeseddelnr", "tilgode" → receipt_type = "return_slip"
+   En tilgodeseddel er et butikk-kreditbrev, IKKE et kjøpskvittering.
+   Den har en "Gyldig til"-dato som skal trekkes ut som return_until.
+   Tildel ALDRI garanti til en tilgodeseddel.
+   Sett has_warranty = false og warranty_assessment.has_warranty = false.
+
+2. "GAVEKORT", "Gift card" → receipt_type = "gift_card"
+   Trekk ut kortverdi som gift_card_value og utløpsdato som gift_card_expiry.
+
+3. Alt annet → receipt_type = "receipt"
+
+DATOFORMAT — VIKTIG:
+Norske kvitteringer bruker DD.MM.YYYY, ALDRI amerikansk MM/DD.
+"13.04.2026" = 13. april 2026. "05.09.2025" = 5. september 2025.
+En kvittering kan ha mange datoer: kjøpsdato, transaksjonstidspunkt, utløp, kvitterings-ID.
+Kjøpsdatoen er vanligvis merket Dato, Kjøpsdato, Salgsdato — eller øverst.
+Forfatt IKKE transaksjons-ID-numre som datoer.
+Rapporter hvilken tekst du hentet kjøpsdatoen fra (purchase_date_source).
+
+GARANTIVURDERING — NORSK FORBRUKERKJØPSLOV:
+
+INGEN reklamasjonsrett:
+- Tjenester: taxi, restaurant, frisør, reparasjonsarbeid, lege, hotell, parkering
+- Forbruksvarer: mat, drikke, drivstoff, kosmetikk
+- Underholdning: kino, treningssenter, abonnementer, streaming
+- Reise og transport, gavekort, tilgodesedler
+
+2 ARS reklamasjonsrett (standard fysiske varer).
+
+5 ARS reklamasjonsrett (varige forbruksgjenstand):
+- Elektronikk: telefoner, datamaskiner, TV, kameraer
+- Hvitevarer: vaskemaskin, kjøleskap, oppvaskmaskin, ovn
+- Møbler: sofaer, bord, senger, hyller
+- Verktøy: elektroverktøy, håndverktøy
+- Sykler og sportsutstyr
+- Klær og sko
+- Leker og spill
+
+Dersom kvitteringen angir en eksplisitt garantiperiode, bruk den.
+Skriv reasoning på norsk, 1-2 setninger, spesifikt for DENNE kvitteringen.
+
+Returner KUN gyldig JSON:
+{
+  "shop_name": string,
+  "product_name": string,
+  "amount": number,
+  "purchase_date": "YYYY-MM-DD",
+  "purchase_date_source": string,
+  "category": one of [electronics, appliance, furniture, tools, clothing, shoes, toys, books, groceries, cosmetics, default],
+  "receipt_type": one of [receipt, gift_card, return_slip],
+  "gift_card_value": number or null,
+  "gift_card_expiry": "YYYY-MM-DD" or null,
+  "return_until": "YYYY-MM-DD" or null,
+  "has_warranty": true/false/null,
+  "warranty_assessment": {
+    "has_warranty": boolean,
+    "warranty_months": number or null,
+    "reasoning": string,
+    "category_description": string
+  }
+}
+
+Kategoriveiledning: electronics=telefoner/PC/TV/kamera; appliance=hvitevarer; furniture=møbler; tools=verktøy; clothing=klær; shoes=sko; toys=leketøy; books=bøker/media; groceries=mat/drikke; cosmetics=skjønnhet; default=alt annet.`;
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -102,7 +166,6 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Create the receipt row if caller did not supply one, then mark processing.
   let receiptId = incomingId;
   if (!receiptId) {
     const { data: newRow, error: insertError } = await supabase
@@ -133,13 +196,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Download image and encode as base64.
     const imageResp = await fetch(image_url);
     if (!imageResp.ok) throw new Error(`Image fetch failed: ${imageResp.status}`);
     const mimeType = imageResp.headers.get('content-type') ?? 'image/jpeg';
     const imageBase64 = toBase64(await imageResp.arrayBuffer());
 
-    // Call Gemini 2.0 Flash with JSON response mode.
     const geminiResp = await fetch(GEMINI_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -173,16 +234,50 @@ Deno.serve(async (req) => {
       throw new Error(`Gemini returned invalid JSON: ${rawJson.slice(0, 200)}`);
     }
 
-    const purchaseDate = ocr.purchase_date ?? new Date().toISOString().split('T')[0];
+    // ── Date sanity check ──────────────────────────────────────────────────────
+    const todayStr = new Date().toISOString().split('T')[0];
+    let purchaseDate = ocr.purchase_date ?? todayStr;
+    if (purchaseDate > todayStr) {
+      console.warn(
+        `[OCR] purchase_date "${purchaseDate}" is in the future ` +
+        `(source: "${ocr.purchase_date_source ?? 'unknown'}") — falling back to today.`,
+      );
+      purchaseDate = todayStr;
+    }
+
     const category: Category = ocr.category ?? 'default';
     const receiptType: ReceiptType = ocr.receipt_type ?? 'receipt';
 
-    const warrantyUntil = computeWarrantyUntil(
-      purchaseDate,
-      category,
-      ocr.has_warranty,
-      receiptType,
-    );
+    // ── Warranty computation ───────────────────────────────────────────────────
+    // Prefer Gemini's warranty_assessment over the rule-based fallback.
+    let warrantyUntil: string | null = null;
+    const assess = ocr.warranty_assessment;
+    if (assess && receiptType === 'receipt') {
+      if (assess.has_warranty && assess.warranty_months) {
+        const date = new Date(purchaseDate);
+        date.setMonth(date.getMonth() + assess.warranty_months);
+        warrantyUntil = date.toISOString().split('T')[0];
+      }
+    } else if (receiptType === 'receipt') {
+      warrantyUntil = computeWarrantyUntil(purchaseDate, category, ocr.has_warranty, receiptType);
+    }
+
+    // ocr_raw stores both the raw Gemini output and _result (computed values)
+    // so the app can restore fields without re-calling Gemini.
+    const ocrRaw = {
+      ...ocr,
+      _result: {
+        shop_name: ocr.shop_name ?? '',
+        product_name: ocr.product_name ?? '',
+        amount: ocr.amount ?? 0,
+        purchase_date: purchaseDate,
+        receipt_type: receiptType,
+        warranty_until: warrantyUntil,
+        return_until: ocr.return_until ?? null,
+        expiry_date: ocr.gift_card_expiry ?? null,
+        gift_card_balance: ocr.gift_card_value ?? null,
+      },
+    };
 
     await supabase
       .from('receipts')
@@ -197,7 +292,10 @@ Deno.serve(async (req) => {
         expiry_date: ocr.gift_card_expiry ?? null,
         return_until: ocr.return_until ?? null,
         warranty_until: warrantyUntil,
-        has_warranty: ocr.has_warranty ?? null,
+        has_warranty: assess ? assess.has_warranty : (ocr.has_warranty ?? null),
+        warranty_reasoning: assess?.reasoning ?? null,
+        category_description: assess?.category_description ?? null,
+        ocr_raw: ocrRaw,
         processing_status: 'completed',
       })
       .eq('id', receiptId);

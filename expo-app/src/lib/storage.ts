@@ -27,6 +27,10 @@ function mapRow(r: Record<string, unknown>): Receipt {
     is_used: (r.is_used as boolean) ?? false,
     has_warranty: (r.has_warranty as boolean) ?? undefined,
     created_at: (r.created_at as string) ?? new Date().toISOString(),
+    // OCR metadata (may be null for older receipts)
+    warranty_reasoning: (r.warranty_reasoning as string) ?? undefined,
+    category_description: (r.category_description as string) ?? undefined,
+    ocr_raw: r.ocr_raw ? (r.ocr_raw as Record<string, unknown>) : undefined,
   };
 }
 
@@ -58,7 +62,6 @@ export const getArchivedReceipts = async (userId: string): Promise<Receipt[]> =>
 };
 
 // Fetches a single receipt by ID regardless of archived status.
-// Pass userId to add an explicit user_id filter alongside the id check.
 export const getReceiptById = async (id: string, userId?: string): Promise<Receipt | null> => {
   const base = supabase.from('receipts').select('*');
   const q = userId
@@ -91,6 +94,28 @@ export const saveReceipt = async (receipt: Receipt): Promise<void> => {
   };
 
   const { error } = await supabase.from('receipts').upsert(dbReceipt);
+  if (error) throw error;
+};
+
+/**
+ * Partially update a receipt row by ID.
+ * Keys must match DB column names (e.g. receipt_type, not type).
+ */
+export const updateReceipt = async (
+  id: string,
+  updates: Partial<{
+    shop_name: string;
+    product_name: string;
+    amount: number;
+    purchase_date: string;
+    receipt_type: string;
+    warranty_until: string | null;
+    return_until: string | null;
+    expiry_date: string | null;
+    gift_card_balance: number | null;
+  }>,
+): Promise<void> => {
+  const { error } = await supabase.from('receipts').update(updates).eq('id', id);
   if (error) throw error;
 };
 

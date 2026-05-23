@@ -16,14 +16,13 @@ import { canGuestScan } from '@/lib/guestStorage';
 import { useAuth } from '@/hooks/useAuth';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useHaptics } from '@/hooks/useHaptics';
+import { debugLog } from '@/lib/debugLog';
 
 type ScanState = 'idle' | 'uploading' | 'processing' | 'waiting' | 'done' | 'error';
 
 const OCR_TIMEOUT_MS = 45_000;
 const FUNCTION_TIMEOUT_MS = 30_000;
 
-// Compress + resize image before upload: reduces 5 MB camera photo → ~300 KB,
-// making base64 conversion fast and upload quick without hurting OCR quality.
 async function prepareImage(uri: string): Promise<string> {
   const result = await ImageManipulator.manipulateAsync(
     uri,
@@ -51,12 +50,9 @@ export default function ScanScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const ocrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Ref so useFocusEffect can read the latest scanState without stale closure
   const scanStateRef = useRef<ScanState>('idle');
   useEffect(() => { scanStateRef.current = scanState; }, [scanState]);
 
-  // When the user navigates back to the Skann tab after a completed or failed
-  // scan, reset to idle so they can scan a new receipt immediately.
   useFocusEffect(
     useCallback(() => {
       if (scanStateRef.current === 'done' || scanStateRef.current === 'error') {
@@ -80,6 +76,7 @@ export default function ScanScreen() {
   }, []);
 
   const finishSuccess = (id: string | null) => {
+    debugLog('scan: finishSuccess', { receiptId: id });
     if (ocrTimeoutRef.current) {
       clearTimeout(ocrTimeoutRef.current);
       ocrTimeoutRef.current = null;
@@ -99,6 +96,7 @@ export default function ScanScreen() {
   };
 
   const finishError = (msg?: string) => {
+    debugLog('scan: finishError', { msg });
     if (ocrTimeoutRef.current) {
       clearTimeout(ocrTimeoutRef.current);
       ocrTimeoutRef.current = null;
@@ -134,6 +132,7 @@ export default function ScanScreen() {
   };
 
   const subscribeToReceipt = (receiptId: string) => {
+    debugLog('scan: subscribeToReceipt (waiting for realtime)', { receiptId });
     realtimeChannel.current?.unsubscribe();
 
     const channel = supabase
@@ -148,6 +147,7 @@ export default function ScanScreen() {
         },
         (payload) => {
           const ps = (payload.new as { processing_status?: string }).processing_status;
+          debugLog('scan: realtime update', { receiptId, processing_status: ps });
           if (ps === 'completed') {
             queryClient.invalidateQueries({ queryKey: ['receipts'] });
             finishSuccess(receiptId);
@@ -160,8 +160,8 @@ export default function ScanScreen() {
 
     realtimeChannel.current = channel;
 
-    // Safety timeout: navigate after OCR_TIMEOUT_MS regardless
     ocrTimeoutRef.current = setTimeout(() => {
+      debugLog('scan: OCR timeout fired — navigating anyway', { receiptId });
       if (realtimeChannel.current) {
         queryClient.invalidateQueries({ queryKey: ['receipts'] });
         finishSuccess(receiptId);
@@ -183,18 +183,24 @@ export default function ScanScreen() {
     setImageUri(uri);
 
     try {
-      // Step 1: compress + resize (5 MB camera → ~300 KB, keeps OCR quality)
+      debugLog('scan: image acquired', { uri: uri.slice(0, 80) });
+
+      // Step 1: compress + resize
       const compressedUri = await prepareImage(uri);
       setImageUri(compressedUri);
+      debugLog('scan: image compressed', { compressedUri: compressedUri.slice(0, 80) });
 
-      // Step 2: read as base64 via FileSystem (reliable on iOS for local URIs)
+      // Step 2: read as base64
       const base64 = await FileSystem.readAsStringAsync(compressedUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
       const bytes = base64ToUint8Array(base64);
+      debugLog('scan: file read OK', { bytes: bytes.length });
 
       const fileName = `${user.id}/${Date.now()}.jpg`;
 
+      // Step 3: upload to Supabase storage
+      debugLog('scan: upload start', { fileName });
       const { error: uploadError } = await supabase.storage
         .from('receipts')
         .upload(fileName, bytes, { contentType: 'image/jpeg' });
@@ -202,10 +208,12 @@ export default function ScanScreen() {
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      debugLog('scan: upload done', { publicUrl: urlData.publicUrl.slice(0, 80) });
 
       setScanState('processing');
 
-      // Step 3: call edge function with 30 s hard timeout via AbortController
+      // Step 4: invoke edge function
+      debugLog('scan: invoking OCR edge function');
       const abortCtrl = new AbortController();
       const fnTimeoutId = setTimeout(() => abortCtrl.abort(), FUNCTION_TIMEOUT_MS);
       let fnData: unknown;
@@ -221,6 +229,8 @@ export default function ScanScreen() {
         clearTimeout(fnTimeoutId);
       }
 
+      debugLog('scan: OCR edge function returned', { fnData, fnError: fnError ? String(fnError) : null });
+
       if (fnError) throw fnError as Error;
 
       const receiptId = (fnData as { receipt_id?: string } | null)?.receipt_id ?? null;
@@ -229,20 +239,23 @@ export default function ScanScreen() {
       if (ocrStatus === 'failed') throw new Error('OCR returnerte feil fra serveren');
 
       await incrementScanCount(user.id);
+      debugLog('scan: scan count incremented');
 
       if (ocrStatus === 'completed' || !receiptId) {
-        // Edge function processed synchronously — navigate immediately
         await queryClient.invalidateQueries({ queryKey: ['receipts'] });
         finishSuccess(receiptId);
         return;
       }
 
-      // Edge function is async — wait for realtime update on processing_status
+      // Step 5: wait for realtime update
+      debugLog('scan: entering waiting state', { receiptId });
       setScanState('waiting');
       subscribeToReceipt(receiptId);
 
     } catch (err) {
-      const msg = err instanceof Error ? err.message : undefined;
+      const msg = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
+      debugLog('scan: UNCAUGHT ERROR', { msg, stack: stack?.slice(0, 400) });
       finishError(msg);
     }
   };
@@ -254,6 +267,7 @@ export default function ScanScreen() {
     ocrTimeoutRef.current = null;
     setScanState('idle');
     setImageUri(null);
+    debugLog('scan: reset to idle');
   };
 
   const pickFromCamera = async () => {
@@ -265,13 +279,17 @@ export default function ScanScreen() {
       return;
     }
 
+    debugLog('scan: launching camera');
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       quality: 0.85,
     });
 
     if (!result.canceled && result.assets[0]) {
+      debugLog('scan: camera image selected');
       await processImage(result.assets[0].uri);
+    } else {
+      debugLog('scan: camera cancelled');
     }
   };
 
@@ -284,13 +302,17 @@ export default function ScanScreen() {
       return;
     }
 
+    debugLog('scan: launching image library');
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.85,
     });
 
     if (!result.canceled && result.assets[0]) {
+      debugLog('scan: gallery image selected');
       await processImage(result.assets[0].uri);
+    } else {
+      debugLog('scan: gallery cancelled');
     }
   };
 

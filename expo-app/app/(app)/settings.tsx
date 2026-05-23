@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Modal,
+  FlatList,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -19,13 +22,22 @@ import {
   ChevronRight,
   User,
   Shield,
+  Bug,
+  X,
+  Copy,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { disablePushNotifications } from '@/hooks/usePushNotifications';
 import { showCustomerCenterUI } from '@/lib/revenuecat';
 import { clearGuestData } from '@/lib/guestStorage';
+import { getDebugLogs, clearDebugLogs } from '@/lib/debugLog';
+import { getThemePreference, setThemePreference, type ThemePreference } from '@/lib/themeStore';
 
 function SettingsRow({
   icon,
@@ -73,11 +85,139 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
+function DebugLogModal({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const [logs, setLogs] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (visible) {
+      setLoading(true);
+      getDebugLogs().then((lines) => {
+        setLogs(lines);
+        setLoading(false);
+      });
+    }
+  }, [visible]);
+
+  const handleCopy = async () => {
+    try {
+      await Clipboard.setStringAsync(logs.join('\n'));
+      Toast.show({ type: 'success', text1: 'Kopiert til utklippstavle' });
+    } catch {
+      // expo-clipboard not available — fall back to Share
+      try {
+        await Share.share({ message: logs.join('\n') });
+      } catch {}
+    }
+  };
+
+  const handleClear = () => {
+    Alert.alert('Tøm logg', 'Er du sikker?', [
+      { text: 'Avbryt', style: 'cancel' },
+      {
+        text: 'Tøm',
+        style: 'destructive',
+        onPress: async () => {
+          await clearDebugLogs();
+          setLogs([]);
+        },
+      },
+    ]);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#0F1729' }}>
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: '#1E2A45',
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+            Feilsøkingslogg
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 16 }}>
+            <TouchableOpacity onPress={handleCopy}>
+              <Copy size={20} color="#94A3B8" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleClear}>
+              <Trash2 size={20} color="#EF4444" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose}>
+              <X size={22} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {loading ? (
+          <ActivityIndicator color="#6366F1" style={{ marginTop: 40 }} />
+        ) : logs.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#64748B', fontSize: 14 }}>Ingen logger ennå</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={logs}
+            keyExtractor={(_, i) => String(i)}
+            contentContainerStyle={{ padding: 12 }}
+            renderItem={({ item }) => (
+              <Text
+                selectable
+                style={{
+                  color: item.includes('ERROR') || item.includes('error') ? '#EF4444'
+                    : item.includes('WARN') || item.includes('warn') ? '#F59E0B'
+                    : '#94A3B8',
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                  lineHeight: 18,
+                  marginBottom: 2,
+                }}
+              >
+                {item}
+              </Text>
+            )}
+          />
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: React.ReactNode }[] = [
+  { value: 'system', label: 'System', icon: <Monitor size={16} color="#64748B" /> },
+  { value: 'light', label: 'Lys', icon: <Sun size={16} color="#64748B" /> },
+  { value: 'dark', label: 'Mørk', icon: <Moon size={16} color="#64748B" /> },
+];
+
 export default function SettingsScreen() {
   const { user, isAuthenticated } = useAuth();
   const { isPremium } = usePremiumStatus();
   const [signingOut, setSigningOut] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [debugLogVisible, setDebugLogVisible] = useState(false);
+  const [themePref, setThemePref] = useState<ThemePreference>('system');
+
+  useEffect(() => {
+    getThemePreference().then(setThemePref);
+  }, []);
+
+  const handleThemeChange = async (pref: ThemePreference) => {
+    setThemePref(pref);
+    await setThemePreference(pref);
+  };
 
   const handleSignOut = async () => {
     Alert.alert('Logg ut', 'Er du sikker på at du vil logge ut?', [
@@ -197,6 +337,45 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {/* Appearance */}
+        <SectionHeader title="Utseende" />
+        <View className="mx-4 rounded-2xl overflow-hidden border border-border bg-card">
+          <View className="px-4 py-4">
+            <Text className="text-sm text-muted-foreground mb-3">Fargemodus</Text>
+            <View className="flex-row gap-2">
+              {THEME_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  onPress={() => handleThemeChange(opt.value)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    borderWidth: 1.5,
+                    alignItems: 'center',
+                    gap: 4,
+                    backgroundColor: themePref === opt.value ? '#6366F1' : 'transparent',
+                    borderColor: themePref === opt.value ? '#6366F1' : '#E2E8F0',
+                  }}
+                >
+                  {React.cloneElement(opt.icon as React.ReactElement, {
+                    color: themePref === opt.value ? '#fff' : '#64748B',
+                  })}
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '500',
+                      color: themePref === opt.value ? '#fff' : '#64748B',
+                    }}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
         {/* Legal */}
         <SectionHeader title="Juridisk" />
         <View className="mx-4 rounded-2xl overflow-hidden border border-border">
@@ -209,6 +388,17 @@ export default function SettingsScreen() {
             icon={<Shield size={20} color="#64748B" />}
             label="Vilkår for bruk"
             onPress={() => {}}
+          />
+        </View>
+
+        {/* Developer */}
+        <SectionHeader title="Utvikler" />
+        <View className="mx-4 rounded-2xl overflow-hidden border border-border">
+          <SettingsRow
+            icon={<Bug size={20} color="#64748B" />}
+            label="Vis feilsøkingslogg"
+            sublabel="Teknisk logg for feilsøking"
+            onPress={() => setDebugLogVisible(true)}
           />
         </View>
 
@@ -259,6 +449,8 @@ export default function SettingsScreen() {
 
         <View className="h-8" />
       </ScrollView>
+
+      <DebugLogModal visible={debugLogVisible} onClose={() => setDebugLogVisible(false)} />
     </SafeAreaView>
   );
 }
