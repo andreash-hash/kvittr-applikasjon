@@ -112,6 +112,14 @@ INGEN reklamasjonsrett:
 Dersom kvitteringen angir en eksplisitt garantiperiode, bruk den.
 Skriv reasoning på norsk, 1-2 setninger, spesifikt for DENNE kvitteringen.
 
+BELØP OG PRODUKTNAVN — LES DETTE NØYE:
+amount = TOTALBELØP betalt for hele kvitteringen (sum, inkl. mva). Aldri prisen på én enkelt vare.
+  Se etter: "TOTALT", "Å BETALE", "TOTAL", "SUM", "BETALTE", "DEBIT", "BANK"-beløp.
+  Hvis kvitteringen har flere betalingslinjer (VISA + kontant), summer dem.
+product_name = ved én vare: produktnavnet. Ved flere varer: en kort beskrivelse av kjøpet
+  (f.eks. "Verktøy og tilbehør", "Klær og accessories", "Dagligvarer", "Diverse elektronikk").
+  Ikke kopier én tilfeldig varelinje — oppsummer hele kvitteringen på norsk.
+
 Returner KUN gyldig JSON:
 {
   "shop_name": string,
