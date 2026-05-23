@@ -11,7 +11,7 @@ import {
   FlatList,
   Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import {
@@ -92,6 +92,7 @@ function DebugLogModal({
   visible: boolean;
   onClose: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -133,7 +134,7 @@ function DebugLogModal({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#0F1729' }}>
+      <View style={{ flex: 1, backgroundColor: '#0F1729', paddingTop: insets.top }}>
         {/* Header */}
         <View
           style={{
@@ -191,7 +192,7 @@ function DebugLogModal({
             )}
           />
         )}
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }

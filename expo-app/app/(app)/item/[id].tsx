@@ -11,7 +11,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -105,6 +105,7 @@ export default function ItemScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const [imageError, setImageError] = useState(false);
   const [imageZoomVisible, setImageZoomVisible] = useState(false);
 
@@ -490,8 +491,7 @@ export default function ItemScreen() {
         statusBarTranslucent
         onRequestClose={() => setImageZoomVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: '#000' }}>
-          <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+        <View style={{ flex: 1, backgroundColor: '#000', paddingTop: insets.top, paddingBottom: insets.bottom }}>
             {/* Close button */}
             <TouchableOpacity
               onPress={() => setImageZoomVisible(false)}
@@ -529,7 +529,6 @@ export default function ItemScreen() {
                 resizeMode="contain"
               />
             </ScrollView>
-          </SafeAreaView>
         </View>
       </Modal>
     </SafeAreaView>

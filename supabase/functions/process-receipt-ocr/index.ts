@@ -224,8 +224,30 @@ Deno.serve(async (req) => {
     }
 
     const geminiData = await geminiResp.json();
+
+    // ── Diagnostic logging ─────────────────────────────────────────────────────
+    const candidateCount = geminiData?.candidates?.length ?? 0;
+    const promptFeedback = geminiData?.promptFeedback ?? null;
+    console.log(
+      `[OCR] mimeType=${mimeType} candidateCount=${candidateCount} ` +
+      `finishReason=${geminiData?.candidates?.[0]?.finishReason ?? 'N/A'} ` +
+      `promptFeedback=${JSON.stringify(promptFeedback)}`,
+    );
+
     const rawJson: string =
-      geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+      geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+
+    if (!rawJson) {
+      const summary = JSON.stringify({
+        candidateCount,
+        promptFeedback,
+        usageMetadata: geminiData?.usageMetadata,
+        geminiError: geminiData?.error,
+      });
+      throw new Error(`Gemini empty candidates: ${summary}`);
+    }
+
+    console.log(`[OCR] rawJson first 300: ${rawJson.slice(0, 300)}`);
 
     let ocr: OcrResult = {};
     try {
