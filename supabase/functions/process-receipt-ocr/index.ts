@@ -251,7 +251,8 @@ Deno.serve(async (req) => {
 
     let ocr: OcrResult = {};
     try {
-      ocr = JSON.parse(rawJson);
+      const parsed = JSON.parse(rawJson);
+      ocr = Array.isArray(parsed) ? parsed[0] ?? {} : parsed;
     } catch {
       throw new Error(`Gemini returned invalid JSON: ${rawJson.slice(0, 200)}`);
     }
