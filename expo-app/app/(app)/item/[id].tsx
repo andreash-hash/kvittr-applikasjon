@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,14 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -108,6 +116,42 @@ export default function ItemScreen() {
   const insets = useSafeAreaInsets();
   const [imageError, setImageError] = useState(false);
   const [imageZoomVisible, setImageZoomVisible] = useState(false);
+
+  // Swipe-down-to-dismiss for image zoom
+  const zoomTranslateY = useSharedValue(0);
+  const zoomOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    if (imageZoomVisible) {
+      zoomTranslateY.value = 0;
+      zoomOpacity.value = 1;
+    }
+  }, [imageZoomVisible]);
+
+  const dismissGesture = Gesture.Pan()
+    .activeOffsetY([0, 15])
+    .failOffsetY(-10)
+    .onUpdate((e) => {
+      if (e.translationY > 0) {
+        zoomTranslateY.value = e.translationY;
+        zoomOpacity.value = Math.max(0.4, 1 - e.translationY / 250);
+      }
+    })
+    .onEnd((e) => {
+      if (e.translationY > 100 || e.velocityY > 600) {
+        zoomTranslateY.value = withTiming(700, { duration: 220 });
+        zoomOpacity.value = withTiming(0, { duration: 200 });
+        runOnJS(setImageZoomVisible)(false);
+      } else {
+        zoomTranslateY.value = withSpring(0, { damping: 20 });
+        zoomOpacity.value = withSpring(1);
+      }
+    });
+
+  const dismissAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: zoomTranslateY.value }],
+    opacity: zoomOpacity.value,
+  }));
 
   // Edit modal state
   const [editModal, setEditModal] = useState<{
@@ -491,7 +535,8 @@ export default function ItemScreen() {
         statusBarTranslucent
         onRequestClose={() => setImageZoomVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: '#000', paddingTop: insets.top, paddingBottom: insets.bottom }}>
+        <GestureDetector gesture={dismissGesture}>
+          <Animated.View style={[{ flex: 1, backgroundColor: '#000', paddingTop: insets.top, paddingBottom: insets.bottom }, dismissAnimStyle]}>
             {/* Close button */}
             <TouchableOpacity
               onPress={() => setImageZoomVisible(false)}
@@ -529,7 +574,8 @@ export default function ItemScreen() {
                 resizeMode="contain"
               />
             </ScrollView>
-        </View>
+          </Animated.View>
+        </GestureDetector>
       </Modal>
     </SafeAreaView>
   );
