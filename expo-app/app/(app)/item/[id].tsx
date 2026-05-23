@@ -27,18 +27,29 @@ const typeLabels: Record<string, string> = {
   warranty: 'Garanti',
 };
 
+// 'warranty_expired' and 'gift_card_expired' → red (alarming — the protection is gone)
+// 'return_expired'                            → orange (calm — only the return window closed)
+// All other states match previous behaviour.
 const statusColors: Record<string, string> = {
-  active: 'text-green-600 dark:text-green-400',
-  expiring_soon: 'text-orange-500',
-  expired: 'text-destructive',
-  archived: 'text-muted-foreground dark:text-slate-400',
+  active:           'text-green-600 dark:text-green-400',
+  expiring_soon:    'text-orange-500',
+  warranty_expired: 'text-destructive',
+  return_expired:   'text-orange-400 dark:text-orange-300',
+  gift_card_expired:'text-destructive',
+  used:             'text-muted-foreground dark:text-slate-400',
+  archived:         'text-muted-foreground dark:text-slate-400',
+  expired:          'text-destructive', // legacy — kept for old cached rows
 };
 
 const statusLabels: Record<string, string> = {
-  active: 'Aktiv',
-  expiring_soon: 'Utløper snart',
-  expired: 'Utløpt',
-  archived: 'Arkivert',
+  active:           'Aktiv',
+  expiring_soon:    'Utløper snart',
+  warranty_expired: 'Garanti utløpt',
+  return_expired:   'Byttefrist utløpt',
+  gift_card_expired:'Gavekort utløpt',
+  used:             'Brukt',
+  archived:         'Arkivert',
+  expired:          'Utløpt', // legacy
 };
 
 function DetailRow({ label, value }: { label: string; value?: string | null }) {
@@ -53,7 +64,7 @@ function DetailRow({ label, value }: { label: string; value?: string | null }) {
 
 export default function ItemScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [imageError, setImageError] = useState(false);
 
@@ -62,7 +73,7 @@ export default function ItemScreen() {
     queryFn: async (): Promise<Receipt | null> => {
       if (!user || !id) return null;
       // Use the same queries that work on dashboard/archive screens.
-      // getReceipts and getArchivedReceipts both filter by user_id explicitly
+      // getReceipts and getArchivedReceipts filter by user_id explicitly,
       // so they work regardless of how Supabase RLS is configured.
       const [active, archived] = await Promise.all([
         getReceipts(user.id),
@@ -191,6 +202,11 @@ export default function ItemScreen() {
           <Text className={`text-sm font-medium mt-2 ${statusColors[status] ?? 'text-foreground'}`}>
             {statusLabels[status] ?? status}
           </Text>
+
+          {/* Extra context for return-right-expired-but-warranty-valid is handled
+              implicitly: calculateStatus returns 'active' in that case, so it
+              will NEVER show 'return_expired' when warranty is still valid.
+              The warranty date row below already communicates the remaining value. */}
 
           {/* Amount */}
           {receipt.amount > 0 && (

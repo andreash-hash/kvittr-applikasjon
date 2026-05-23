@@ -19,6 +19,8 @@ const typeBadge: Record<string, { bg: string; label: string }> = {
 };
 
 export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, isExpiring, footer }) => {
+  // Warranty takes priority — if it is still valid we show its remaining time.
+  // Only fall back to return_until / expiry_date when warranty_until is absent.
   const expiryDate = receipt.warranty_until ?? receipt.return_until ?? receipt.expiry_date;
   const daysLeft = expiryDate
     ? differenceInDays(new Date(expiryDate), new Date())
@@ -26,7 +28,17 @@ export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, isExpiring, f
 
   const expiryLabel = (): string | null => {
     if (daysLeft === null) return null;
-    if (daysLeft < 0) return 'Utløpt';
+    if (daysLeft < 0) {
+      // Show a specific label depending on which date actually expired.
+      // Because we prioritise warranty_until above, a negative daysLeft with
+      // warranty_until set means the WARRANTY expired (red).
+      // A negative daysLeft coming from return_until (no warranty) means the
+      // return window closed — less alarming, shown in orange.
+      if (receipt.warranty_until) return 'Garanti utløpt';
+      if (receipt.type === 'gift_card') return 'Gavekort utløpt';
+      if (receipt.return_until) return 'Byttefrist utløpt';
+      return 'Utløpt';
+    }
     if (daysLeft === 0) return 'Utløper i dag!';
     if (daysLeft === 1) return '1 dag igjen';
     if (daysLeft < 30) return `${daysLeft} dager igjen`;
@@ -34,11 +46,24 @@ export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, isExpiring, f
     return `${months} ${months === 1 ? 'måned' : 'måneder'} igjen`;
   };
 
+  // Colour for the expiry label.
+  const expiryLabelColor = (): string => {
+    if (daysLeft !== null && daysLeft < 0) {
+      // Warranty expired or gift card expired → alarming red
+      if (receipt.warranty_until || receipt.type === 'gift_card') return '#EF4444';
+      // Return-right expired but no warranty → calm orange (not alarming)
+      return '#F59E0B';
+    }
+    // Expiring within 7 days → urgent red
+    if ((daysLeft ?? Infinity) <= 7) return '#EF4444';
+    return '#94A3B8'; // muted
+  };
+
   const badge = typeBadge[receipt.type] ?? typeBadge.receipt;
   const label = expiryLabel();
   const urgentExpiry = (daysLeft ?? Infinity) <= 7 && (daysLeft ?? Infinity) >= 0;
-
   const borderColor = isExpiring ? '#F59E0B' : undefined;
+  const labelColor = expiryLabelColor();
 
   return (
     <View
@@ -74,11 +99,7 @@ export const ReceiptCard: React.FC<ReceiptCardProps> = ({ receipt, isExpiring, f
             {label && (
               <View className="flex-row items-center gap-1 mt-1.5">
                 {urgentExpiry && <Clock size={10} color="#EF4444" />}
-                <Text
-                  className={`text-xs font-medium ${
-                    urgentExpiry ? 'text-destructive' : 'text-muted-foreground dark:text-slate-400'
-                  }`}
-                >
+                <Text className="text-xs font-medium" style={{ color: labelColor }}>
                   {label}
                 </Text>
               </View>
