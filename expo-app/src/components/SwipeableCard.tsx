@@ -64,7 +64,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   );
 
   return (
-    <View style={{ marginBottom: 12 }}>
+    <View style={{ marginBottom: 12, borderRadius: 16, overflow: 'hidden' }}>
       <Swipeable
         ref={swipeableRef}
         renderRightActions={renderRightActions}
