@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
 import { View, TouchableOpacity, Text, Alert } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { Trash2, Archive } from 'lucide-react-native';
 
 interface SwipeableCardProps {
@@ -14,7 +16,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   onDelete,
   onArchive,
 }) => {
-  const swipeableRef = useRef<Swipeable>(null);
+  const swipeableRef = useRef<SwipeableMethods>(null);
 
   const close = () => swipeableRef.current?.close();
 
@@ -65,7 +67,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
   return (
     <View style={{ marginBottom: 12, borderRadius: 16, overflow: 'hidden' }}>
-      <Swipeable
+      <ReanimatedSwipeable
         ref={swipeableRef}
         renderRightActions={renderRightActions}
         friction={2}
@@ -74,7 +76,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
         containerStyle={{ borderRadius: 16, overflow: 'hidden' }}
       >
         {children}
-      </Swipeable>
+      </ReanimatedSwipeable>
     </View>
   );
 };

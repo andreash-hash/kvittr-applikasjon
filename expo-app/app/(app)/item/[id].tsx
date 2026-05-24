@@ -535,47 +535,50 @@ export default function ItemScreen() {
         statusBarTranslucent
         onRequestClose={() => setImageZoomVisible(false)}
       >
-        <GestureDetector gesture={dismissGesture}>
-          <Animated.View style={[{ flex: 1, backgroundColor: '#000', paddingTop: insets.top, paddingBottom: insets.bottom }, dismissAnimStyle]}>
-            {/* Close button */}
-            <TouchableOpacity
-              onPress={() => setImageZoomVisible(false)}
-              style={{
-                position: 'absolute',
-                top: 16,
-                right: 16,
-                zIndex: 10,
-                padding: 8,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                borderRadius: 20,
-              }}
-            >
-              <X size={24} color="#fff" />
-            </TouchableOpacity>
+        {/* Outer view so X button sits OUTSIDE GestureDetector and always receives touches */}
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <GestureDetector gesture={dismissGesture}>
+            <Animated.View style={[{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }, dismissAnimStyle]}>
+              {/* Pinch-to-zoom via ScrollView.maximumZoomScale (iOS native) */}
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+                maximumZoomScale={5}
+                minimumZoomScale={1}
+                bouncesZoom
+                centerContent
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+              >
+                <Image
+                  source={{ uri: receipt.image_url }}
+                  style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH * 1.5 }}
+                  resizeMode="contain"
+                />
+              </ScrollView>
+            </Animated.View>
+          </GestureDetector>
 
-            {/* Pinch-to-zoom via ScrollView.maximumZoomScale (iOS native) */}
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{
-                flex: 1,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-              maximumZoomScale={5}
-              minimumZoomScale={1}
-              bouncesZoom
-              centerContent
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-            >
-              <Image
-                source={{ uri: receipt.image_url }}
-                style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH * 1.5 }}
-                resizeMode="contain"
-              />
-            </ScrollView>
-          </Animated.View>
-        </GestureDetector>
+          {/* Close button — outside GestureDetector so Pan gesture can't eat the touch */}
+          <TouchableOpacity
+            onPress={() => setImageZoomVisible(false)}
+            style={{
+              position: 'absolute',
+              top: insets.top + 12,
+              right: 16,
+              zIndex: 20,
+              padding: 8,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              borderRadius: 20,
+            }}
+          >
+            <X size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );
