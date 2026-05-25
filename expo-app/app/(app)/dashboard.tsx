@@ -158,12 +158,16 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           )}
           {expiringCount > 0 && (
-            <View className="relative">
+            <TouchableOpacity
+              className="relative"
+              activeOpacity={0.7}
+              onPress={() => setActiveTab('expiring')}
+            >
               <Bell size={22} color="#64748B" />
               <View className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full items-center justify-center">
                 <Text className="text-white text-[10px] font-bold">{expiringCount}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           )}
           {!isAuthenticated && (
             <TouchableOpacity onPress={() => router.push('/(auth)/login')}>

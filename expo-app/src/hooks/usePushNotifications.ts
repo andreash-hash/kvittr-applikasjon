@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { router } from 'expo-router';
+import { router, useRootNavigationState } from 'expo-router';
 import { supabase } from '../lib/supabase';
 
 Notifications.setNotificationHandler({
@@ -92,43 +92,70 @@ export async function hasExistingToken(userId: string): Promise<boolean> {
   return !!data?.expo_push_token;
 }
 
-function routeToReceipt(receiptId: string | undefined) {
-  if (receiptId) router.push(`/(app)/item/${receiptId}`);
+function routeToReceipt(receiptId: string) {
+  router.push(`/(app)/item/${receiptId}`);
 }
 
 // Root-level hook — mount once in _layout.tsx.
 // Handles three notification tap scenarios:
-//   1. App foregrounded/backgrounded — addNotificationResponseReceivedListener
-//   2. App killed and relaunched from tap — getLastNotificationResponseAsync
+//   1. Warm-start (app foregrounded/backgrounded) — addNotificationResponseReceivedListener fires immediately
+//   2. Cold-start (app killed, relaunched from tap) — getLastNotificationResponseAsync returns the tapped
+//      notification, but we must buffer the receipt ID and only navigate once Expo Router has mounted its
+//      navigation stack (detected via useRootNavigationState().key becoming non-null).
 export function useNotificationDeepLink(): void {
   const handled = useRef<string | null>(null);
+  // Buffer for cold-start: store receipt ID until the router is ready to navigate.
+  const pendingReceiptId = useRef<string | null>(null);
 
+  const navState = useRootNavigationState();
+
+  // Effect 1: register both notification response sources once on mount.
   useEffect(() => {
-    // Scenario 2: app was killed; relaunched via notification tap.
+    // Scenario 2 — cold-start: app was killed and relaunched by tapping a notification.
+    // Router is not ready yet at this point, so we buffer the receiptId.
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) return;
       const id = response.notification.request.identifier;
-      if (handled.current === id) return; // already handled
+      if (handled.current === id) return;
       handled.current = id;
       const receiptId = response.notification.request.content.data?.receipt_id as
         | string
         | undefined;
-      routeToReceipt(receiptId);
+      if (receiptId) {
+        // If the router is already ready (e.g. hot reload) navigate immediately;
+        // otherwise buffer until Effect 2 fires with a valid navState.key.
+        if (navState?.key) {
+          routeToReceipt(receiptId);
+        } else {
+          pendingReceiptId.current = receiptId;
+        }
+      }
     });
 
-    // Scenario 1: app already running (foreground or background).
+    // Scenario 1 — warm-start: app already running in foreground or background.
+    // Router is ready, navigate directly.
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const id = response.notification.request.identifier;
-      if (handled.current === id) return; // guard against double-fire
+      if (handled.current === id) return;
       handled.current = id;
       const receiptId = response.notification.request.content.data?.receipt_id as
         | string
         | undefined;
-      routeToReceipt(receiptId);
+      if (receiptId) routeToReceipt(receiptId);
     });
 
     return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Effect 2: fires every time navState.key changes (i.e. when the router initialises).
+  // If a cold-start receipt ID is buffered, navigate now that the stack is ready.
+  useEffect(() => {
+    if (navState?.key && pendingReceiptId.current) {
+      routeToReceipt(pendingReceiptId.current);
+      pendingReceiptId.current = null;
+    }
+  }, [navState?.key]);
 }
 
 // Foreground notification display hook — mount once in _layout.tsx.
