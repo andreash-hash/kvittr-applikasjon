@@ -16,13 +16,24 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!email.trim() || !password) return;
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
     if (error) {
       Toast.show({ type: 'error', text1: 'Innlogging feilet', text2: error.message });
-    } else {
-      router.replace('/(app)/dashboard');
+      return;
     }
+    if (data.user?.id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('onboarding_completed')
+        .eq('id', data.user.id)
+        .single();
+      if (profile?.onboarding_completed === false) {
+        router.replace('/(app)/onboarding');
+        return;
+      }
+    }
+    router.replace('/(app)/dashboard');
   };
 
   return (

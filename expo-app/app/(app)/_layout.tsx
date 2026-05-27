@@ -118,6 +118,7 @@ import React, { useEffect } from 'react';
         <Tabs.Screen name="archive" options={{ href: null }} />
         <Tabs.Screen name="item/[id]" options={{ href: null }} />
         <Tabs.Screen name="premium" options={{ href: null }} />
+        <Tabs.Screen name="onboarding" options={{ href: null }} />
       </Tabs>
     );
   }

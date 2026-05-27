@@ -21,28 +21,31 @@ const toastConfig = {
   success: (props: BaseToastProps) => (
     <BaseToast
       {...props}
-      style={{ borderLeftColor: '#10B981' }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
+      style={{ borderLeftColor: '#10B981', height: 'auto', minHeight: 60, paddingVertical: 10 }}
+      contentContainerStyle={{ paddingHorizontal: 15, paddingVertical: 6 }}
       text1Style={{ fontSize: 16, fontWeight: '600' }}
       text2Style={{ fontSize: 14 }}
+      text2NumberOfLines={4}
     />
   ),
   error: (props: BaseToastProps) => (
     <ErrorToast
       {...props}
-      style={{ borderLeftColor: '#EF4444' }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
+      style={{ borderLeftColor: '#EF4444', height: 'auto', minHeight: 60, paddingVertical: 10 }}
+      contentContainerStyle={{ paddingHorizontal: 15, paddingVertical: 6 }}
       text1Style={{ fontSize: 16, fontWeight: '600' }}
       text2Style={{ fontSize: 14 }}
+      text2NumberOfLines={4}
     />
   ),
   info: (props: BaseToastProps) => (
     <InfoToast
       {...props}
-      style={{ borderLeftColor: '#6366F1' }}
-      contentContainerStyle={{ paddingHorizontal: 15 }}
+      style={{ borderLeftColor: '#6366F1', height: 'auto', minHeight: 60, paddingVertical: 10 }}
+      contentContainerStyle={{ paddingHorizontal: 15, paddingVertical: 6 }}
       text1Style={{ fontSize: 16, fontWeight: '600' }}
       text2Style={{ fontSize: 14 }}
+      text2NumberOfLines={4}
     />
   ),
 };

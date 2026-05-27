@@ -15,7 +15,7 @@ import {
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { Button } from '@/components/ui/Button';
-import { showPaywallUI } from '@/lib/revenuecat';
+import { showPaywallUI, handleRevenueCatError } from '@/lib/revenuecat';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -47,8 +47,16 @@ export default function PremiumScreen() {
     try {
       await showPaywallUI();
     } catch (err: any) {
-      if (err?.code !== 'USER_CANCELLED') {
-        Toast.show({ type: 'error', text1: 'Noe gikk galt', text2: 'Prøv igjen.' });
+      const cancelled =
+        err?.userCancelled === true ||
+        err?.code === 1 ||
+        err?.code === 'PURCHASE_CANCELLED' ||
+        err?.code === 'USER_CANCELLED';
+      if (!cancelled) {
+        const msg = handleRevenueCatError(err);
+        if (msg !== 'cancelled') {
+          Toast.show({ type: 'error', text1: 'Noe gikk galt', text2: msg });
+        }
       }
     } finally {
       setLoading(false);
