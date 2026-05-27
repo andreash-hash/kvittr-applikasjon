@@ -6,11 +6,16 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast, { BaseToast, ErrorToast, InfoToast, BaseToastProps } from 'react-native-toast-message';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { supabase } from '@/lib/supabase';
 import { initializeRevenueCat, syncSubscriptionStatus } from '@/lib/revenuecat';
 import { useNotificationDeepLink, useForegroundNotifications, setupAndroidNotificationChannel } from '@/hooks/usePushNotifications';
 import { isMobileApp } from '@/utils/platform';
 import { initTheme } from '@/lib/themeStore';
+
+// Keep native splash (solid dark background, no image) visible until
+// our JS animated logo takes over in index.tsx.
+SplashScreen.preventAutoHideAsync();
 
 const toastConfig = {
   success: (props: BaseToastProps) => (
@@ -51,9 +56,7 @@ function AppInit() {
   useForegroundNotifications();
 
   useEffect(() => {
-    // Apply persisted theme preference before anything renders.
     initTheme().catch(() => null);
-
     setupAndroidNotificationChannel().catch(() => null);
 
     const initRC = async () => {

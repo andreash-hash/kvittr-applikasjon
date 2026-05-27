@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Animated } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SplashScreen from 'expo-splash-screen';
 import { Logo } from '@/components/Logo';
 import { Onboarding } from '@/components/Onboarding';
 import { supabase } from '@/lib/supabase';
@@ -19,7 +20,9 @@ export default function IndexScreen() {
   useEffect(() => {
     let cancelled = false;
 
-    // Fade in immediately on mount
+    // Hide native splash (solid dark bg, no image) and start our
+    // JS fade-in simultaneously — seamless handoff.
+    SplashScreen.hideAsync();
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: FADE_IN_MS,
