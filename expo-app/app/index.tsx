@@ -78,7 +78,7 @@ export default function IndexScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleOnboardingComplete = async () => {
+  const handleOnboardingComplete = async (action: 'register' | 'guest' | 'skip') => {
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
     if (userId) {
       await supabase
@@ -87,7 +87,11 @@ export default function IndexScreen() {
         .eq('id', userId);
     }
     setShowOnboarding(false);
-    router.replace('/(app)/dashboard');
+    if (action === 'register') {
+      router.replace('/(auth)/signup');
+    } else {
+      router.replace('/(app)/dashboard');
+    }
   };
 
   if (showOnboarding) {
