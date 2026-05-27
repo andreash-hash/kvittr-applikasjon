@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileText, Shield, Bell, Gift } from 'lucide-react-native';
+import { router } from 'expo-router';
 import { Button } from './ui/Button';
 
 const slides = [
@@ -69,21 +70,29 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       </View>
 
       <View className="px-6 pb-8 gap-3">
-        <Button
-          onPress={() => {
-            if (isLast) {
-              onComplete();
-            } else {
-              setIndex((prev) => prev + 1);
-            }
-          }}
-        >
-          {isLast ? 'Kom i gang' : 'Neste'}
-        </Button>
-        {!isLast && (
-          <Button variant="ghost" onPress={onComplete}>
-            Hopp over
-          </Button>
+        {isLast ? (
+          <>
+            <Button
+              onPress={() => {
+                onComplete();
+                router.push('/(auth)/signup');
+              }}
+            >
+              Registrer deg
+            </Button>
+            <Button variant="outline" onPress={onComplete}>
+              Fortsett som gjest
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button onPress={() => setIndex((prev) => prev + 1)}>
+              Neste
+            </Button>
+            <Button variant="ghost" onPress={onComplete}>
+              Hopp over
+            </Button>
+          </>
         )}
       </View>
     </SafeAreaView>
