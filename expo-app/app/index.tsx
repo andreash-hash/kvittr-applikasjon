@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Animated } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Logo } from '@/components/Logo';
@@ -7,46 +7,72 @@ import { Onboarding } from '@/components/Onboarding';
 import { supabase } from '@/lib/supabase';
 
 const ONBOARDING_KEY = 'kvittr_onboarding_completed';
+const FADE_IN_MS  = 700;
+const HOLD_MS     = 1200;
+const FADE_OUT_MS = 600;
 
 export default function IndexScreen() {
-  const [checking, setChecking] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+
+    // Fade in immediately on mount
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: FADE_IN_MS,
+      useNativeDriver: true,
+    }).start();
+
+    // Minimum display time: fade-in + hold
+    const minTimePromise = new Promise<void>(resolve =>
+      setTimeout(resolve, FADE_IN_MS + HOLD_MS),
+    );
+
+    // Auth + onboarding check
+    const authPromise: Promise<'dashboard' | 'onboarding'> = (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const uid = session?.user?.id ?? null;
-      setUserId(uid);
+      if (!cancelled) setUserId(uid);
 
       if (uid) {
-        // Authenticated user: DB flag is the source of truth.
         const { data: profile } = await supabase
           .from('profiles')
           .select('onboarding_completed')
           .eq('id', uid)
           .single();
 
-        if (profile?.onboarding_completed === false) {
-          setShowOnboarding(true);
-          setChecking(false);
-          return;
-        }
-        // Completed in DB — ensure AsyncStorage matches and go to dashboard.
+        if (profile?.onboarding_completed === false) return 'onboarding';
         await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-        router.replace('/(app)/dashboard');
-        return;
+        return 'dashboard';
       }
 
-      // Guest user: AsyncStorage is the source of truth.
       const done = await AsyncStorage.getItem(ONBOARDING_KEY);
-      if (!done) {
-        setShowOnboarding(true);
-        setChecking(false);
-        return;
-      }
-      router.replace('/(app)/dashboard');
+      return done ? 'dashboard' : 'onboarding';
     })();
+
+    // Wait for both: minimum display time AND auth result
+    Promise.all([minTimePromise, authPromise]).then(([, destination]) => {
+      if (cancelled) return;
+
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: FADE_OUT_MS,
+        useNativeDriver: true,
+      }).start(() => {
+        if (cancelled) return;
+        if (destination === 'onboarding') {
+          setShowOnboarding(true);
+        } else {
+          router.replace('/(app)/dashboard');
+        }
+      });
+    });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleOnboardingComplete = async () => {
@@ -65,14 +91,11 @@ export default function IndexScreen() {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
-  if (checking) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background gap-4">
-        <Logo size="medium" />
-        <ActivityIndicator color="#6366F1" />
-      </View>
-    );
-  }
-
-  return null;
+  return (
+    <View className="flex-1 items-center justify-center bg-background dark:bg-slate-900">
+      <Animated.View style={{ opacity: fadeAnim }}>
+        <Logo size="splash" />
+      </Animated.View>
+    </View>
+  );
 }

@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text } from 'react-native';
 
 interface LogoProps {
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | 'splash';
 }
 
 const LETTERS = ['k', 'v', 'i', 't', 't', 'r'];
 const COLORS = ['#4B3B8C', '#E05C7A', '#F4A13A', '#7B6BB5', '#5B8DD9', '#2AB5A5'];
-const fontSizes: Record<string, number> = { small: 18, medium: 26, large: 36 };
+const fontSizes: Record<string, number> = { small: 18, medium: 26, large: 36, splash: 52 };
 
 export const Logo: React.FC<LogoProps> = ({ size = 'medium' }) => {
   const fontSize = fontSizes[size];
