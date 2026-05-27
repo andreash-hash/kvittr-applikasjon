@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Toast from 'react-native-toast-message';
+import Toast, { BaseToast, ErrorToast, InfoToast, BaseToastProps } from 'react-native-toast-message';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '@/lib/supabase';
@@ -11,6 +11,36 @@ import { initializeRevenueCat, syncSubscriptionStatus } from '@/lib/revenuecat';
 import { useNotificationDeepLink, useForegroundNotifications, setupAndroidNotificationChannel } from '@/hooks/usePushNotifications';
 import { isMobileApp } from '@/utils/platform';
 import { initTheme } from '@/lib/themeStore';
+
+const toastConfig = {
+  success: (props: BaseToastProps) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#10B981' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{ fontSize: 16, fontWeight: '600' }}
+      text2Style={{ fontSize: 14 }}
+    />
+  ),
+  error: (props: BaseToastProps) => (
+    <ErrorToast
+      {...props}
+      style={{ borderLeftColor: '#EF4444' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{ fontSize: 16, fontWeight: '600' }}
+      text2Style={{ fontSize: 14 }}
+    />
+  ),
+  info: (props: BaseToastProps) => (
+    <InfoToast
+      {...props}
+      style={{ borderLeftColor: '#6366F1' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{ fontSize: 16, fontWeight: '600' }}
+      text2Style={{ fontSize: 14 }}
+    />
+  ),
+};
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 2, staleTime: 30_000 } },
@@ -60,7 +90,7 @@ export default function RootLayout() {
             <Stack.Screen name="verify-success" />
             <Stack.Screen name="+not-found" />
           </Stack>
-          <Toast />
+          <Toast topOffset={60} config={toastConfig} />
         </SafeAreaProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

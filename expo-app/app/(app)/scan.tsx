@@ -111,8 +111,8 @@ export default function ScanScreen() {
   const checkCanScan = async (): Promise<boolean> => {
     if (isPremium) return true;
     if (isAuthenticated && user) {
-      const canScan = await checkScanLimit(user.id);
-      if (!canScan) {
+      const scanStatus = await checkScanLimit(user.id);
+      if (!scanStatus.canScan) {
         router.push('/(app)/premium');
         return false;
       }

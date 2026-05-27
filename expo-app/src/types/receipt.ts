@@ -30,6 +30,7 @@ export interface Receipt {
   processing_status?: ProcessingStatus;
   is_used?: boolean;
   has_warranty?: boolean | null;
+  notes?: string | null;
   created_at: string;
   // OCR metadata (added in migration 20260524)
   warranty_reasoning?: string;

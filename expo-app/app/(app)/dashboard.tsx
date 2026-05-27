@@ -131,7 +131,9 @@ export default function DashboardScreen() {
         const receipt = r as Receipt;
         return (
           receipt.shop_name?.toLowerCase().includes(q) ||
-          receipt.product_name?.toLowerCase().includes(q)
+          receipt.product_name?.toLowerCase().includes(q) ||
+          receipt.notes?.toLowerCase().includes(q) ||
+          String(receipt.amount ?? '').includes(q)
         );
       })
     : tabFiltered;
@@ -146,14 +148,14 @@ export default function DashboardScreen() {
     <SafeAreaView className="flex-1 bg-background dark:bg-slate-900" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3">
-        <Logo size="small" />
+        <Logo size="medium" />
         <View className="flex-row gap-3 items-center">
           {!isPremium && (
             <TouchableOpacity
               onPress={() => router.push('/(app)/premium')}
               className="flex-row items-center gap-1 bg-primary/10 rounded-full px-3 py-1.5"
             >
-              <Crown size={14} color="#6366F1" />
+              <Crown size={20} color="#6366F1" />
               <Text className="text-primary text-xs font-medium">Premium</Text>
             </TouchableOpacity>
           )}

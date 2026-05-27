@@ -11,22 +11,52 @@ const ONBOARDING_KEY = 'kvittr_onboarding_completed';
 export default function IndexScreen() {
   const [checking, setChecking] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id ?? null;
+      setUserId(uid);
+
+      if (uid) {
+        // Authenticated user: DB flag is the source of truth.
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', uid)
+          .single();
+
+        if (profile?.onboarding_completed === false) {
+          setShowOnboarding(true);
+          setChecking(false);
+          return;
+        }
+        // Completed in DB — ensure AsyncStorage matches and go to dashboard.
+        await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+        router.replace('/(app)/dashboard');
+        return;
+      }
+
+      // Guest user: AsyncStorage is the source of truth.
       const done = await AsyncStorage.getItem(ONBOARDING_KEY);
       if (!done) {
         setShowOnboarding(true);
         setChecking(false);
         return;
       }
-      // Onboarding done — always go to dashboard (guest or authenticated)
       router.replace('/(app)/dashboard');
     })();
   }, []);
 
   const handleOnboardingComplete = async () => {
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+    if (userId) {
+      await supabase
+        .from('profiles')
+        .update({ onboarding_completed: true })
+        .eq('id', userId);
+    }
     setShowOnboarding(false);
     router.replace('/(app)/dashboard');
   };

@@ -39,7 +39,7 @@ export default function SignupScreen() {
       Toast.show({
         type: 'success',
         text1: 'Sjekk e-posten din',
-        text2: 'Vi har sendt deg en bekreftelseslenke.',
+        text2: 'Vi har sendt deg en bekreftelseslenke. Sjekk også søppelpost.',
       });
       router.replace('/(auth)/login');
     }
