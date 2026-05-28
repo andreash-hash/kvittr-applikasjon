@@ -332,7 +332,7 @@ export default function ScanScreen() {
       : 'Dette kan ta noen sekunder';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAF7F2' }} className="dark:bg-slate-900" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background dark:bg-slate-900" edges={['top']}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <View className="flex-1 px-6 pb-8">
           <Text className="text-2xl font-bold text-foreground dark:text-slate-100 mt-6 mb-2">

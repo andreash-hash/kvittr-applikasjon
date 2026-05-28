@@ -21,31 +21,28 @@ const toastConfig = {
   success: (props: BaseToastProps) => (
     <BaseToast
       {...props}
-      style={{ borderLeftColor: '#10B981', height: 'auto', minHeight: 60, paddingVertical: 10 }}
-      contentContainerStyle={{ paddingHorizontal: 15, paddingVertical: 6 }}
+      style={{ borderLeftColor: '#10B981' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
       text1Style={{ fontSize: 16, fontWeight: '600' }}
       text2Style={{ fontSize: 14 }}
-      text2NumberOfLines={4}
     />
   ),
   error: (props: BaseToastProps) => (
     <ErrorToast
       {...props}
-      style={{ borderLeftColor: '#EF4444', height: 'auto', minHeight: 60, paddingVertical: 10 }}
-      contentContainerStyle={{ paddingHorizontal: 15, paddingVertical: 6 }}
+      style={{ borderLeftColor: '#EF4444' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
       text1Style={{ fontSize: 16, fontWeight: '600' }}
       text2Style={{ fontSize: 14 }}
-      text2NumberOfLines={4}
     />
   ),
   info: (props: BaseToastProps) => (
     <InfoToast
       {...props}
-      style={{ borderLeftColor: '#6366F1', height: 'auto', minHeight: 60, paddingVertical: 10 }}
-      contentContainerStyle={{ paddingHorizontal: 15, paddingVertical: 6 }}
+      style={{ borderLeftColor: '#6366F1' }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
       text1Style={{ fontSize: 16, fontWeight: '600' }}
       text2Style={{ fontSize: 14 }}
-      text2NumberOfLines={4}
     />
   ),
 };
@@ -55,7 +52,6 @@ const queryClient = new QueryClient({
 });
 
 function AppInit() {
-  console.log('### ROOT: AppInit mounted');
   useNotificationDeepLink();
   useForegroundNotifications();
 
@@ -83,7 +79,6 @@ function AppInit() {
 }
 
 export default function RootLayout() {
-  console.log('### ROOT: RootLayout rendered');
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
@@ -93,7 +88,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(app)" options={{ animation: 'none' }} />
+            <Stack.Screen name="(app)" />
             <Stack.Screen name="success" />
             <Stack.Screen name="verify-success" />
             <Stack.Screen name="+not-found" />

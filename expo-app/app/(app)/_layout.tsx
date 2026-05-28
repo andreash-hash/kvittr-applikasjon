@@ -31,7 +31,6 @@ import React, { useEffect } from 'react';
   }
 
   export default function AppLayout() {
-    console.log('### APP_LAYOUT: AppLayout (Tabs) rendered');
     const { user } = useAuth();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
@@ -44,7 +43,6 @@ import React, { useEffect } from 'react';
 
     return (
       <Tabs
-        initialRouteName="dashboard"
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: '#6366F1',
@@ -120,7 +118,6 @@ import React, { useEffect } from 'react';
         <Tabs.Screen name="archive" options={{ href: null }} />
         <Tabs.Screen name="item/[id]" options={{ href: null }} />
         <Tabs.Screen name="premium" options={{ href: null }} />
-        <Tabs.Screen name="onboarding" options={{ href: null }} />
       </Tabs>
     );
   }

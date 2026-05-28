@@ -7,10 +7,9 @@ import {
   RefreshControl,
   ActivityIndicator,
   TextInput,
-  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Bell, Crown, AlertTriangle, FileText, ArchiveX, Search, X } from 'lucide-react-native';
@@ -37,11 +36,8 @@ const TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export default function DashboardScreen() {
-  console.log('### DASHBOARD FUNCTION CALLED');
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const { user, isAuthenticated } = useAuth();
-  const { isPremium, loading: premiumLoading } = usePremiumStatus();
+  const { isPremium } = usePremiumStatus();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -68,19 +64,10 @@ export default function DashboardScreen() {
     staleTime: 10_000,
   });
 
-  const invalidateAll = useCallback(() => {
+  const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['receipts'] });
     queryClient.invalidateQueries({ queryKey: ['archived-receipts'] });
-  }, [queryClient]);
-
-  // Refresh data every time the screen comes into focus (handles initial
-  // mount via Stack→Tabs navigation and subsequent tab taps)
-  useFocusEffect(
-    useCallback(() => {
-      console.log('### DASHBOARD useFocusEffect fired');
-      invalidateAll();
-    }, [invalidateAll]),
-  );
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -125,9 +112,9 @@ export default function DashboardScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    invalidateAll();
+    await invalidateAll();
     setRefreshing(false);
-  }, [invalidateAll]);
+  }, [queryClient]);
 
   const tabFiltered = isArchivedTab
     ? (archivedReceipts as Receipt[])
@@ -137,6 +124,7 @@ export default function DashboardScreen() {
         return (r as Receipt).type === activeTab;
       });
 
+  // Apply search on top of tab filter
   const filtered = searchQuery.trim()
     ? tabFiltered.filter((r) => {
         const q = searchQuery.toLowerCase();
@@ -156,59 +144,51 @@ export default function DashboardScreen() {
 
   const loading = isArchivedTab ? isLoadingArchived : isLoading;
 
-  const bgColor = isDark ? '#0F172A' : '#FAF7F2';
-  const textColor = isDark ? '#F1F5F9' : '#1A1A2E';
-  const mutedColor = isDark ? '#94A3B8' : '#6B7280';
-
-  console.log('### DASHBOARD RETURNING JSX', {
-    isLoading,
-    loading,
-    itemCount: filtered.length,
-    isAuthenticated,
-    userId: user?.id ?? 'guest',
-    premiumLoading,
-  });
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background dark:bg-slate-900" edges={['top']}>
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 }}>
+      <View className="flex-row items-center justify-between px-4 py-3">
         <Logo size="medium" />
-        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <View className="flex-row gap-3 items-center">
           {!isPremium && (
             <TouchableOpacity
               onPress={() => router.push('/(app)/premium')}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(99,102,241,0.1)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}
+              className="flex-row items-center gap-1 bg-primary/10 rounded-full px-3 py-1.5"
             >
               <Crown size={20} color="#6366F1" />
-              <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '500' }}>Premium</Text>
+              <Text className="text-primary text-xs font-medium">Premium</Text>
             </TouchableOpacity>
           )}
           {expiringCount > 0 && (
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setActiveTab('expiring')} style={{ position: 'relative' }}>
+            <TouchableOpacity
+              className="relative"
+              activeOpacity={0.7}
+              onPress={() => setActiveTab('expiring')}
+            >
               <Bell size={22} color="#64748B" />
-              <View style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, backgroundColor: '#EF4444', borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{expiringCount}</Text>
+              <View className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full items-center justify-center">
+                <Text className="text-white text-[10px] font-bold">{expiringCount}</Text>
               </View>
             </TouchableOpacity>
           )}
           {!isAuthenticated && (
             <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-              <Text style={{ color: '#6366F1', fontSize: 14, fontWeight: '500' }}>Logg inn</Text>
+              <Text className="text-primary text-sm font-medium">Logg inn</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
       {/* Search field */}
-      <View style={{ marginHorizontal: 16, marginBottom: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? '#1E293B' : '#F3F4F6', borderRadius: 12, paddingHorizontal: 12, gap: 8, borderWidth: 1, borderColor: isDark ? '#334155' : '#E5E7EB' }}>
+      <View className="mx-4 mb-2 flex-row items-center bg-muted dark:bg-slate-800 rounded-xl px-3 gap-2 border border-border dark:border-slate-700">
         <Search size={16} color="#94A3B8" />
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Søk etter butikk eller produkt..."
           placeholderTextColor="#94A3B8"
-          style={{ flex: 1, paddingVertical: 10, fontSize: 14, color: textColor }}
+          className="flex-1 py-2.5 text-sm text-foreground dark:text-slate-100"
+          style={{ fontSize: 14 }}
           clearButtonMode="never"
           returnKeyType="search"
         />
@@ -223,19 +203,19 @@ export default function DashboardScreen() {
       {expiringCount > 0 && !isArchivedTab && !searchQuery && (
         <TouchableOpacity
           onPress={() => setActiveTab('expiring')}
-          style={{ marginHorizontal: 16, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: isDark ? 'rgba(217,119,6,0.2)' : '#FFFBEB', borderWidth: 1, borderColor: isDark ? '#92400E' : '#FDE68A', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
+          className="mx-4 mb-2 flex-row items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5"
           activeOpacity={0.8}
         >
           <AlertTriangle size={16} color="#D97706" />
-          <Text style={{ color: isDark ? '#FCD34D' : '#B45309', fontSize: 14, fontWeight: '500', flex: 1 }}>
+          <Text className="text-amber-700 dark:text-amber-400 text-sm font-medium flex-1">
             {expiringCount} {expiringCount === 1 ? 'kvittering utløper' : 'kvitteringer utløper'} snart
           </Text>
-          <Text style={{ color: isDark ? '#FCD34D' : '#D97706', fontSize: 12 }}>Se →</Text>
+          <Text className="text-amber-600 dark:text-amber-500 text-xs">Se →</Text>
         </TouchableOpacity>
       )}
 
       {/* Filter tabs */}
-      <View style={{ borderBottomWidth: 1, borderBottomColor: isDark ? '#1E293B' : '#E5E7EB' }}>
+      <View className="border-b border-border dark:border-slate-700">
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -245,9 +225,19 @@ export default function DashboardScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               onPress={() => setActiveTab(item.key)}
-              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: activeTab === item.key ? '#6366F1' : (isDark ? '#1E293B' : '#F3F4F6') }}
+              className={`px-3 py-1.5 rounded-full ${
+                activeTab === item.key
+                  ? 'bg-primary'
+                  : 'bg-muted dark:bg-slate-800'
+              }`}
             >
-              <Text style={{ fontSize: 14, fontWeight: '500', color: activeTab === item.key ? '#fff' : mutedColor }}>
+              <Text
+                className={`text-sm font-medium ${
+                  activeTab === item.key
+                    ? 'text-white'
+                    : 'text-muted-foreground dark:text-slate-400'
+                }`}
+              >
                 {item.label}
               </Text>
             </TouchableOpacity>
@@ -257,38 +247,38 @@ export default function DashboardScreen() {
 
       {/* List */}
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#6366F1" />
         </View>
       ) : filtered.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        <View className="flex-1 items-center justify-center px-8">
           {searchQuery.trim() ? (
             <>
               <Search size={48} color="#94A3B8" />
-              <Text style={{ fontSize: 18, fontWeight: '700', color: textColor, marginTop: 16, textAlign: 'center' }}>
+              <Text className="text-lg font-bold text-foreground dark:text-slate-100 mt-4 text-center">
                 Ingen treff
               </Text>
-              <Text style={{ color: mutedColor, textAlign: 'center', marginTop: 8 }}>
+              <Text className="text-muted-foreground dark:text-slate-400 text-center mt-2">
                 Prøv et annet søkeord.
               </Text>
             </>
           ) : isArchivedTab ? (
             <>
               <ArchiveX size={56} color="#94A3B8" />
-              <Text style={{ fontSize: 20, fontWeight: '700', color: textColor, marginTop: 16, textAlign: 'center' }}>
+              <Text className="text-xl font-bold text-foreground dark:text-slate-100 mt-4 text-center">
                 Arkivet er tomt
               </Text>
-              <Text style={{ color: mutedColor, textAlign: 'center', marginTop: 8, lineHeight: 24 }}>
+              <Text className="text-muted-foreground dark:text-slate-400 text-center mt-2 leading-6">
                 Sveip en kvittering til venstre og trykk Arkiver for å lagre den her.
               </Text>
             </>
           ) : (
             <>
               <FileText size={56} color="#94A3B8" />
-              <Text style={{ fontSize: 20, fontWeight: '700', color: textColor, marginTop: 16, textAlign: 'center' }}>
+              <Text className="text-xl font-bold text-foreground dark:text-slate-100 mt-4 text-center">
                 {activeTab === 'all' ? 'Ingen kvitteringer ennå' : 'Ingen her'}
               </Text>
-              <Text style={{ color: mutedColor, textAlign: 'center', marginTop: 8, lineHeight: 24 }}>
+              <Text className="text-muted-foreground dark:text-slate-400 text-center mt-2 leading-6">
                 {activeTab === 'all'
                   ? 'Trykk på skann-knappen for å legge til din første kvittering.'
                   : 'Prøv en annen kategori eller skann en ny kvittering.'}
@@ -329,11 +319,11 @@ export default function DashboardScreen() {
                   isArchivedTab ? (
                     <TouchableOpacity
                       onPress={() => unarchiveMutation.mutate((item as Receipt).id)}
-                      style={{ backgroundColor: isDark ? '#1E293B' : '#F3F4F6', paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                      className="bg-muted dark:bg-slate-800 px-4 py-2.5 flex-row items-center gap-2"
                       activeOpacity={0.7}
                     >
                       <ArchiveX size={14} color="#6366F1" />
-                      <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: '500' }}>Hent fra arkiv</Text>
+                      <Text className="text-primary text-xs font-medium">Hent fra arkiv</Text>
                     </TouchableOpacity>
                   ) : undefined
                 }
