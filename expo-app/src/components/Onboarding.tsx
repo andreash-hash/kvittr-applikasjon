@@ -5,12 +5,12 @@
 
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Dimensions,
+  View, Text, StyleSheet, TouchableOpacity,
   Animated, PanResponder, SafeAreaView, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  FileText, Shield, Bell, Gift, ArrowRight, Check, RefreshCw,
+  Shield, Bell, Gift, ArrowRight, RefreshCw,
 } from 'lucide-react-native';
 
 const COLORS = {
@@ -21,11 +21,6 @@ const COLORS = {
   amber: '#D97706',
   rose: '#F97316',
   letterK: '#3B6EE3',
-  letterV: '#F97316',
-  letterI: '#DC2626',
-  letterT1: '#14B8A6',
-  letterT2: '#3B6EE3',
-  letterR: '#16A34A',
 } as const;
 
 const ROSE = '#F97316';
@@ -92,7 +87,6 @@ const accentColor = (k: SlideAccent): string =>
 const accentDark = (k: SlideAccent): string =>
   ({ k: '#1F2C66', primary: '#4338CA', giftcard: '#086B5F', amber: '#92500A', rose: '#A8395A' }[k]);
 
-// ── Wordmark ──────────────────────────────────────────────────
 function Wordmark({ size = 22, color = '#fff' }: { size?: number; color?: string }) {
   return (
     <Text style={{
@@ -105,7 +99,6 @@ function Wordmark({ size = 22, color = '#fff' }: { size?: number; color?: string
   );
 }
 
-// ── Headline ──────────────────────────────────────────────────
 function Headline({ title, italic, size = 40 }: { title: [string, string]; italic: string; size?: number }) {
   const renderLine = (line: string, lineIdx: number) => {
     const words = line.split(' ');
@@ -132,12 +125,10 @@ function Headline({ title, italic, size = 40 }: { title: [string, string]; itali
   return <View>{title.map(renderLine)}</View>;
 }
 
-// ── Glass card ────────────────────────────────────────────────
 function Glass({ children, style }: { children: React.ReactNode; style?: any }) {
   return <View style={[styles.glass, style]}>{children}</View>;
 }
 
-// ── Specimens ─────────────────────────────────────────────────
 function SpecBrand() {
   return (
     <Glass style={{ width: 280, height: 240, alignItems: 'center', justifyContent: 'center' }}>
@@ -251,6 +242,11 @@ function SpecNotify() {
   );
 }
 
+// Fixed fan stack — each card has distinct position and rotation so all three are visible
+const CARD_ROTATIONS = ['-5deg', '0deg', '5deg'];
+const CARD_TOPS      = [10,  42,  74];
+const CARD_LEFTS     = [20,   5, -10];
+
 function SpecGiftcards() {
   const cards = [
     { shop: 'Komplett.no', amount: '500',   date: 'utløper 30. sep' },
@@ -258,23 +254,31 @@ function SpecGiftcards() {
     { shop: 'XXL Sport',   amount: '1 000', date: 'utløper 03. des' },
   ];
   return (
-    <View style={{ width: 280, height: 240 }}>
+    <View style={{ width: 300, height: 210 }}>
       {cards.map((c, i) => (
         <View key={i} style={[styles.glass, {
           position: 'absolute',
-          top: 20 + i * 22, left: i * 6, right: -i * 6,
-          padding: 14, height: 110, borderRadius: 16,
-          transform: [{ rotate: `${(i - 1) * 3}deg` }],
+          top: CARD_TOPS[i],
+          left: CARD_LEFTS[i],
+          width: 260,
+          height: 110,
+          borderRadius: 16,
+          padding: 14,
+          transform: [{ rotate: CARD_ROTATIONS[i] }],
           zIndex: cards.length - i,
         }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View>
-              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 8, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}>Gavekort</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 8, fontWeight: '700',
+                textTransform: 'uppercase', letterSpacing: 0.8 }}>Gavekort</Text>
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700', marginTop: 2 }}>{c.shop}</Text>
             </View>
             <Gift size={18} color="rgba(255,255,255,0.85)" />
           </View>
-          <View style={{ position: 'absolute', bottom: 14, left: 14, right: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <View style={{
+            position: 'absolute', bottom: 14, left: 14, right: 14,
+            flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+          }}>
             <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -1 }}>kr {c.amount}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 9 }}>{c.date}</Text>
           </View>
@@ -286,7 +290,6 @@ function SpecGiftcards() {
 
 const SPECIMENS = [SpecBrand, SpecReceipts, SpecWarranty, SpecNotify, SpecGiftcards];
 
-// ── Dots ──────────────────────────────────────────────────────
 function Dots({ count, active }: { count: number; active: number }) {
   return (
     <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center' }}>
@@ -301,7 +304,6 @@ function Dots({ count, active }: { count: number; active: number }) {
   );
 }
 
-// ── Slide ─────────────────────────────────────────────────────
 interface SlideProps {
   slide: Slide;
   index: number;
@@ -375,7 +377,6 @@ function OnboardingSlide({ slide, index, total, onNext, onSkip, onRegister, onGu
   );
 }
 
-// ── Onboarding (exported) ─────────────────────────────────────
 export type OnboardingAction = 'register' | 'guest' | 'skip';
 
 interface OnboardingProps {
