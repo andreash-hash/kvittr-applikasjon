@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated } from 'react-native';
+import { View, Animated, InteractionManager } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
@@ -57,11 +57,19 @@ export default function IndexScreen() {
         useNativeDriver: true,
       }).start(() => {
         if (cancelled) return;
-        if (destination === 'onboarding') {
-          router.replace('/(app)/onboarding');
-        } else {
-          router.replace('/(app)/dashboard');
-        }
+        // Use InteractionManager so the router.replace fires only after
+        // the native animation batch has fully committed to UIKit.
+        // Calling router.replace directly inside a useNativeDriver callback
+        // causes a race where react-native-screens hasn't painted the new
+        // screen yet, resulting in a blank tab content area on first open.
+        InteractionManager.runAfterInteractions(() => {
+          if (cancelled) return;
+          if (destination === 'onboarding') {
+            router.replace('/(app)/onboarding');
+          } else {
+            router.replace('/(app)/dashboard');
+          }
+        });
       });
     });
 
