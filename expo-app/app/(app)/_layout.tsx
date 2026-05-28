@@ -115,10 +115,10 @@ import React, { useEffect } from 'react';
             tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
           }}
         />
-        <Tabs.Screen name="archive" options={{ href: null }} />
-        <Tabs.Screen name="item/[id]" options={{ href: null }} />
-        <Tabs.Screen name="premium" options={{ href: null }} />
+        <Tabs.Screen name="archive"    options={{ href: null }} />
+        <Tabs.Screen name="item/[id]"  options={{ href: null }} />
+        <Tabs.Screen name="premium"    options={{ href: null }} />
+        <Tabs.Screen name="onboarding" options={{ href: null }} />
       </Tabs>
     );
   }
-  
