@@ -43,6 +43,7 @@ import React, { useEffect } from 'react';
 
     return (
       <Tabs
+        initialRouteName="dashboard"
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: '#6366F1',
