@@ -149,7 +149,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAF7F2' }} edges={['top']}>
       <ScrollView>
         <View className="px-4 py-6">
           <Text className="text-2xl font-bold text-foreground">Innstillinger</Text>
