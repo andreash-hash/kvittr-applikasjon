@@ -37,10 +37,11 @@ const TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export default function DashboardScreen() {
+  console.log('### DASHBOARD FUNCTION CALLED');
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { user, isAuthenticated } = useAuth();
-  const { isPremium } = usePremiumStatus();
+  const { isPremium, loading: premiumLoading } = usePremiumStatus();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -76,6 +77,7 @@ export default function DashboardScreen() {
   // mount via Stack→Tabs navigation and subsequent tab taps)
   useFocusEffect(
     useCallback(() => {
+      console.log('### DASHBOARD useFocusEffect fired');
       invalidateAll();
     }, [invalidateAll]),
   );
@@ -157,6 +159,15 @@ export default function DashboardScreen() {
   const bgColor = isDark ? '#0F172A' : '#FAF7F2';
   const textColor = isDark ? '#F1F5F9' : '#1A1A2E';
   const mutedColor = isDark ? '#94A3B8' : '#6B7280';
+
+  console.log('### DASHBOARD RETURNING JSX', {
+    isLoading,
+    loading,
+    itemCount: filtered.length,
+    isAuthenticated,
+    userId: user?.id ?? 'guest',
+    premiumLoading,
+  });
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }} edges={['top']}>

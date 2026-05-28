@@ -55,6 +55,7 @@ const queryClient = new QueryClient({
 });
 
 function AppInit() {
+  console.log('### ROOT: AppInit mounted');
   useNotificationDeepLink();
   useForegroundNotifications();
 
@@ -82,6 +83,7 @@ function AppInit() {
 }
 
 export default function RootLayout() {
+  console.log('### ROOT: RootLayout rendered');
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>

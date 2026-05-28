@@ -31,6 +31,7 @@ import React, { useEffect } from 'react';
   }
 
   export default function AppLayout() {
+    console.log('### APP_LAYOUT: AppLayout (Tabs) rendered');
     const { user } = useAuth();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';

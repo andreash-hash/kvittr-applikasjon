@@ -12,10 +12,12 @@ const HOLD_MS     = 1200;
 const FADE_OUT_MS = 600;
 
 export default function IndexScreen() {
+  console.log('### INDEX: IndexScreen function called (mount)');
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let cancelled = false;
+    console.log('### INDEX: useEffect fired');
 
     SplashScreen.hideAsync();
     Animated.timing(fadeAnim, {
@@ -49,6 +51,7 @@ export default function IndexScreen() {
     })();
 
     Promise.all([minTimePromise, authPromise]).then(([, destination]) => {
+      console.log('### INDEX: auth+timer resolved, destination =', destination, '| cancelled =', cancelled);
       if (cancelled) return;
 
       Animated.timing(fadeAnim, {
@@ -56,13 +59,10 @@ export default function IndexScreen() {
         duration: FADE_OUT_MS,
         useNativeDriver: true,
       }).start(() => {
+        console.log('### INDEX: fade-out .start() callback fired | cancelled =', cancelled);
         if (cancelled) return;
-        // Use InteractionManager so the router.replace fires only after
-        // the native animation batch has fully committed to UIKit.
-        // Calling router.replace directly inside a useNativeDriver callback
-        // causes a race where react-native-screens hasn't painted the new
-        // screen yet, resulting in a blank tab content area on first open.
         InteractionManager.runAfterInteractions(() => {
+          console.log('### INDEX: InteractionManager callback firing, calling router.replace(/(app)/' + destination + ')');
           if (cancelled) return;
           if (destination === 'onboarding') {
             router.replace('/(app)/onboarding');
