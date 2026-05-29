@@ -10,23 +10,27 @@ export const initializeRevenueCat = async (userId?: string): Promise<boolean> =>
     const apiKey = Platform.OS === 'ios' ? IOS_KEY : ANDROID_KEY;
 
     if (!apiKey) {
-      console.error('RevenueCat: missing API key for', Platform.OS);
+      console.error('### RC CONFIGURE: missing API key for', Platform.OS);
       return false;
     }
 
+    console.log(`### RC CONFIGURE: apiKey=${apiKey.slice(0, 8)}... userId=${userId ?? 'anonymous'}`);
     await Purchases.configure({ apiKey, appUserID: userId });
+    console.log(`### RC CONFIGURE: configure done userId=${userId ?? 'anonymous'}`);
 
     if (userId) {
       try {
         await Purchases.logIn(userId);
-      } catch {
-        // May already be logged in
+        console.log(`### RC CONFIGURE: logIn success userId=${userId}`);
+      } catch (e: any) {
+        // logIn after configure is a no-op if already logged in as same user
+        console.log('### RC CONFIGURE: logIn note (may already be set):', e?.message);
       }
     }
 
     return true;
-  } catch (error) {
-    console.error('RevenueCat init failed:', error);
+  } catch (error: any) {
+    console.error('### RC CONFIGURE: init FAILED', JSON.stringify(error), error?.message);
     return false;
   }
 };
@@ -49,8 +53,8 @@ export const syncSubscriptionStatus = async (userId: string): Promise<void> => {
         subscription_expires_at: expirationDate,
       })
       .eq('id', userId);
-  } catch (error) {
-    console.error('RevenueCat sync failed:', error);
+  } catch (error: any) {
+    console.error('### RC SYNC: syncSubscriptionStatus failed', JSON.stringify(error), error?.message);
   }
 };
 
@@ -70,9 +74,14 @@ export const restorePurchases = async (): Promise<boolean> => {
   return Object.keys(customerInfo.entitlements.active).length > 0;
 };
 
-export const showPaywallUI = async (): Promise<void> => {
+// Returns the resolved result from presentPaywall (PURCHASED / CANCELLED / NOT_PURCHASED / RESTORED).
+// Only throws on real failures — cancellation is a resolved result, not an exception.
+export const showPaywallUI = async (): Promise<unknown> => {
   const { RevenueCatUI } = await import('react-native-purchases-ui');
-  await RevenueCatUI.presentPaywall();
+  console.log('### RC PAYWALL: presentPaywall start');
+  const result = await RevenueCatUI.presentPaywall();
+  console.log('### RC PAYWALL: presentPaywall resolved result=', JSON.stringify(result));
+  return result;
 };
 
 export const showCustomerCenterUI = async (): Promise<void> => {
