@@ -15,7 +15,7 @@ import {
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { Button } from '@/components/ui/Button';
-import { showPaywallUI } from '@/lib/revenuecat';
+import { showPaywallUI, handleRevenueCatError } from '@/lib/revenuecat';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -29,7 +29,7 @@ const FEATURES = [
 
 export default function PremiumScreen() {
   const { isPremium, isLoading: premiumLoading } = usePremiumStatus();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const handleUpgrade = async () => {
@@ -45,10 +45,26 @@ export default function PremiumScreen() {
 
     setLoading(true);
     try {
-      await showPaywallUI();
+      console.log(`### RC UPGRADE: start isAuthenticated=${isAuthenticated} userId=${user?.id ?? 'null'}`);
+      // presentPaywall() RESOLVES with a result object on normal exit (including cancel).
+      // It only THROWS on real failures (not configured, network error, store problem, etc.).
+      const result = await showPaywallUI();
+      console.log(`### RC UPGRADE: paywall resolved result=${JSON.stringify(result)}`);
+      // No toast on resolved result — the paywall handles its own success/cancel UI.
     } catch (err: any) {
-      if (err?.code !== 'USER_CANCELLED') {
-        Toast.show({ type: 'error', text1: 'Noe gikk galt', text2: 'Prøv igjen.' });
+      // Only real failures reach here. Log everything we know about the error.
+      const errDetail = [
+        `code=${err?.code}`,
+        `message=${err?.message}`,
+        `underlying=${err?.underlyingErrorMessage}`,
+        `userCancelled=${err?.userCancelled}`,
+        `full=${JSON.stringify(err)}`,
+      ].join(' ');
+      console.log('### RC ERROR:', errDetail);
+
+      const msg = handleRevenueCatError(err);
+      if (msg !== 'cancelled') {
+        Toast.show({ type: 'error', text1: 'Noe gikk galt', text2: msg });
       }
     } finally {
       setLoading(false);
