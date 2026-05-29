@@ -74,10 +74,12 @@ export const restorePurchases = async (): Promise<boolean> => {
   return Object.keys(customerInfo.entitlements.active).length > 0;
 };
 
-// Returns the resolved result from presentPaywall (PURCHASED / CANCELLED / NOT_PURCHASED / RESTORED).
-// Only throws on real failures — cancellation is a resolved result, not an exception.
+// FIX: RevenueCatUI is a DEFAULT export — must use .default, not named destructuring.
+// { RevenueCatUI } = import(...) always returns undefined because exports.default = RevenueCatUI.
+// Returns the resolved PAYWALL_RESULT (PURCHASED / CANCELLED / NOT_PURCHASED / RESTORED).
+// Only throws on real failures — cancellation resolves with CANCELLED, not an exception.
 export const showPaywallUI = async (): Promise<unknown> => {
-  const { RevenueCatUI } = await import('react-native-purchases-ui');
+  const RevenueCatUI = (await import('react-native-purchases-ui')).default;
   console.log('### RC PAYWALL: presentPaywall start');
   const result = await RevenueCatUI.presentPaywall();
   console.log('### RC PAYWALL: presentPaywall resolved result=', JSON.stringify(result));
@@ -85,7 +87,8 @@ export const showPaywallUI = async (): Promise<unknown> => {
 };
 
 export const showCustomerCenterUI = async (): Promise<void> => {
-  const { RevenueCatUI } = await import('react-native-purchases-ui');
+  // FIX: same default-export correction as showPaywallUI
+  const RevenueCatUI = (await import('react-native-purchases-ui')).default;
   await RevenueCatUI.presentCustomerCenter();
 };
 
