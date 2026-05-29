@@ -62,13 +62,39 @@ function AppInit() {
     const initRC = async () => {
       if (!isMobileApp()) return;
       const { data: { session } } = await supabase.auth.getSession();
-      await initializeRevenueCat(session?.user?.id);
+      const userId = session?.user?.id;
+      console.log(`### RC INIT: start userId=${userId ?? 'anonymous'} ts=${Date.now()}`);
+      const ok = await initializeRevenueCat(userId);
+      console.log(`### RC INIT: done ok=${ok} userId=${userId ?? 'anonymous'} ts=${Date.now()}`);
     };
     initRC();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user?.id && isMobileApp()) {
-        await syncSubscriptionStatus(session.user.id);
+      const userId = session?.user?.id ?? null;
+      console.log(`### RC AUTH: event=${event} userId=${userId ?? 'null'}`);
+      if (!isMobileApp()) return;
+
+      if (event === 'SIGNED_IN' && userId) {
+        // FIX: logIn BEFORE syncSubscriptionStatus so RC identity is correct
+        try {
+          const Purchases = (await import('react-native-purchases')).default;
+          console.log(`### RC AUTH: logIn userId=${userId}`);
+          await Purchases.logIn(userId);
+          console.log(`### RC AUTH: logIn success`);
+        } catch (e: any) {
+          console.log('### RC AUTH: logIn failed', JSON.stringify(e), e?.message);
+        }
+        await syncSubscriptionStatus(userId);
+      } else if (event === 'SIGNED_OUT') {
+        // FIX: logOut so RC returns to anonymous — no stale identity left behind
+        try {
+          const Purchases = (await import('react-native-purchases')).default;
+          console.log('### RC AUTH: logOut');
+          await Purchases.logOut();
+          console.log('### RC AUTH: logOut success');
+        } catch (e: any) {
+          console.log('### RC AUTH: logOut failed', JSON.stringify(e), e?.message);
+        }
       }
     });
 
