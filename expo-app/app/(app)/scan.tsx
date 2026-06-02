@@ -457,7 +457,7 @@ export default function ScanScreen() {
               </Text>
               <Button onPress={reset} variant="outline" className="mt-2">
                 <RefreshCw size={16} color="#6366F1" />
-                {' '}Prøv igjen
+                <Text className="text-primary font-semibold ml-2">Prøv igjen</Text>
               </Button>
             </View>
           ) : (
