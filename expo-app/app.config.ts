@@ -4,7 +4,7 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
     ...config,
     name: 'Kvittr',
     slug: 'kvittr-ccode',
-    version: '1.5.8',
+    version: '1.5.9',
     scheme: 'kvittr',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -15,7 +15,7 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'app.kvittr',
-      buildNumber: '119',
+      buildNumber: '120',
       backgroundColor: '#0F1729',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,

@@ -59,17 +59,53 @@ function AppInit() {
     initTheme().catch(() => null);
     setupAndroidNotificationChannel().catch(() => null);
 
+    // Holds the EmitterSubscription returned by addCustomerInfoUpdateListener so we
+    // can call .remove() on unmount and avoid leaking listeners across hot reloads.
+    let rcListenerSub: { remove: () => void } | null = null;
+
     const initRC = async () => {
       if (!isMobileApp()) return;
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const userId = session?.user?.id;
       console.log(`### RC INIT: start userId=${userId ?? 'anonymous'} ts=${Date.now()}`);
       const ok = await initializeRevenueCat(userId);
       console.log(`### RC INIT: done ok=${ok} userId=${userId ?? 'anonymous'} ts=${Date.now()}`);
+
+      if (!ok) return;
+
+      // SYNC 1 — unconditional launch sync: catches purchases made in a previous session
+      // that were never written to Supabase (e.g. app killed before listener fired).
+      if (userId) {
+        console.log(`### RC INIT: launch sync start userId=${userId}`);
+        await syncSubscriptionStatus(userId);
+        console.log(`### RC INIT: launch sync done userId=${userId}`);
+      }
+
+      // SYNC 2 — register ongoing listener: fires immediately with cached customerInfo,
+      // then again on every RC entitlement change. This is the safety net that self-heals
+      // existing affected users on first launch and keeps status current during a session.
+      const Purchases = (await import('react-native-purchases')).default;
+      console.log('### RC INIT: registering addCustomerInfoUpdateListener');
+      rcListenerSub = Purchases.addCustomerInfoUpdateListener(async (_updatedCustomerInfo) => {
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+        const uid = currentSession?.user?.id;
+        console.log(`### RC LISTENER: customerInfo update received uid=${uid ?? 'null'} ts=${Date.now()}`);
+        if (uid) {
+          await syncSubscriptionStatus(uid);
+        } else {
+          console.log('### RC LISTENER: skipped sync — no active session');
+        }
+      });
     };
     initRC();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       const userId = session?.user?.id ?? null;
       console.log(`### RC AUTH: event=${event} userId=${userId ?? 'null'}`);
       if (!isMobileApp()) return;
@@ -98,7 +134,13 @@ function AppInit() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (rcListenerSub) {
+        console.log('### RC INIT: removing customerInfoUpdateListener');
+        rcListenerSub.remove();
+      }
+    };
   }, []);
 
   return null;

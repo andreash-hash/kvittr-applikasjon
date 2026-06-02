@@ -15,7 +15,7 @@ import {
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { Button } from '@/components/ui/Button';
-import { showPaywallUI, handleRevenueCatError } from '@/lib/revenuecat';
+import { showPaywallUI, handleRevenueCatError, syncSubscriptionStatus } from '@/lib/revenuecat';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -50,9 +50,32 @@ export default function PremiumScreen() {
       // It only THROWS on real failures (not configured, network error, store problem, etc.).
       const result = await showPaywallUI();
       console.log(`### RC UPGRADE: paywall resolved result=${JSON.stringify(result)}`);
-      // No toast on resolved result — the paywall handles its own success/cancel UI.
+
+      // SYNC 3 — immediate post-purchase sync: write to Supabase right here, before the
+      // addCustomerInfoUpdateListener may or may not fire. This is the primary sync path
+      // for new purchases. PAYWALL_RESULT is a named export (not on the default object).
+      try {
+        const { PAYWALL_RESULT } = await import('react-native-purchases-ui');
+        const purchased = result === PAYWALL_RESULT.PURCHASED;
+        const restored = result === PAYWALL_RESULT.RESTORED;
+        console.log(
+          `### RC UPGRADE: result check purchased=${purchased} restored=${restored} userId=${user?.id ?? 'null'}`
+        );
+        if ((purchased || restored) && user?.id) {
+          console.log(`### RC UPGRADE: calling syncSubscriptionStatus userId=${user.id}`);
+          await syncSubscriptionStatus(user.id);
+          console.log('### RC UPGRADE: syncSubscriptionStatus done');
+        }
+      } catch (syncErr: any) {
+        // Sync failure must not surface as a purchase failure — user DID pay successfully.
+        // The addCustomerInfoUpdateListener will retry on next customer info update.
+        console.error(
+          `### RC UPGRADE: post-purchase sync FAILED (non-fatal) message=${syncErr?.message}`,
+          JSON.stringify(syncErr)
+        );
+      }
     } catch (err: any) {
-      // Only real failures reach here. Log everything we know about the error.
+      // Only real paywall failures reach here. Log everything we know.
       const errDetail = [
         `code=${err?.code}`,
         `message=${err?.message}`,

@@ -35,26 +35,57 @@ export const initializeRevenueCat = async (userId?: string): Promise<boolean> =>
   }
 };
 
+// Syncs RC entitlements → Supabase profiles.subscription_tier/status.
+// Called in THREE places: (1) paywall PURCHASED/RESTORED, (2) addCustomerInfoUpdateListener,
+// (3) unconditionally at app launch if user is signed in.
+// Safe to call with no userId — skips silently.
 export const syncSubscriptionStatus = async (userId: string): Promise<void> => {
+  if (!userId) {
+    console.log('### RC SYNC: skipped — no userId');
+    return;
+  }
+  console.log(`### RC SYNC: start userId=${userId} ts=${Date.now()}`);
   try {
     const Purchases = (await import('react-native-purchases')).default;
     const { customerInfo } = await Purchases.getCustomerInfo();
+
     const activeEntitlements = customerInfo.entitlements.active;
-    const isPremium = Object.keys(activeEntitlements).length > 0;
+    const entitlementKeys = Object.keys(activeEntitlements);
+    const isPremium = entitlementKeys.length > 0;
     const activeEntry = Object.values(activeEntitlements)[0];
     const expirationDate = activeEntry?.expirationDate ?? null;
 
-    await supabase
-      .from('profiles')
-      .update({
-        subscription_tier: isPremium ? 'premium' : 'free',
-        subscription_status: isPremium ? 'active' : 'expired',
-        subscription_started_at: isPremium ? new Date().toISOString() : null,
-        subscription_expires_at: expirationDate,
-      })
-      .eq('id', userId);
+    console.log(
+      `### RC SYNC: customerInfo originalAppUserId=${customerInfo.originalAppUserId}` +
+        ` activeEntitlements=${JSON.stringify(entitlementKeys)}` +
+        ` isPremium=${isPremium} expiresAt=${expirationDate ?? 'null'}`
+    );
+
+    const updatePayload = {
+      subscription_tier: isPremium ? 'premium' : 'free',
+      subscription_status: isPremium ? 'active' : 'expired',
+      subscription_started_at: isPremium ? new Date().toISOString() : null,
+      subscription_expires_at: expirationDate,
+    };
+
+    console.log(
+      `### RC SYNC: writing Supabase userId=${userId} tier=${updatePayload.subscription_tier} status=${updatePayload.subscription_status}`
+    );
+
+    const { error } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
+
+    if (error) {
+      console.error(
+        `### RC SYNC: Supabase update FAILED userId=${userId} code=${error.code} message=${error.message} details=${error.details}`
+      );
+    } else {
+      console.log(`### RC SYNC: Supabase update OK userId=${userId} tier=${updatePayload.subscription_tier}`);
+    }
   } catch (error: any) {
-    console.error('### RC SYNC: syncSubscriptionStatus failed', JSON.stringify(error), error?.message);
+    console.error(
+      `### RC SYNC: EXCEPTION userId=${userId} message=${error?.message}`,
+      JSON.stringify(error)
+    );
   }
 };
 
