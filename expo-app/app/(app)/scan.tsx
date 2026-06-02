@@ -170,7 +170,12 @@ export default function ScanScreen() {
   };
 
   const processImage = async (uri: string) => {
+    // Snapshot auth state immediately — prevent mid-scan changes from affecting flow
+    const authSnapshot = { isAuthenticated, userId: user?.id ?? null };
+    debugLog('scan: processImage called', authSnapshot);
+
     if (!isAuthenticated || !user) {
+      debugLog('scan: BLOCKED — not authenticated', authSnapshot);
       Toast.show({
         type: 'info',
         text1: 'Logg inn for å skanne',
@@ -179,10 +184,26 @@ export default function ScanScreen() {
       return;
     }
 
+    // Capture userId once so mid-scan auth changes cannot null it out
+    const userId = user.id;
+
     setScanState('uploading');
     setImageUri(uri);
 
     try {
+      // Verify Supabase session is still valid before upload
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      debugLog('scan: session check', {
+        hasSession: !!currentSession,
+        sessionUserId: currentSession?.user?.id ?? null,
+        tokenPrefix: currentSession?.access_token?.slice(0, 12) ?? 'none',
+        expiresAt: currentSession?.expires_at ?? null,
+      });
+
+      if (!currentSession) {
+        throw new Error('Ingen aktiv sesjon — logg inn igjen og prøv på nytt.');
+      }
+
       debugLog('scan: image acquired', { uri: uri.slice(0, 80) });
 
       // Step 1: compress + resize
@@ -197,15 +218,24 @@ export default function ScanScreen() {
       const bytes = base64ToUint8Array(base64);
       debugLog('scan: file read OK', { bytes: bytes.length });
 
-      const fileName = `${user.id}/${Date.now()}.jpg`;
+      const fileName = `${userId}/${Date.now()}.jpg`;
 
       // Step 3: upload to Supabase storage
-      debugLog('scan: upload start', { fileName });
+      debugLog('scan: upload start', { fileName, bucket: 'receipts' });
       const { error: uploadError } = await supabase.storage
         .from('receipts')
         .upload(fileName, bytes, { contentType: 'image/jpeg' });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        debugLog('scan: UPLOAD ERROR', {
+          message: uploadError.message,
+          name: (uploadError as any).name,
+          statusCode: (uploadError as any).statusCode,
+          error: (uploadError as any).error,
+          full: JSON.stringify(uploadError),
+        });
+        throw uploadError;
+      }
 
       const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
       debugLog('scan: upload done', { publicUrl: urlData.publicUrl.slice(0, 80) });
@@ -213,14 +243,17 @@ export default function ScanScreen() {
       setScanState('processing');
 
       // Step 4: invoke edge function
-      debugLog('scan: invoking OCR edge function');
+      debugLog('scan: invoking OCR edge function', { userId });
       const abortCtrl = new AbortController();
-      const fnTimeoutId = setTimeout(() => abortCtrl.abort(), FUNCTION_TIMEOUT_MS);
+      const fnTimeoutId = setTimeout(() => {
+        debugLog('scan: edge function timeout — aborting');
+        abortCtrl.abort();
+      }, FUNCTION_TIMEOUT_MS);
       let fnData: unknown;
       let fnError: unknown;
       try {
         const result = await supabase.functions.invoke('process-receipt-ocr', {
-          body: { image_url: urlData.publicUrl, user_id: user.id },
+          body: { image_url: urlData.publicUrl, user_id: userId },
           signal: abortCtrl.signal,
         });
         fnData = result.data;
@@ -229,16 +262,21 @@ export default function ScanScreen() {
         clearTimeout(fnTimeoutId);
       }
 
-      debugLog('scan: OCR edge function returned', { fnData, fnError: fnError ? String(fnError) : null });
+      debugLog('scan: OCR edge function returned', {
+        fnData: JSON.stringify(fnData)?.slice(0, 200),
+        fnError: fnError ? JSON.stringify(fnError) : null,
+      });
 
       if (fnError) throw fnError as Error;
 
       const receiptId = (fnData as { receipt_id?: string } | null)?.receipt_id ?? null;
       const ocrStatus = (fnData as { status?: string } | null)?.status;
 
+      debugLog('scan: OCR result parsed', { receiptId, ocrStatus });
+
       if (ocrStatus === 'failed') throw new Error('OCR returnerte feil fra serveren');
 
-      await incrementScanCount(user.id);
+      await incrementScanCount(userId);
       debugLog('scan: scan count incremented');
 
       if (ocrStatus === 'completed' || !receiptId) {
@@ -252,11 +290,18 @@ export default function ScanScreen() {
       setScanState('waiting');
       subscribeToReceipt(receiptId);
 
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const stack = err instanceof Error ? err.stack : undefined;
-      debugLog('scan: UNCAUGHT ERROR', { msg, stack: stack?.slice(0, 400) });
-      finishError(msg);
+    } catch (err: any) {
+      const errDetail = {
+        msg: err instanceof Error ? err.message : String(err),
+        code: err?.code,
+        statusCode: err?.statusCode,
+        name: err?.name,
+        stack: err instanceof Error ? err.stack?.slice(0, 600) : undefined,
+        full: (() => { try { return JSON.stringify(err); } catch { return String(err); } })(),
+      };
+      debugLog('scan: UNCAUGHT ERROR', errDetail);
+      console.error('### SCAN ERROR', JSON.stringify(errDetail));
+      finishError(errDetail.msg);
     }
   };
 
@@ -271,48 +316,84 @@ export default function ScanScreen() {
   };
 
   const pickFromCamera = async () => {
-    if (!(await checkCanScan())) return;
+    debugLog('scan: pickFromCamera called', { isAuthenticated, userId: user?.id ?? null });
+    try {
+      if (!(await checkCanScan())) {
+        debugLog('scan: checkCanScan blocked camera pick');
+        return;
+      }
 
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Toast.show({ type: 'error', text1: 'Kameratilgang er påkrevd' });
-      return;
-    }
+      const permResult = await ImagePicker.requestCameraPermissionsAsync();
+      debugLog('scan: camera permission', { status: permResult.status });
+      if (permResult.status !== 'granted') {
+        Toast.show({ type: 'error', text1: 'Kameratilgang er påkrevd' });
+        return;
+      }
 
-    debugLog('scan: launching camera');
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-    });
+      debugLog('scan: launching camera');
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      debugLog('scan: camera image selected');
-      await processImage(result.assets[0].uri);
-    } else {
-      debugLog('scan: camera cancelled');
+      if (!result.canceled && result.assets?.[0]) {
+        debugLog('scan: camera image selected', { uri: result.assets[0].uri.slice(0, 60) });
+        await processImage(result.assets[0].uri);
+      } else {
+        debugLog('scan: camera cancelled or no asset', { canceled: result.canceled });
+      }
+    } catch (err: any) {
+      const errDetail = {
+        msg: err instanceof Error ? err.message : String(err),
+        code: err?.code,
+        name: err?.name,
+        stack: err instanceof Error ? err.stack?.slice(0, 400) : undefined,
+        full: (() => { try { return JSON.stringify(err); } catch { return String(err); } })(),
+      };
+      debugLog('scan: PICKER ERROR (camera)', errDetail);
+      console.error('### SCAN PICKER ERROR (camera)', JSON.stringify(errDetail));
+      finishError('Kamerafeil: ' + errDetail.msg);
     }
   };
 
   const pickFromLibrary = async () => {
-    if (!(await checkCanScan())) return;
+    debugLog('scan: pickFromLibrary called', { isAuthenticated, userId: user?.id ?? null });
+    try {
+      if (!(await checkCanScan())) {
+        debugLog('scan: checkCanScan blocked library pick');
+        return;
+      }
 
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Toast.show({ type: 'error', text1: 'Bildegalleri-tilgang er påkrevd' });
-      return;
-    }
+      const permResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      debugLog('scan: library permission', { status: permResult.status });
+      if (permResult.status !== 'granted') {
+        Toast.show({ type: 'error', text1: 'Bildegalleri-tilgang er påkrevd' });
+        return;
+      }
 
-    debugLog('scan: launching image library');
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-    });
+      debugLog('scan: launching image library');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      debugLog('scan: gallery image selected');
-      await processImage(result.assets[0].uri);
-    } else {
-      debugLog('scan: gallery cancelled');
+      if (!result.canceled && result.assets?.[0]) {
+        debugLog('scan: gallery image selected', { uri: result.assets[0].uri.slice(0, 60) });
+        await processImage(result.assets[0].uri);
+      } else {
+        debugLog('scan: gallery cancelled or no asset', { canceled: result.canceled });
+      }
+    } catch (err: any) {
+      const errDetail = {
+        msg: err instanceof Error ? err.message : String(err),
+        code: err?.code,
+        name: err?.name,
+        stack: err instanceof Error ? err.stack?.slice(0, 400) : undefined,
+        full: (() => { try { return JSON.stringify(err); } catch { return String(err); } })(),
+      };
+      debugLog('scan: PICKER ERROR (library)', errDetail);
+      console.error('### SCAN PICKER ERROR (library)', JSON.stringify(errDetail));
+      finishError('Galleri-feil: ' + errDetail.msg);
     }
   };
 
