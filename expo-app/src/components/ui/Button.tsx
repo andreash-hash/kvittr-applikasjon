@@ -52,6 +52,27 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const isDisabled = disabled || loading;
+  const textCls = `font-semibold ${textClasses[variant]} ${textSizeClasses[size]}`;
+
+  // Safely wraps raw string/number children in <Text> so Button is safe
+  // whether children is a pure string, a React element, or a mixed array
+  // (e.g. <Icon/> + " label string"). Previously only pure-string children
+  // were wrapped, causing a React Native crash for mixed-array children.
+  const renderChildren = (node: React.ReactNode): React.ReactNode => {
+    if (typeof node === 'string' || typeof node === 'number') {
+      return <Text className={textCls}>{node}</Text>;
+    }
+    if (Array.isArray(node)) {
+      return node.map((child, i) =>
+        typeof child === 'string' || typeof child === 'number' ? (
+          <Text key={i} className={textCls}>{child}</Text>
+        ) : (
+          child
+        ),
+      );
+    }
+    return node;
+  };
 
   return (
     <TouchableOpacity
@@ -67,15 +88,7 @@ export const Button: React.FC<ButtonProps> = ({
           className="mr-2"
         />
       )}
-      {typeof children === 'string' ? (
-        <Text
-          className={`font-semibold ${textClasses[variant]} ${textSizeClasses[size]}`}
-        >
-          {children}
-        </Text>
-      ) : (
-        children
-      )}
+      {renderChildren(children)}
     </TouchableOpacity>
   );
 };
