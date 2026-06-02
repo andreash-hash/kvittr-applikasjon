@@ -7,6 +7,9 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Modal,
+  FlatList,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -22,6 +25,9 @@ import {
   Sun,
   Moon,
   Monitor,
+  Bug,
+  X,
+  Copy,
 } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,6 +36,7 @@ import { disablePushNotifications } from '@/hooks/usePushNotifications';
 import { showCustomerCenterUI } from '@/lib/revenuecat';
 import { clearGuestData } from '@/lib/guestStorage';
 import { getThemePreference, setThemePreference, type ThemePreference } from '@/lib/themeStore';
+import { getDebugLogs, clearDebugLogs } from '@/lib/debugLog';
 
 function SettingsRow({
   icon,
@@ -83,12 +90,104 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: React.ReactN
   { value: 'dark', label: 'Mørk', icon: <Moon size={16} color="#64748B" /> },
 ];
 
+function DebugLogModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const [logs, setLogs] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setLoading(true);
+      getDebugLogs().then((l) => {
+        setLogs(l);
+        setLoading(false);
+      });
+    }
+  }, [visible]);
+
+  const handleCopy = async () => {
+    const text = logs.join('\n');
+    try {
+      await Share.share({ message: text, title: 'Kvittr Debug Log' });
+    } catch {
+      Alert.alert('Feil', 'Kunne ikke dele logg');
+    }
+  };
+
+  const handleClear = () => {
+    Alert.alert('Slett logg', 'Er du sikker?', [
+      { text: 'Avbryt', style: 'cancel' },
+      {
+        text: 'Slett',
+        style: 'destructive',
+        onPress: async () => {
+          await clearDebugLogs();
+          setLogs([]);
+          Toast.show({ type: 'success', text1: 'Logg slettet' });
+        },
+      },
+    ]);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#0F172A' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1E293B' }}>
+          <Text style={{ flex: 1, color: '#F1F5F9', fontSize: 17, fontWeight: '600' }}>Debug-logg</Text>
+          <TouchableOpacity onPress={handleCopy} style={{ marginRight: 16 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Copy size={20} color="#94A3B8" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleClear} style={{ marginRight: 16 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Trash2 size={20} color="#EF4444" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <X size={22} color="#94A3B8" />
+          </TouchableOpacity>
+        </View>
+        {loading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#6366F1" />
+          </View>
+        ) : logs.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#64748B', fontSize: 15 }}>Ingen logg-oppføringer enda.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={logs}
+            keyExtractor={(_, i) => String(i)}
+            contentContainerStyle={{ padding: 12 }}
+            renderItem={({ item }) => (
+              <Text
+                selectable
+                style={{
+                  fontFamily: 'Courier',
+                  fontSize: 10.5,
+                  color: item.includes('ERROR') || item.includes('BLOCKED') || item.includes('PICKER ERROR')
+                    ? '#FCA5A5'
+                    : item.includes('finishSuccess') || item.includes('upload done') || item.includes('OCR edge function returned')
+                      ? '#86EFAC'
+                      : '#94A3B8',
+                  marginBottom: 4,
+                  lineHeight: 16,
+                }}
+              >
+                {item}
+              </Text>
+            )}
+          />
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
 export default function SettingsScreen() {
   const { user, isAuthenticated } = useAuth();
   const { isPremium } = usePremiumStatus();
   const [signingOut, setSigningOut] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [themePref, setThemePref] = useState<ThemePreference>('system');
+  const [debugModalVisible, setDebugModalVisible] = useState(false);
 
   useEffect(() => {
     getThemePreference().then(setThemePref);
@@ -316,8 +415,21 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Debug */}
+        <SectionHeader title="Utvikler" />
+        <View className="mx-4 rounded-2xl overflow-hidden border border-border">
+          <SettingsRow
+            icon={<Bug size={20} color="#64748B" />}
+            label="Debug-logg"
+            sublabel="Vis logg for feilsøking"
+            onPress={() => setDebugModalVisible(true)}
+          />
+        </View>
+
         <View className="h-8" />
       </ScrollView>
+
+      <DebugLogModal visible={debugModalVisible} onClose={() => setDebugModalVisible(false)} />
     </SafeAreaView>
   );
 }
