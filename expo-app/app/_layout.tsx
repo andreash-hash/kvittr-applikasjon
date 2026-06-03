@@ -12,6 +12,7 @@ import { initializeRevenueCat, syncSubscriptionStatus } from '@/lib/revenuecat';
 import { useNotificationDeepLink, useForegroundNotifications, setupAndroidNotificationChannel } from '@/hooks/usePushNotifications';
 import { isMobileApp } from '@/utils/platform';
 import { initTheme } from '@/lib/themeStore';
+import { debugLog } from '@/lib/debugLog';
 
 // Keep native splash (solid dark background, no image) visible until
 // our JS animated logo takes over in index.tsx.
@@ -114,34 +115,26 @@ function AppInit() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       const userId = session?.user?.id ?? null;
-      console.log(
-        `### RC AUTH: event=${event} userId=${userId ?? 'null'} rcConfigured=${rcConfigured}`
-      );
+      debugLog('rc: auth event', { event, userId: userId ?? 'null', rcConfigured });
       if (!isMobileApp()) return;
 
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && userId) {
         if (rcConfigured) {
-          // RC is ready — identify and sync immediately.
           await ensureRCSync(userId, 'AUTH');
         } else {
-          // RC not configured yet — initRC is still awaiting getSession/configure.
-          // Park the userId so initRC can consume it even if its getSession()
-          // returns null (AsyncStorage race). ensureRCSync runs from initRC after configure.
           pendingAuthUserId = userId;
-          console.log(
-            `### RC AUTH: event=${event} userId=${userId} — RC not ready, queued as pendingAuthUserId`
-          );
+          debugLog('rc: auth queued', { event, userId, reason: 'RC not ready' });
         }
       } else if (event === 'SIGNED_OUT') {
         lastSyncedUserId = null;
         pendingAuthUserId = null;
         try {
           const Purchases = (await import('react-native-purchases')).default;
-          console.log('### RC AUTH: logOut');
+          debugLog('rc: logOut start', {});
           await Purchases.logOut();
-          console.log('### RC AUTH: logOut success');
+          debugLog('rc: logOut done', {});
         } catch (e: any) {
-          console.log('### RC AUTH: logOut failed', e?.message);
+          debugLog('rc: logOut failed', { message: e?.message });
         }
       }
     });
@@ -161,42 +154,39 @@ function AppInit() {
       // If getSession() lost the race and returned null, use the userId the auth
       // listener already captured from INITIAL_SESSION / SIGNED_IN.
       const userId = session?.user?.id ?? pendingAuthUserId ?? undefined;
-      pendingAuthUserId = null; // consumed — auth listener will call ensureRCSync directly once rcConfigured
+      pendingAuthUserId = null;
 
-      console.log(`### RC INIT: start userId=${userId ?? 'anonymous'} ts=${Date.now()}`);
+      debugLog('rc: init start', { userId: userId ?? 'anonymous', ts: Date.now() });
       const ok = await initializeRevenueCat(userId);
-      console.log(`### RC INIT: done ok=${ok} userId=${userId ?? 'anonymous'} ts=${Date.now()}`);
+      debugLog('rc: init done', { ok, userId: userId ?? 'anonymous', ts: Date.now() });
 
-      if (!ok) return;
-
-      // Mark RC as configured BEFORE calling ensureRCSync, so any concurrent
-      // auth event that fires now can also call ensureRCSync successfully.
-      rcConfigured = true;
-
-      // Launch sync — runs only when a user is known. ensureRCSync deduplicates
-      // against any sync already triggered by the auth listener this session.
-      if (userId) {
-        console.log(`### RC INIT: launch sync start userId=${userId}`);
-        await ensureRCSync(userId, 'INIT');
-        console.log(`### RC INIT: launch sync done userId=${userId}`);
+      if (!ok) {
+        debugLog('rc: init failed — aborting', {});
+        return;
       }
 
-      // Belt-and-suspenders: register customerInfo listener. Fires on every RC
-      // entitlement change (including immediately with cached data on configure).
-      // Uses its own sync call (no dedup guard) so every real entitlement change
-      // — including expiry and renewals — is always written to Supabase.
+      rcConfigured = true;
+
+      if (userId) {
+        debugLog('rc: launch sync start', { userId });
+        await ensureRCSync(userId, 'INIT');
+        debugLog('rc: launch sync done', { userId });
+      } else {
+        debugLog('rc: no userId at init — skipping launch sync', {});
+      }
+
       const Purchases = (await import('react-native-purchases')).default;
-      console.log('### RC INIT: registering addCustomerInfoUpdateListener');
+      debugLog('rc: registering customerInfoUpdateListener', {});
       rcListenerSub = Purchases.addCustomerInfoUpdateListener(async (_updatedInfo) => {
         const {
           data: { session: s },
         } = await supabase.auth.getSession();
         const uid = s?.user?.id;
-        console.log(`### RC LISTENER: customerInfo update uid=${uid ?? 'null'} ts=${Date.now()}`);
+        debugLog('rc: customerInfo update', { uid: uid ?? 'null', ts: Date.now() });
         if (uid) {
           await syncSubscriptionStatus(uid);
         } else {
-          console.log('### RC LISTENER: skipped — no active session');
+          debugLog('rc: listener skipped — no session', {});
         }
       });
     };

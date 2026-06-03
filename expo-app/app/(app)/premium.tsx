@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { showPaywallUI, handleRevenueCatError, syncSubscriptionStatus } from '@/lib/revenuecat';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useAuth } from '@/hooks/useAuth';
+import { debugLog } from '@/lib/debugLog';
 
 const FEATURES = [
   { Icon: Camera, title: 'Ubegrenset skanning', body: 'Skann så mange kvitteringer du vil.' },
@@ -45,46 +46,43 @@ export default function PremiumScreen() {
 
     setLoading(true);
     try {
-      console.log(`### RC UPGRADE: start isAuthenticated=${isAuthenticated} userId=${user?.id ?? 'null'}`);
-      // presentPaywall() RESOLVES with a result object on normal exit (including cancel).
-      // It only THROWS on real failures (not configured, network error, store problem, etc.).
+      debugLog('rc: paywall start', { userId: user?.id ?? 'null', isAuthenticated });
       const result = await showPaywallUI();
-      console.log(`### RC UPGRADE: paywall resolved result=${JSON.stringify(result)}`);
+      debugLog('rc: paywall result', { result: JSON.stringify(result) });
 
-      // SYNC 3 — immediate post-purchase sync: write to Supabase right here, before the
-      // addCustomerInfoUpdateListener may or may not fire. This is the primary sync path
-      // for new purchases. PAYWALL_RESULT is a named export (not on the default object).
       try {
         const { PAYWALL_RESULT } = await import('react-native-purchases-ui');
         const purchased = result === PAYWALL_RESULT.PURCHASED;
         const restored = result === PAYWALL_RESULT.RESTORED;
-        console.log(
-          `### RC UPGRADE: result check purchased=${purchased} restored=${restored} userId=${user?.id ?? 'null'}`
-        );
+        const cancelled = result === PAYWALL_RESULT.CANCELLED;
+        const notPresented = result === PAYWALL_RESULT.NOT_PRESENTED;
+        debugLog('rc: paywall result check', {
+          purchased,
+          restored,
+          cancelled,
+          notPresented,
+          rawResult: JSON.stringify(result),
+          userId: user?.id ?? 'null',
+        });
         if ((purchased || restored) && user?.id) {
-          console.log(`### RC UPGRADE: calling syncSubscriptionStatus userId=${user.id}`);
+          debugLog('rc: sync start', { userId: user.id, trigger: purchased ? 'purchased' : 'restored' });
           await syncSubscriptionStatus(user.id);
-          console.log('### RC UPGRADE: syncSubscriptionStatus done');
+          debugLog('rc: sync done', { userId: user.id });
+        } else {
+          debugLog('rc: sync skipped', { purchased, restored, hasUserId: !!user?.id });
         }
       } catch (syncErr: any) {
-        // Sync failure must not surface as a purchase failure — user DID pay successfully.
-        // The addCustomerInfoUpdateListener will retry on next customer info update.
-        console.error(
-          `### RC UPGRADE: post-purchase sync FAILED (non-fatal) message=${syncErr?.message}`,
-          JSON.stringify(syncErr)
-        );
+        debugLog('rc: sync FAILED', { message: syncErr?.message, full: JSON.stringify(syncErr) });
       }
     } catch (err: any) {
-      // Only real paywall failures reach here. Log everything we know.
-      const errDetail = [
-        `code=${err?.code}`,
-        `message=${err?.message}`,
-        `underlying=${err?.underlyingErrorMessage}`,
-        `userCancelled=${err?.userCancelled}`,
-        `full=${JSON.stringify(err)}`,
-      ].join(' ');
-      console.log('### RC ERROR:', errDetail);
-
+      const errDetail = {
+        code: err?.code,
+        message: err?.message,
+        underlying: err?.underlyingErrorMessage,
+        userCancelled: err?.userCancelled,
+        full: JSON.stringify(err),
+      };
+      debugLog('rc: paywall ERROR', errDetail);
       const msg = handleRevenueCatError(err);
       if (msg !== 'cancelled') {
         Toast.show({ type: 'error', text1: 'Noe gikk galt', text2: msg });
