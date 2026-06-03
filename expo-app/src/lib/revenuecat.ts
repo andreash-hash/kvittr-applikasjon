@@ -48,7 +48,7 @@ export const syncSubscriptionStatus = async (userId: string): Promise<void> => {
   debugLog('sync: start', { userId, ts: Date.now() });
   try {
     const Purchases = (await import('react-native-purchases')).default;
-    const { customerInfo } = await Purchases.getCustomerInfo();
+    const customerInfo = await Purchases.getCustomerInfo();
 
     const activeEntitlements = customerInfo.entitlements.active;
     const entitlementKeys = Object.keys(activeEntitlements);
