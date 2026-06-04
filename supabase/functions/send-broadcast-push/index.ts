@@ -14,11 +14,16 @@
 // Apple App Store guidelines require marketing pushes to be opt-out-able.
 // Add a boolean allow_marketing_push column (default true) before sending
 // large-scale marketing campaigns to be fully compliant.
-
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+//
+// Zero external imports — uses Deno's built-in fetch + Supabase REST API directly.
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const BATCH_SIZE = 100;
+
+interface ProfileRow {
+  id: string;
+  expo_push_token: string;
+}
 
 interface ExpoMessage {
   to: string;
@@ -36,8 +41,10 @@ interface ExpoTicket {
 }
 
 Deno.serve(async (req) => {
-  // ── Auth: service_role_key only ──────────────────────────────────────────
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+
+  // ── Auth: service_role_key only ──────────────────────────────────────────
   const authHeader = req.headers.get('Authorization') ?? '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
 
@@ -59,53 +66,59 @@ Deno.serve(async (req) => {
     body = parsed.body;
     data = parsed.data;
     if (!title || !body) throw new Error('missing title or body');
-  } catch (e: any) {
-    return new Response(JSON.stringify({ error: `Bad request: ${e.message}` }), {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return new Response(JSON.stringify({ error: `Bad request: ${msg}` }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    serviceRoleKey,
+  // ── Fetch all users with a push token via Supabase REST API ───────────────
+  const profilesRes = await fetch(
+    `${supabaseUrl}/rest/v1/profiles?select=id,expo_push_token&expo_push_token=not.is.null`,
+    {
+      headers: {
+        'apikey': serviceRoleKey,
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+    },
   );
 
-  // ── Fetch all users with a push token ─────────────────────────────────────
-  const { data: profiles, error: fetchError } = await supabase
-    .from('profiles')
-    .select('id, expo_push_token')
-    .not('expo_push_token', 'is', null);
-
-  if (fetchError) {
-    console.error('[broadcast] profiles fetch error:', fetchError.message);
-    return new Response(JSON.stringify({ error: fetchError.message }), {
+  if (!profilesRes.ok) {
+    const errText = await profilesRes.text();
+    console.error('[broadcast] profiles fetch error:', errText);
+    return new Response(JSON.stringify({ error: errText }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  // Filter to valid ExponentPushToken format
-  const validProfiles = (profiles ?? []).filter(
-    (p) => typeof p.expo_push_token === 'string' && p.expo_push_token.startsWith('ExponentPushToken['),
+  const allProfiles: ProfileRow[] = await profilesRes.json();
+
+  // Filter to valid ExponentPushToken format only
+  const profiles = allProfiles.filter(
+    (p) => typeof p.expo_push_token === 'string' &&
+            p.expo_push_token.startsWith('ExponentPushToken['),
   );
 
-  console.log(`[broadcast] total_users=${validProfiles.length} title="${title}"`);
+  console.log(`[broadcast] total_users=${profiles.length} title="${title}"`);
 
-  const totalUsers = validProfiles.length;
+  const totalUsers = profiles.length;
   let sent = 0;
   let failed = 0;
   const errors: Array<{ user_id: string; token: string; error: string }> = [];
 
-  // ── Send in batches of 100 ────────────────────────────────────────────────
-  for (let i = 0; i < validProfiles.length; i += BATCH_SIZE) {
-    const batch = validProfiles.slice(i, i + BATCH_SIZE);
+  // ── Send in batches of 100 (Expo Push API limit) ──────────────────────────
+  for (let i = 0; i < profiles.length; i += BATCH_SIZE) {
+    const batch = profiles.slice(i, i + BATCH_SIZE);
 
     const messages: ExpoMessage[] = batch.map((p) => ({
-      to: p.expo_push_token as string,
+      to: p.expo_push_token,
       title,
       body,
-      sound: 'default',
+      sound: 'default' as const,
       ...(data ? { data } : {}),
     }));
 
@@ -115,22 +128,23 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Accept: 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(messages),
       });
 
       if (!res.ok) {
         const text = await res.text();
-        console.error(`[broadcast] batch ${i}-${i + batch.length} HTTP ${res.status}: ${text}`);
+        console.error(`[broadcast] batch ${i}–${i + batch.length} HTTP ${res.status}: ${text}`);
         failed += batch.length;
         continue;
       }
 
       const json = await res.json();
       tickets = json.data ?? [];
-    } catch (e: any) {
-      console.error(`[broadcast] batch ${i}-${i + batch.length} fetch error:`, e.message);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[broadcast] batch ${i}–${i + batch.length} fetch error:`, msg);
       failed += batch.length;
       continue;
     }
@@ -146,12 +160,8 @@ Deno.serve(async (req) => {
       } else {
         failed++;
         const errMsg = ticket?.message ?? ticket?.details?.error ?? 'unknown';
-        console.error(`[broadcast] failed user=${profile.id} token=${profile.expo_push_token} err=${errMsg}`);
-        errors.push({
-          user_id: profile.id,
-          token: profile.expo_push_token as string,
-          error: errMsg,
-        });
+        console.error(`[broadcast] failed user=${profile.id} err=${errMsg}`);
+        errors.push({ user_id: profile.id, token: profile.expo_push_token, error: errMsg });
       }
     }
   }
