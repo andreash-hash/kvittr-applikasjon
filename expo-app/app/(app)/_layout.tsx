@@ -74,6 +74,7 @@ import React, { useEffect } from 'react';
           options={{
             title: 'Skann',
             tabBarShowLabel: false,
+            tabBarLabel: () => null,
             tabBarIcon: ({ focused }) => (
               <View style={{ alignItems: 'center' }}>
                 <View
