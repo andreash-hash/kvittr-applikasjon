@@ -3,8 +3,25 @@ import type { GuestReceipt } from '../types/receipt';
 
 const GUEST_RECEIPTS_KEY = 'kvittr_guest_receipts';
 const GUEST_SCAN_COUNT_KEY = 'kvittr_guest_scan_count';
+const GUEST_SCAN_MONTH_KEY = 'kvittr_guest_scan_month';
 const GUEST_PREMIUM_KEY = 'kvittr_guest_premium';
-const FREE_GUEST_SCANS = 3;
+const FREE_GUEST_SCANS = 2;
+
+function currentYearMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+async function maybeResetMonthlyCount(): Promise<void> {
+  const stored = await AsyncStorage.getItem(GUEST_SCAN_MONTH_KEY);
+  const current = currentYearMonth();
+  if (stored !== current) {
+    await AsyncStorage.multiSet([
+      [GUEST_SCAN_COUNT_KEY, '0'],
+      [GUEST_SCAN_MONTH_KEY, current],
+    ]);
+  }
+}
 
 export const getGuestReceipts = async (): Promise<GuestReceipt[]> => {
   try {
@@ -20,10 +37,20 @@ export const saveGuestReceipt = async (receipt: GuestReceipt): Promise<void> => 
   const updated = [receipt, ...existing];
   await AsyncStorage.setItem(GUEST_RECEIPTS_KEY, JSON.stringify(updated));
   const count = await getGuestScanCount();
-  await AsyncStorage.setItem(GUEST_SCAN_COUNT_KEY, String(count + 1));
+  await AsyncStorage.multiSet([
+    [GUEST_SCAN_COUNT_KEY, String(count + 1)],
+    [GUEST_SCAN_MONTH_KEY, currentYearMonth()],
+  ]);
+};
+
+export const deleteGuestReceipt = async (id: string): Promise<void> => {
+  const existing = await getGuestReceipts();
+  const updated = existing.filter((r) => r.id !== id);
+  await AsyncStorage.setItem(GUEST_RECEIPTS_KEY, JSON.stringify(updated));
 };
 
 export const getGuestScanCount = async (): Promise<number> => {
+  await maybeResetMonthlyCount();
   const val = await AsyncStorage.getItem(GUEST_SCAN_COUNT_KEY);
   return val ? parseInt(val, 10) : 0;
 };
@@ -49,5 +76,10 @@ export const setGuestPremium = async (token: string): Promise<void> => {
 };
 
 export const clearGuestData = async (): Promise<void> => {
-  await AsyncStorage.multiRemove([GUEST_RECEIPTS_KEY, GUEST_SCAN_COUNT_KEY, GUEST_PREMIUM_KEY]);
+  await AsyncStorage.multiRemove([
+    GUEST_RECEIPTS_KEY,
+    GUEST_SCAN_COUNT_KEY,
+    GUEST_SCAN_MONTH_KEY,
+    GUEST_PREMIUM_KEY,
+  ]);
 };

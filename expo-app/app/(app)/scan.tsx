@@ -12,11 +12,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
 import { checkScanLimit, incrementScanCount } from '@/lib/scanLimit';
-import { canGuestScan } from '@/lib/guestStorage';
+import { canGuestScan, saveGuestReceipt } from '@/lib/guestStorage';
 import { useAuth } from '@/hooks/useAuth';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useHaptics } from '@/hooks/useHaptics';
 import { debugLog } from '@/lib/debugLog';
+import type { GuestReceipt } from '@/types/receipt';
 
 type ScanState = 'idle' | 'uploading' | 'processing' | 'waiting' | 'done' | 'error';
 
@@ -174,16 +175,47 @@ export default function ScanScreen() {
     const authSnapshot = { isAuthenticated, userId: user?.id ?? null };
     debugLog('scan: processImage called', authSnapshot);
 
+    // Guest branch: save image locally without OCR, no Supabase required
     if (!isAuthenticated || !user) {
-      debugLog('scan: BLOCKED — not authenticated', authSnapshot);
-      Toast.show({
-        type: 'info',
-        text1: 'Logg inn for å skanne',
-        text2: 'Du må logge inn for å lagre kvitteringer.',
-      });
+      debugLog('scan: guest scan — saving locally', authSnapshot);
+      setScanState('uploading');
+      setImageUri(uri);
+      try {
+        const compressedUri = await prepareImage(uri);
+        setImageUri(compressedUri);
+        debugLog('scan: guest image compressed', { compressedUri: compressedUri.slice(0, 80) });
+        const guestReceipt: GuestReceipt = {
+          id: `guest-${Date.now()}`,
+          type: 'receipt',
+          shop_name: '',
+          product_name: '',
+          amount: 0,
+          purchase_date: new Date().toISOString(),
+          image_url: compressedUri,
+          status: 'active',
+          processing_status: 'local',
+          created_at: new Date().toISOString(),
+        };
+        await saveGuestReceipt(guestReceipt);
+        debugLog('scan: guest receipt saved locally', { id: guestReceipt.id });
+        queryClient.invalidateQueries({ queryKey: ['receipts'] });
+        setScanState('done');
+        notification('success');
+        Toast.show({
+          type: 'success',
+          text1: 'Kvittering lagret!',
+          text2: 'Logg inn for å analysere den automatisk.',
+        });
+        setTimeout(() => router.replace('/(app)/dashboard'), 800);
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : String(err);
+        debugLog('scan: guest save error', { msg });
+        finishError(msg);
+      }
       return;
     }
 
+    // Authenticated branch: Supabase Storage upload + OCR edge function
     // Capture userId once so mid-scan auth changes cannot null it out
     const userId = user.id;
 
