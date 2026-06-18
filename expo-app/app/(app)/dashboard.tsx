@@ -129,11 +129,15 @@ export default function DashboardScreen() {
     ? tabFiltered.filter((r) => {
         const q = searchQuery.toLowerCase();
         const receipt = r as Receipt;
+        const ocrText = receipt.ocr_raw
+          ? JSON.stringify(receipt.ocr_raw).toLowerCase()
+          : '';
         return (
           receipt.shop_name?.toLowerCase().includes(q) ||
           receipt.product_name?.toLowerCase().includes(q) ||
-          receipt.notes?.toLowerCase().includes(q) ||
-          String(receipt.amount ?? '').includes(q)
+          (receipt.notes?.toLowerCase().includes(q) ?? false) ||
+          String(receipt.amount ?? '').includes(q) ||
+          ocrText.includes(q)
         );
       })
     : tabFiltered;

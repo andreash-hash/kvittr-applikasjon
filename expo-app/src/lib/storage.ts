@@ -30,6 +30,7 @@ function mapRow(r: Record<string, unknown>): Receipt {
     // OCR metadata (may be null for older receipts)
     warranty_reasoning: (r.warranty_reasoning as string) ?? undefined,
     category_description: (r.category_description as string) ?? undefined,
+    notes: (r.notes as string | null) ?? undefined,
     ocr_raw: r.ocr_raw ? (r.ocr_raw as Record<string, unknown>) : undefined,
   };
 }
