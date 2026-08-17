@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  useColorScheme,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -38,6 +39,27 @@ export function EditFieldModal({
   onSave,
 }: EditFieldModalProps) {
   const [localValue, setLocalValue] = useState(value);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  // Semantic colour tokens — keeps JSX clean and changes in one place
+  const c = {
+    sheet:        isDark ? '#0F1729' : '#FFFFFF',
+    handle:       isDark ? '#1E2A45' : '#E2E8F0',
+    title:        isDark ? '#F1F5F9' : '#0F172A',
+    inputBg:      isDark ? '#1E2A45' : '#F8FAFC',
+    inputText:    isDark ? '#F1F5F9' : '#0F172A',
+    inputBorder:  isDark ? '#2D3F5E' : '#E2E8F0',
+    segActive:    '#6366F1',
+    segActiveTxt: '#FFFFFF',
+    segIdleBg:    isDark ? '#1E2A45' : '#F8FAFC',
+    segIdleBorder:isDark ? '#2D3F5E' : '#E2E8F0',
+    segIdleTxt:   isDark ? '#CBD5E1' : '#0F172A',
+    cancelBorder: isDark ? '#2D3F5E' : '#E2E8F0',
+    cancelTxt:    isDark ? '#94A3B8' : '#64748B',
+    saveBg:       '#6366F1',
+    saveTxt:      '#FFFFFF',
+  };
 
   useEffect(() => {
     if (visible) setLocalValue(value);
@@ -71,7 +93,7 @@ export function EditFieldModal({
         />
         <View
           style={{
-            backgroundColor: '#fff',
+            backgroundColor: c.sheet,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             paddingHorizontal: 24,
@@ -80,12 +102,12 @@ export function EditFieldModal({
             minHeight: 280,
           }}
         >
-          {/* Handle */}
+          {/* Drag handle */}
           <View
             style={{
               width: 40,
               height: 4,
-              backgroundColor: '#E2E8F0',
+              backgroundColor: c.handle,
               borderRadius: 2,
               alignSelf: 'center',
               marginBottom: 16,
@@ -93,7 +115,12 @@ export function EditFieldModal({
           />
 
           <Text
-            style={{ fontSize: 16, fontWeight: '600', color: '#0F172A', marginBottom: 20 }}
+            style={{
+              fontSize: 16,
+              fontWeight: '600',
+              color: c.title,
+              marginBottom: 20,
+            }}
           >
             {title}
           </Text>
@@ -103,16 +130,17 @@ export function EditFieldModal({
               value={localValue}
               onChangeText={setLocalValue}
               style={{
-                backgroundColor: '#F8FAFC',
+                backgroundColor: c.inputBg,
                 borderRadius: 12,
                 paddingHorizontal: 16,
                 paddingVertical: 12,
                 fontSize: 16,
-                color: '#0F172A',
+                color: c.inputText,
                 borderWidth: 1,
-                borderColor: '#E2E8F0',
+                borderColor: c.inputBorder,
                 marginBottom: 20,
               }}
+              placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
               autoFocus
               returnKeyType="done"
               onSubmitEditing={() => onSave(localValue)}
@@ -124,16 +152,17 @@ export function EditFieldModal({
               value={localValue}
               onChangeText={setLocalValue}
               style={{
-                backgroundColor: '#F8FAFC',
+                backgroundColor: c.inputBg,
                 borderRadius: 12,
                 paddingHorizontal: 16,
                 paddingVertical: 12,
                 fontSize: 16,
-                color: '#0F172A',
+                color: c.inputText,
                 borderWidth: 1,
-                borderColor: '#E2E8F0',
+                borderColor: c.inputBorder,
                 marginBottom: 20,
               }}
+              placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
               keyboardType="decimal-pad"
               autoFocus
               returnKeyType="done"
@@ -146,6 +175,10 @@ export function EditFieldModal({
               value={dateValue}
               mode="date"
               display="spinner"
+              // themeVariant drives the spinner's own dark/light appearance so
+              // it always matches the sheet — prevents dark spinner on light
+              // sheet (or vice versa) regardless of system colour scheme.
+              themeVariant={isDark ? 'dark' : 'light'}
               onChange={(_, selectedDate) => {
                 if (selectedDate) {
                   setLocalValue(selectedDate.toISOString().split('T')[0]);
@@ -168,14 +201,17 @@ export function EditFieldModal({
                     borderRadius: 12,
                     borderWidth: 1,
                     marginBottom: 8,
-                    backgroundColor: localValue === opt.value ? '#6366F1' : '#F8FAFC',
-                    borderColor: localValue === opt.value ? '#6366F1' : '#E2E8F0',
+                    backgroundColor:
+                      localValue === opt.value ? c.segActive : c.segIdleBg,
+                    borderColor:
+                      localValue === opt.value ? c.segActive : c.segIdleBorder,
                   }}
                 >
                   <Text
                     style={{
                       fontWeight: '500',
-                      color: localValue === opt.value ? '#fff' : '#0F172A',
+                      color:
+                        localValue === opt.value ? c.segActiveTxt : c.segIdleTxt,
                     }}
                   >
                     {opt.label}
@@ -193,11 +229,11 @@ export function EditFieldModal({
                 paddingVertical: 14,
                 borderRadius: 12,
                 borderWidth: 1,
-                borderColor: '#E2E8F0',
+                borderColor: c.cancelBorder,
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontWeight: '500', color: '#64748B' }}>Avbryt</Text>
+              <Text style={{ fontWeight: '500', color: c.cancelTxt }}>Avbryt</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => onSave(localValue)}
@@ -205,11 +241,11 @@ export function EditFieldModal({
                 flex: 1,
                 paddingVertical: 14,
                 borderRadius: 12,
-                backgroundColor: '#6366F1',
+                backgroundColor: c.saveBg,
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontWeight: '600', color: '#fff' }}>Lagre</Text>
+              <Text style={{ fontWeight: '600', color: c.saveTxt }}>Lagre</Text>
             </TouchableOpacity>
           </View>
         </View>
