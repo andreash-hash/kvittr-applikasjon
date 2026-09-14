@@ -1,9 +1,11 @@
 // Guest mode storage utility for receipts and premium before signup
 
+import { GUEST_FREE_SCANS } from './freeTier';
+
 const GUEST_RECEIPTS_KEY = 'kvittr_guest_receipts';
 const GUEST_SCAN_COUNT_KEY = 'kvittr_guest_scan_count';
 const GUEST_PREMIUM_KEY = 'kvittr_guest_premium';
-const MAX_GUEST_SCANS = 3;
+const MAX_GUEST_SCANS = GUEST_FREE_SCANS;
 
 export interface GuestReceipt {
   id: string;
