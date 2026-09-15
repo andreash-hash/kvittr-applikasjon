@@ -22,8 +22,8 @@ const slides: Slide[] = [
   },
   {
     image: '/images/slide3-returns.png',
-    title: 'Trygg bytting og retur',
-    description: 'Hold styr på alle byttelapper og gavekort',
+    title: 'Prøv med én kvittering',
+    description: 'Første skanning er gratis – du trenger ingen konto',
   },
 ];
 
@@ -227,7 +227,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                       borderRadius: '10px',
                     }}
                   >
-                    Kom i gang
+                    Skann din første kvittering
                   </Button>
                 ) : (
                   <Button

@@ -50,8 +50,9 @@ const Index = () => {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-    // Go directly to dashboard as guest (no forced signup)
-    navigate('/dashboard');
+    // Straight into the first scan as a guest. An empty dashboard asks the new
+    // user to figure out the next step on their own; the scan screen does not.
+    navigate('/scan');
   };
 
   if (isChecking) {
