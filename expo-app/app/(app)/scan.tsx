@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Image, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
-import * as ImageManipulator from 'expo-image-manipulator';
 import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Camera, Image as ImageIcon, RefreshCw, CheckCircle, XCircle, Crown } from 'lucide-react-native';
@@ -13,6 +12,9 @@ import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
 import { checkScanLimit, incrementScanCount } from '@/lib/scanLimit';
 import { canGuestScan, saveGuestReceipt } from '@/lib/guestStorage';
+import { prepareImage, base64ToUint8Array } from '@/lib/receiptUpload';
+import { ScanWalkthrough } from '@/components/ScanWalkthrough';
+import { hasSeenScanWalkthrough } from '@/lib/scanWalkthroughState';
 import { useAuth } from '@/hooks/useAuth';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useHaptics } from '@/hooks/useHaptics';
@@ -24,27 +26,10 @@ type ScanState = 'idle' | 'uploading' | 'processing' | 'waiting' | 'done' | 'err
 const OCR_TIMEOUT_MS = 45_000;
 const FUNCTION_TIMEOUT_MS = 30_000;
 
-async function prepareImage(uri: string): Promise<string> {
-  const result = await ImageManipulator.manipulateAsync(
-    uri,
-    [{ resize: { width: 1400 } }],
-    { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  return result.uri;
-}
-
-function base64ToUint8Array(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
-
 export default function ScanScreen() {
   const { user, isAuthenticated } = useAuth();
   const { isPremium } = usePremiumStatus();
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
   const { notification } = useHaptics();
   const queryClient = useQueryClient();
   const [scanState, setScanState] = useState<ScanState>('idle');
@@ -74,6 +59,16 @@ export default function ScanScreen() {
       realtimeChannel.current?.unsubscribe();
       if (ocrTimeoutRef.current) clearTimeout(ocrTimeoutRef.current);
     };
+  }, []);
+
+  // Coach the very first scan. Scanning is the one action the whole product
+  // depends on, and the first one happens before the user has an account.
+  useEffect(() => {
+    let cancelled = false;
+    hasSeenScanWalkthrough().then((seen) => {
+      if (!cancelled && !seen) setShowWalkthrough(true);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const finishSuccess = (id: string | null) => {
@@ -122,10 +117,10 @@ export default function ScanScreen() {
       if (!canScan) {
         Toast.show({
           type: 'info',
-          text1: 'Gratis grense nådd',
-          text2: 'Logg inn eller oppgrader for ubegrenset skanning.',
+          text1: 'Du har brukt din gratis skanning',
+          text2: 'Opprett gratis konto for én til.',
         });
-        router.push('/(auth)/login');
+        router.push('/(auth)/signup');
         return false;
       }
     }
@@ -204,9 +199,24 @@ export default function ScanScreen() {
         Toast.show({
           type: 'success',
           text1: 'Kvittering lagret!',
-          text2: 'Logg inn for å analysere den automatisk.',
         });
-        setTimeout(() => router.replace('/(app)/dashboard'), 800);
+        setTimeout(() => {
+          Alert.alert(
+            'Fint! Nå er kvitteringen trygg',
+            'Opprett gratis konto, så leser vi av butikk, beløp og garantitid automatisk – og du får én skanning til.',
+            [
+              {
+                text: 'Senere',
+                style: 'cancel',
+                onPress: () => router.replace('/(app)/dashboard'),
+              },
+              {
+                text: 'Opprett konto',
+                onPress: () => router.replace('/(auth)/signup'),
+              },
+            ],
+          );
+        }, 800);
       } catch (err: any) {
         const msg = err instanceof Error ? err.message : String(err);
         debugLog('scan: guest save error', { msg });
@@ -517,6 +527,12 @@ export default function ScanScreen() {
                   Velg et eksisterende bilde fra telefonens galleri
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setShowWalkthrough(true)} className="py-2">
+                <Text className="text-muted-foreground dark:text-slate-400 text-sm text-center underline">
+                  Hvordan skanner jeg?
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -535,6 +551,15 @@ export default function ScanScreen() {
           )}
         </View>
       </ScrollView>
+
+      <ScanWalkthrough
+        visible={showWalkthrough}
+        onStart={() => {
+          setShowWalkthrough(false);
+          pickFromCamera();
+        }}
+        onDismiss={() => setShowWalkthrough(false)}
+      />
     </SafeAreaView>
   );
 }

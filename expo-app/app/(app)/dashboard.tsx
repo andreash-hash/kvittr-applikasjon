@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { getReceipts, deleteReceipt, archiveReceipt, getArchivedReceipts, unarchiveReceipt } from '@/lib/storage';
 import { getGuestReceipts, deleteGuestReceipt } from '@/lib/guestStorage';
+import { migrateGuestReceipts } from '@/lib/guestMigration';
 import { useAuth } from '@/hooks/useAuth';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { isExpiringSoon } from '@/utils/receiptStatus';
@@ -63,6 +64,34 @@ export default function DashboardScreen() {
     enabled: isAuthenticated && isArchivedTab,
     staleTime: 10_000,
   });
+
+  // Anything scanned before the account existed belongs to this user now.
+  // Runs once per mount for a signed-in user; migrateGuestReceipts is a no-op
+  // when there is nothing stored locally.
+  const migrationRunFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    if (migrationRunFor.current === user.id) return;
+    migrationRunFor.current = user.id;
+
+    let cancelled = false;
+    migrateGuestReceipts(user.id)
+      .then((migrated) => {
+        if (cancelled || migrated === 0) return;
+        queryClient.invalidateQueries({ queryKey: ['receipts'] });
+        Toast.show({
+          type: 'success',
+          text1: migrated === 1 ? 'Kvitteringen er lagret på kontoen' : `${migrated} kvitteringer lagret på kontoen`,
+          text2: 'Vi leser av innholdet nå.',
+        });
+      })
+      .catch(() => {
+        // Already logged inside the migration; the local copy is kept for the
+        // next attempt, so there is nothing to tell the user here.
+      });
+
+    return () => { cancelled = true; };
+  }, [isAuthenticated, user, queryClient]);
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['receipts'] });

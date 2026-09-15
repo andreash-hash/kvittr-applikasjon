@@ -15,7 +15,7 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'app.kvittr',
-      buildNumber: '124',
+      buildNumber: '125',
       backgroundColor: '#0F1729',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
