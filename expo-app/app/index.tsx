@@ -104,8 +104,10 @@ export default function IndexScreen() {
     if (action === 'register') {
       router.push('/(auth)/signup');
     } else {
-      // 'guest' or 'skip' — go straight to dashboard as unauthenticated guest
-      router.replace('/(app)/dashboard');
+      // 'guest' or 'skip' — straight into the first scan. An empty dashboard
+      // asks a brand-new user to work out the next step on their own; the
+      // scan screen, with its walkthrough, does not.
+      router.replace('/(app)/scan');
     }
   };
 

@@ -29,21 +29,11 @@ const FEATURES = [
 ];
 
 export default function PremiumScreen() {
-  const { isPremium, isLoading: premiumLoading } = usePremiumStatus();
+  const { isPremium, loading: premiumLoading } = usePremiumStatus();
   const { isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const handleUpgrade = async () => {
-    if (!isAuthenticated) {
-      Toast.show({
-        type: 'info',
-        text1: 'Logg inn først',
-        text2: 'Du må ha en konto for å abonnere på Premium.',
-      });
-      router.push('/(auth)/login');
-      return;
-    }
-
     setLoading(true);
     try {
       debugLog('rc: paywall start', { userId: user?.id ?? 'null', isAuthenticated });
