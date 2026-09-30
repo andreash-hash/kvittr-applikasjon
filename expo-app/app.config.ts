@@ -48,7 +48,7 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
     },
     web: {
       bundler: 'metro',
-      output: 'static',
+      output: process.env.E2E_WEB === '1' ? 'single' : 'static',
       favicon: './assets/favicon.png',
     },
     plugins: [

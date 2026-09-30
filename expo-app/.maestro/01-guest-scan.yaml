@@ -1,0 +1,31 @@
+# Guest: onboarding -> gallery scan -> saved locally.
+# NOTE: first draft written without a simulator run; the photo-picker tap
+# coordinates may need tuning after the first CI run (see screenshots).
+appId: app.kvittr
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Kom i gang"
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          text: "Kom i gang|Neste"
+- tapOn: "Fortsett som gjest"
+- runFlow:
+    when:
+      visible: "Hopp over"
+    commands:
+      - tapOn: "Hopp over"
+- takeScreenshot: 01-scan-screen
+- tapOn: "Velg fra galleri"
+# iOS photo picker (PHPicker): choose the first photo
+- tapOn:
+    point: "20%,25%"
+- runFlow:
+    when:
+      visible: "Legg til"
+    commands:
+      - tapOn: "Legg til"
+- assertVisible: "Kvittering lagret!"
+- takeScreenshot: 02-saved
