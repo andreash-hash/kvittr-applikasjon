@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GuestReceipt } from '../types/receipt';
 import { GUEST_FREE_SCANS } from './freeTier';
+import { deleteLocalImage } from './guestImage';
 
 const GUEST_RECEIPTS_KEY = 'kvittr_guest_receipts';
 const GUEST_SCAN_COUNT_KEY = 'kvittr_guest_scan_count';
@@ -34,8 +35,10 @@ export const saveGuestReceipt = async (receipt: GuestReceipt): Promise<void> => 
  */
 export const deleteGuestReceipt = async (id: string): Promise<void> => {
   const existing = await getGuestReceipts();
+  const removed = existing.find((r) => r.id === id);
   const updated = existing.filter((r) => r.id !== id);
   await AsyncStorage.setItem(GUEST_RECEIPTS_KEY, JSON.stringify(updated));
+  await deleteLocalImage(removed?.image_url);
 };
 
 export const getGuestScanCount = async (): Promise<number> => {

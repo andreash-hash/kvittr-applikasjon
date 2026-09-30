@@ -105,7 +105,7 @@ export const getOfferings = async () => {
 
 export const restorePurchases = async (): Promise<boolean> => {
   const Purchases = (await import('react-native-purchases')).default;
-  const { customerInfo } = await Purchases.restorePurchases();
+  const customerInfo = await Purchases.restorePurchases();
   return Object.keys(customerInfo.entitlements.active).length > 0;
 };
 

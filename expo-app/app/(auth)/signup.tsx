@@ -46,6 +46,10 @@ export default function SignupScreen() {
   };
 
   const canSubmit = email.trim() && password && confirm && password === confirm;
+  // The button is disabled on mismatch, so the toasts in handleSignup can't
+  // fire for it — show the reason inline instead of leaving a dead button.
+  const passwordError = password && password.length < 8 ? 'Passordet må være minst 8 tegn' : undefined;
+  const confirmError = confirm && password !== confirm ? 'Passordene stemmer ikke' : undefined;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -84,6 +88,7 @@ export default function SignupScreen() {
                 placeholder="Minst 8 tegn"
                 secureTextEntry
                 autoComplete="new-password"
+                error={passwordError}
               />
               <Input
                 label="Bekreft passord"
@@ -92,6 +97,7 @@ export default function SignupScreen() {
                 placeholder="••••••••"
                 secureTextEntry
                 autoComplete="new-password"
+                error={confirmError}
               />
             </View>
 

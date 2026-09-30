@@ -76,14 +76,22 @@ export default function DashboardScreen() {
 
     let cancelled = false;
     migrateGuestReceipts(user.id)
-      .then((migrated) => {
-        if (cancelled || migrated === 0) return;
-        queryClient.invalidateQueries({ queryKey: ['receipts'] });
-        Toast.show({
-          type: 'success',
-          text1: migrated === 1 ? 'Kvitteringen er lagret på kontoen' : `${migrated} kvitteringer lagret på kontoen`,
-          text2: 'Vi leser av innholdet nå.',
-        });
+      .then(({ migrated, lost }) => {
+        if (cancelled) return;
+        if (migrated > 0) {
+          queryClient.invalidateQueries({ queryKey: ['receipts'] });
+          Toast.show({
+            type: 'success',
+            text1: migrated === 1 ? 'Kvitteringen er lagret på kontoen' : `${migrated} kvitteringer lagret på kontoen`,
+            text2: 'Vi leser av innholdet nå.',
+          });
+        } else if (lost > 0) {
+          Toast.show({
+            type: 'error',
+            text1: lost === 1 ? 'Gjesteskanningen kunne ikke hentes' : `${lost} gjesteskanninger kunne ikke hentes`,
+            text2: 'Bildet ble borte fra enheten. Skann kvitteringen på nytt.',
+          });
+        }
       })
       .catch(() => {
         // Already logged inside the migration; the local copy is kept for the

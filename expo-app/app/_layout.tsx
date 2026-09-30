@@ -77,7 +77,7 @@ function AppInit() {
     let pendingAuthUserId: string | null = null;
 
     // EmitterSubscription from addCustomerInfoUpdateListener — removed on unmount.
-    let rcListenerSub: { remove: () => void } | null = null;
+    let removeRcListener: (() => void) | null = null;
 
     // Shared helper: identify the RC SDK as userId, then sync entitlements to
     // Supabase. Skips the Supabase write if we already synced this userId this
@@ -177,7 +177,7 @@ function AppInit() {
 
       const Purchases = (await import('react-native-purchases')).default;
       debugLog('rc: registering customerInfoUpdateListener', {});
-      rcListenerSub = Purchases.addCustomerInfoUpdateListener(async (_updatedInfo) => {
+      const customerInfoListener = async () => {
         const {
           data: { session: s },
         } = await supabase.auth.getSession();
@@ -188,16 +188,18 @@ function AppInit() {
         } else {
           debugLog('rc: listener skipped — no session', {});
         }
-      });
+      };
+      Purchases.addCustomerInfoUpdateListener(customerInfoListener);
+      removeRcListener = () => Purchases.removeCustomerInfoUpdateListener(customerInfoListener);
     };
 
     initRC();
 
     return () => {
       subscription.unsubscribe();
-      if (rcListenerSub) {
+      if (removeRcListener) {
         console.log('### RC INIT: removing customerInfoUpdateListener');
-        rcListenerSub.remove();
+        removeRcListener();
       }
     };
   }, []);

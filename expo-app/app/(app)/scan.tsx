@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { checkScanLimit, incrementScanCount } from '@/lib/scanLimit';
 import { canGuestScan, saveGuestReceipt } from '@/lib/guestStorage';
 import { prepareImage, base64ToUint8Array } from '@/lib/receiptUpload';
+import { persistGuestImage } from '@/lib/guestImage';
 import { ScanWalkthrough } from '@/components/ScanWalkthrough';
 import { hasSeenScanWalkthrough } from '@/lib/scanWalkthroughState';
 import { useAuth } from '@/hooks/useAuth';
@@ -176,7 +177,8 @@ export default function ScanScreen() {
       setScanState('uploading');
       setImageUri(uri);
       try {
-        const compressedUri = await prepareImage(uri);
+        // Copy out of the cache dir so the image survives until signup.
+        const compressedUri = await persistGuestImage(await prepareImage(uri));
         setImageUri(compressedUri);
         debugLog('scan: guest image compressed', { compressedUri: compressedUri.slice(0, 80) });
         const guestReceipt: GuestReceipt = {
