@@ -17,8 +17,9 @@ import {
   type GuestReceipt 
 } from '@/lib/guestStorage';
 import { SignupPromptDialog } from '@/components/SignupPromptDialog';
+import { ScanWalkthrough, hasSeenScanWalkthrough } from '@/components/ScanWalkthrough';
 import { UpgradePromptDialog } from '@/components/UpgradePromptDialog';
-import { checkScanLimit, incrementScanCount, FREE_MONTHLY_SCANS, type ScanLimitStatus } from '@/lib/scanLimit';
+import { checkScanLimit, incrementScanCount, FREE_ACCOUNT_SCANS, type ScanLimitStatus } from '@/lib/scanLimit';
 
 const Scan = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -33,6 +34,7 @@ const Scan = () => {
   const [showWebcam, setShowWebcam] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(!hasSeenScanWalkthrough());
   const [remainingScans, setRemainingScans] = useState(getRemainingGuestScans());
   const [scanLimitStatus, setScanLimitStatus] = useState<ScanLimitStatus | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -509,10 +511,10 @@ const Scan = () => {
           {isGuest && !isGuestPremium() && remainingScans > 0 && (
             <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-4 text-center">
               <p className="text-sm font-medium text-primary">
-                {remainingScans} av 3 gratis scanninger gjenstående
+                Din første skanning er gratis – ingen konto nødvendig
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Opprett konto for ubegrenset lagring
+                Du kan opprette konto etterpå for å ta vare på den
               </p>
             </div>
           )}
@@ -528,7 +530,7 @@ const Scan = () => {
           {!isGuest && scanLimitStatus && !scanLimitStatus.isPremium && (
             <div className="w-full max-w-md bg-primary/10 border border-primary/20 rounded-xl p-4 text-center">
               <p className="text-sm font-medium text-primary">
-                {scanLimitStatus.scansUsed} av {FREE_MONTHLY_SCANS} scanninger brukt denne måneden
+                {scanLimitStatus.scansUsed} av {FREE_ACCOUNT_SCANS} gratis skanning brukt
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Oppgrader til Premium for ubegrenset
@@ -572,8 +574,14 @@ const Scan = () => {
             </Button>
           </div>
 
-          <div className="mt-8 text-center text-sm text-muted-foreground max-w-md">
+          <div className="mt-8 text-center text-sm text-muted-foreground max-w-md space-y-3">
             <p>Tips: Sørg for god belysning og hold kameraet rett over kvitteringen for best resultat</p>
+            <button
+              onClick={() => setShowWalkthrough(true)}
+              className="underline underline-offset-4 hover:text-foreground transition-colors"
+            >
+              Hvordan skanner jeg?
+            </button>
           </div>
         </div>
 
@@ -602,6 +610,17 @@ const Scan = () => {
           onClose={() => setShowWebcam(false)}
           onCapture={handleWebcamCapture}
         />
+
+        {/* First-run coaching, shown before the very first scan */}
+        {showWalkthrough && (
+          <ScanWalkthrough
+            onStart={() => {
+              setShowWalkthrough(false);
+              takePhoto();
+            }}
+            onDismiss={() => setShowWalkthrough(false)}
+          />
+        )}
       </div>
     );
   }
