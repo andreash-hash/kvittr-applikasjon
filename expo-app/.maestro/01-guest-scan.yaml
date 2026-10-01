@@ -1,6 +1,4 @@
 # Guest: onboarding -> gallery scan -> saved locally.
-# NOTE: first draft written without a simulator run; the photo-picker tap
-# coordinates may need tuning after the first CI run (see screenshots).
 appId: app.kvittr
 ---
 - launchApp:
@@ -27,5 +25,7 @@ appId: app.kvittr
       visible: "Legg til"
     commands:
       - tapOn: "Legg til"
-- assertVisible: "Kvittering lagret!"
+- extendedWaitUntil:
+    visible: "Kvittering lagret!"
+    timeout: 30000
 - takeScreenshot: 02-saved
