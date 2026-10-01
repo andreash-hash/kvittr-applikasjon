@@ -178,7 +178,11 @@ export default function ScanScreen() {
       setImageUri(uri);
       try {
         // Copy out of the cache dir so the image survives until signup.
-        const compressedUri = await persistGuestImage(await prepareImage(uri));
+        debugLog('scan: guest prepareImage start', { uri: uri.slice(0, 100) });
+        const prepared = await prepareImage(uri);
+        debugLog('scan: guest prepareImage done', { prepared: prepared.slice(0, 100) });
+        const compressedUri = await persistGuestImage(prepared);
+        debugLog('scan: guest persistGuestImage done', { compressedUri: compressedUri.slice(0, 100) });
         setImageUri(compressedUri);
         debugLog('scan: guest image compressed', { compressedUri: compressedUri.slice(0, 80) });
         const guestReceipt: GuestReceipt = {
