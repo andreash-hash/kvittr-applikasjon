@@ -1,0 +1,94 @@
+import React from 'react';
+import {
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  type TouchableOpacityProps,
+} from 'react-native';
+
+type Variant = 'default' | 'outline' | 'ghost' | 'destructive';
+type Size = 'sm' | 'md' | 'lg';
+
+interface ButtonProps extends TouchableOpacityProps {
+  variant?: Variant;
+  size?: Size;
+  loading?: boolean;
+  children: React.ReactNode;
+}
+
+const variantClasses: Record<Variant, string> = {
+  default: 'bg-primary',
+  outline: 'bg-transparent border border-primary',
+  ghost: 'bg-transparent',
+  destructive: 'bg-destructive',
+};
+
+const textClasses: Record<Variant, string> = {
+  default: 'text-white',
+  outline: 'text-primary',
+  ghost: 'text-primary',
+  destructive: 'text-white',
+};
+
+const sizeClasses: Record<Size, string> = {
+  sm: 'h-9 px-3',
+  md: 'h-11 px-4',
+  lg: 'h-14 px-6',
+};
+
+const textSizeClasses: Record<Size, string> = {
+  sm: 'text-sm',
+  md: 'text-base',
+  lg: 'text-lg',
+};
+
+export const Button: React.FC<ButtonProps> = ({
+  variant = 'default',
+  size = 'md',
+  loading = false,
+  disabled,
+  children,
+  className,
+  ...props
+}) => {
+  const isDisabled = disabled || loading;
+  const textCls = `font-semibold ${textClasses[variant]} ${textSizeClasses[size]}`;
+
+  // Safely wraps raw string/number children in <Text> so Button is safe
+  // whether children is a pure string, a React element, or a mixed array
+  // (e.g. <Icon/> + " label string"). Previously only pure-string children
+  // were wrapped, causing a React Native crash for mixed-array children.
+  const renderChildren = (node: React.ReactNode): React.ReactNode => {
+    if (typeof node === 'string' || typeof node === 'number') {
+      return <Text className={textCls}>{node}</Text>;
+    }
+    if (Array.isArray(node)) {
+      return node.map((child, i) =>
+        typeof child === 'string' || typeof child === 'number' ? (
+          <Text key={i} className={textCls}>{child}</Text>
+        ) : (
+          child
+        ),
+      );
+    }
+    return node;
+  };
+
+  return (
+    <TouchableOpacity
+      className={`flex-row items-center justify-center rounded-xl ${variantClasses[variant]} ${sizeClasses[size]} ${isDisabled ? 'opacity-50' : ''} ${className ?? ''}`}
+      disabled={isDisabled}
+      activeOpacity={0.8}
+      {...props}
+    >
+      {loading && (
+        <ActivityIndicator
+          size="small"
+          color={variant === 'default' || variant === 'destructive' ? '#fff' : '#6366F1'}
+          className="mr-2"
+        />
+      )}
+      {renderChildren(children)}
+    </TouchableOpacity>
+  );
+};

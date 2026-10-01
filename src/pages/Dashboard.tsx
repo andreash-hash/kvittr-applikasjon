@@ -14,7 +14,8 @@ import { useToastNotification } from '@/components/CenteredToast';
 import { Logo } from '@/components/Logo';
 import { SEO } from '@/components/SEO';
 import { getGuestReceipts, hasGuestReceipts, getRemainingGuestScans, isGuestPremium, type GuestReceipt } from '@/lib/guestStorage';
-import { checkScanLimit, FREE_MONTHLY_SCANS, type ScanLimitStatus } from '@/lib/scanLimit';
+import { checkScanLimit, FREE_ACCOUNT_SCANS, type ScanLimitStatus } from '@/lib/scanLimit';
+import { migrateGuestReceipts } from '@/lib/guestMigration';
 
 type FilterType = 'alle' | 'kvitteringer' | 'gavekort' | 'bytte' | 'arkiv' | 'expiring';
 
@@ -84,7 +85,7 @@ const Dashboard = () => {
   const checkAuthAndLoadReceipts = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      // Guest mode - always allow access (they can scan up to 3 times)
+      // Guest mode - always allow access
       setIsGuest(true);
       setGuestReceipts(getGuestReceipts());
       setIsLoading(false);
@@ -92,7 +93,22 @@ const Dashboard = () => {
     }
 
     setIsGuest(false);
-    
+
+    // Anything scanned before the account existed belongs to this user now.
+    try {
+      const migrated = await migrateGuestReceipts(session.user.id);
+      if (migrated > 0) {
+        showToast(
+          migrated === 1
+            ? 'Kvitteringen din er lagret på kontoen'
+            : `${migrated} kvitteringer er lagret på kontoen`,
+          'success',
+        );
+      }
+    } catch (error) {
+      console.error('Guest migration error:', error);
+    }
+
     // Sync localStorage onboarding flag to Supabase if needed
     const localOnboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
     if (localOnboardingCompleted) {
@@ -476,10 +492,14 @@ const Dashboard = () => {
                   ) : (
                     <>
                       <p className="font-medium text-sm">
-                        Gratis prøveversjon: {getRemainingGuestScans()} av 3 prøvescanninger gjenstående
+                        {getRemainingGuestScans() > 0
+                          ? 'Prøv gratis – ingen konto nødvendig'
+                          : 'Opprett gratis konto for å lagre kvitteringen'}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Opprett konto for å få 2 gratis scanninger per måned
+                        {getRemainingGuestScans() > 0
+                          ? 'Skann din første kvittering og se hvordan det fungerer'
+                          : 'Kvitteringen din ligger kun på denne enheten til du oppretter konto'}
                       </p>
                     </>
                   )}
@@ -507,7 +527,7 @@ const Dashboard = () => {
             </Card>
           )}
 
-          {/* Monthly scan limit banner for logged-in free users */}
+          {/* Free-quota banner for logged-in free users */}
           {!isGuest && scanLimitStatus && !scanLimitStatus.isPremium && (
             <Card className={`p-4 mb-4 border-l-4 rounded-xl ${
               scanLimitStatus.scansRemaining === 0
@@ -517,11 +537,11 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">
-                    Gratis plan: {scanLimitStatus.scansRemaining} av {FREE_MONTHLY_SCANS} scanninger denne måneden gjenstående
+                    Gratis plan: {scanLimitStatus.scansRemaining} av {FREE_ACCOUNT_SCANS} gratis skanning igjen
                   </p>
                   {scanLimitStatus.scansRemaining === 0 ? (
                     <p className="text-xs text-destructive mt-0.5">
-                      Du har brukt opp gratis scanninger denne måneden
+                      Du har brukt din gratis skanning
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground mt-0.5">

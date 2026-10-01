@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ArrowLeft, Cloud, Check, X, Sparkles, UserPlus, Loader2, Lock } from 'lucide-react';
+import { ArrowLeft, Cloud, Check, X, Sparkles, UserPlus, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { setGuestPremium, isGuestPremium } from '@/lib/guestStorage';
 import { useToastNotification } from '@/components/CenteredToast';
@@ -30,12 +30,14 @@ const Premium = () => {
     checkAuthAndPremium();
   }, []);
 
-  // Only load RevenueCat offerings after user is confirmed logged in
+  // Offerings are loaded for guests too: a purchase does not require an
+  // account, and asking someone to register before they can see the price is
+  // the single most expensive step we can put in front of a payment.
   useEffect(() => {
-    if (isLoggedIn && !isLoading) {
+    if (!isLoading) {
       loadMonthlyOffering();
     }
-  }, [isLoggedIn, isLoading]);
+  }, [isLoading]);
 
   const checkAuthAndPremium = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -301,49 +303,6 @@ const Premium = () => {
     );
   }
 
-  // Not logged in - show login required screen
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-background safe-area-all">
-        <div className="container max-w-md mx-auto p-4" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
-          <div className="flex items-center mb-8">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </div>
-
-          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-              <Lock className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold">Logg inn for å oppgradere</h2>
-              <p className="text-muted-foreground">
-                Du må ha en konto for å kjøpe Premium-abonnement.
-              </p>
-            </div>
-            <div className="w-full space-y-3 pt-4">
-              <Button 
-                className="w-full h-12"
-                onClick={() => navigate('/signup')}
-              >
-                <UserPlus className="h-5 w-5 mr-2" />
-                Opprett konto
-              </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full"
-                onClick={() => navigate('/login')}
-              >
-                Eller logg inn
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Already premium view
   if (isPremium) {
     return (
@@ -445,7 +404,7 @@ const Premium = () => {
               <div className="space-y-2 text-xs">
                 <div className="flex items-start gap-2">
                   <Check className="h-3.5 w-3.5 text-success flex-shrink-0 mt-0.5" />
-                  <span>2 kvitteringer per måned</span>
+                  <span>2 kvitteringer totalt</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="h-3.5 w-3.5 text-success flex-shrink-0 mt-0.5" />
@@ -506,8 +465,8 @@ const Premium = () => {
 
         {/* Value proposition */}
         <div className="text-center text-sm text-muted-foreground bg-muted/50 rounded-lg p-4">
-          <p className="font-medium text-foreground mb-1">2 kvitteringer per måned er begrensende</p>
-          <p>Med Premium får du frihet til å skanne alt – kvitteringer, garantier, byttelapper og gavekort.</p>
+          <p className="font-medium text-foreground mb-1">Du har sett hvordan det fungerer</p>
+          <p>Med Premium skanner du alt – kvitteringer, garantier, byttelapper og gavekort – og får varsel før fristene løper ut.</p>
         </div>
 
         {/* Pricing highlight */}
@@ -518,7 +477,7 @@ const Premium = () => {
           </CardContent>
         </Card>
 
-        {/* CTA - user is always logged in at this point */}
+        {/* CTA - works for guests and signed-in users alike */}
         <div className="space-y-3 pb-6">
           {isMobileApp() ? (
             <>
