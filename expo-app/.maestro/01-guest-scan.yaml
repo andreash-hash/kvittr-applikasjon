@@ -17,9 +17,12 @@ appId: app.kvittr
       - tapOn: "Hopp over"
 - takeScreenshot: 01-scan-screen
 - tapOn: "Velg fra galleri"
-# iOS photo picker (PHPicker): choose the first photo
+# iOS photo picker (PHPicker): wait until it is up, then pick the receipt (first tile)
+- extendedWaitUntil:
+    visible: "Photos"
+    timeout: 20000
 - tapOn:
-    point: "20%,25%"
+    point: "16%,22%"
 - runFlow:
     when:
       visible: "Legg til"
