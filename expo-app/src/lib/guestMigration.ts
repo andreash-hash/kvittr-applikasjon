@@ -12,12 +12,14 @@
 import { supabase } from './supabase';
 import { getGuestReceipts, deleteGuestReceipt } from './guestStorage';
 import { prepareImage, uploadReceiptImage } from './receiptUpload';
+import { localImageExists } from './guestImage';
 import { debugLog } from './debugLog';
 
 const FUNCTION_TIMEOUT_MS = 30_000;
 
 /**
- * Returns the number of receipts handed over to the account. Safe to call on
+ * Returns how many receipts were handed over to the account (and how many
+ * were lost because their image was gone). Safe to call on
  * every authenticated load: it is a no-op when nothing is stored locally.
  *
  * Migrated receipts deliberately do NOT count against the account's free scan
@@ -27,12 +29,20 @@ const FUNCTION_TIMEOUT_MS = 30_000;
  * by the server, so a failure halfway through leaves the rest on the device
  * for the next attempt rather than losing them.
  */
-export async function migrateGuestReceipts(userId: string): Promise<number> {
+export interface MigrationResult {
+  /** Receipts handed over to the account. */
+  migrated: number;
+  /** Receipts whose local image no longer exists and that were dropped. */
+  lost: number;
+}
+
+export async function migrateGuestReceipts(userId: string): Promise<MigrationResult> {
   const guestReceipts = await getGuestReceipts();
-  if (guestReceipts.length === 0) return 0;
+  if (guestReceipts.length === 0) return { migrated: 0, lost: 0 };
 
   debugLog('migration: start', { count: guestReceipts.length, userId });
   let migrated = 0;
+  let lost = 0;
 
   for (const receipt of guestReceipts) {
     try {
@@ -40,6 +50,16 @@ export async function migrateGuestReceipts(userId: string): Promise<number> {
       // uploaded and should not be sent through again.
       if (!receipt.image_url || receipt.image_url.startsWith('http')) {
         debugLog('migration: skipping non-local image', { id: receipt.id });
+        continue;
+      }
+
+      // The file can be gone (cache purged, app data cleared). Retrying would
+      // fail forever and re-toast on every launch, so drop the dead receipt
+      // and tell the caller.
+      if (!(await localImageExists(receipt.image_url))) {
+        debugLog('migration: local image missing, dropping receipt', { id: receipt.id });
+        await deleteGuestReceipt(receipt.id);
+        lost += 1;
         continue;
       }
 
@@ -69,6 +89,6 @@ export async function migrateGuestReceipts(userId: string): Promise<number> {
     }
   }
 
-  debugLog('migration: done', { migrated });
-  return migrated;
+  debugLog('migration: done', { migrated, lost });
+  return { migrated, lost };
 }

@@ -2,7 +2,7 @@
 module.exports = {
   content: ['./app/**/*.{js,ts,jsx,tsx}', './src/**/*.{js,ts,jsx,tsx}'],
   presets: [require('nativewind/preset')],
-  darkMode: 'media',
+  darkMode: process.env.E2E_WEB === '1' ? 'class' : 'media',
   theme: {
     extend: {
       colors: {

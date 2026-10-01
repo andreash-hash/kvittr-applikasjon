@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { checkScanLimit, incrementScanCount } from '@/lib/scanLimit';
 import { canGuestScan, saveGuestReceipt } from '@/lib/guestStorage';
 import { prepareImage, base64ToUint8Array } from '@/lib/receiptUpload';
+import { persistGuestImage } from '@/lib/guestImage';
 import { ScanWalkthrough } from '@/components/ScanWalkthrough';
 import { hasSeenScanWalkthrough } from '@/lib/scanWalkthroughState';
 import { useAuth } from '@/hooks/useAuth';
@@ -176,7 +177,8 @@ export default function ScanScreen() {
       setScanState('uploading');
       setImageUri(uri);
       try {
-        const compressedUri = await prepareImage(uri);
+        // Copy out of the cache dir so the image survives until signup.
+        const compressedUri = await persistGuestImage(await prepareImage(uri));
         setImageUri(compressedUri);
         debugLog('scan: guest image compressed', { compressedUri: compressedUri.slice(0, 80) });
         const guestReceipt: GuestReceipt = {
@@ -506,6 +508,9 @@ export default function ScanScreen() {
             <View className="gap-4">
               <TouchableOpacity
                 onPress={pickFromCamera}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Ta bilde"
                 className="bg-primary rounded-2xl p-6 items-center gap-3"
                 activeOpacity={0.8}
               >
@@ -518,6 +523,9 @@ export default function ScanScreen() {
 
               <TouchableOpacity
                 onPress={pickFromLibrary}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Velg fra galleri"
                 className="bg-card dark:bg-slate-800 border border-border dark:border-slate-700 rounded-2xl p-6 items-center gap-3"
                 activeOpacity={0.8}
               >

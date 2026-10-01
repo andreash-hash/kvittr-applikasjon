@@ -11,7 +11,8 @@ import React, { useEffect } from 'react';
     children,
     accessibilityState,
   }: {
-    onPress: () => void;
+    // react-navigation types this as taking a press event; it does not read it.
+    onPress: (event?: any) => void;
     children: React.ReactNode;
     accessibilityState?: { selected?: boolean };
   }) {

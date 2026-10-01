@@ -1,0 +1,34 @@
+# Guest: onboarding -> gallery scan -> saved locally.
+appId: app.kvittr
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Kom i gang"
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          text: "Kom i gang|Neste"
+- tapOn: "Fortsett som gjest"
+- runFlow:
+    when:
+      visible: "Hopp over"
+    commands:
+      - tapOn: "Hopp over"
+- takeScreenshot: 01-scan-screen
+- tapOn: "Velg fra galleri"
+# iOS photo picker (PHPicker): wait until it is up, then pick the receipt (first tile)
+- extendedWaitUntil:
+    visible: "Photos"
+    timeout: 20000
+- tapOn:
+    point: "16%,22%"
+- runFlow:
+    when:
+      visible: "Legg til"
+    commands:
+      - tapOn: "Legg til"
+- extendedWaitUntil:
+    visible: "Kvittering lagret!"
+    timeout: 30000
+- takeScreenshot: 02-saved

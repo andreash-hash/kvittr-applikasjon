@@ -25,10 +25,13 @@ export const usePremiumStatus = () => {
       if (isMobileApp()) {
         try {
           const Purchases = (await import('react-native-purchases')).default;
-          const { customerInfo } = await Purchases.getCustomerInfo();
-          const hasPremium = Object.keys(customerInfo.entitlements.active).length > 0;
-          setIsPremium(hasPremium);
-          return;
+          const customerInfo = await Purchases.getCustomerInfo();
+          if (Object.keys(customerInfo.entitlements.active).length > 0) {
+            setIsPremium(true);
+            return;
+          }
+          // No active entitlement in RevenueCat (or RC is not identified as this user yet):
+          // do not conclude "free" from that alone, let the Supabase tier decide below.
         } catch {
           // Fall through to Supabase check
         }

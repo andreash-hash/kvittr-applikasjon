@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 bun.lockb
+
+# Playwright
+expo-app/test-results/
+expo-app/playwright-report/

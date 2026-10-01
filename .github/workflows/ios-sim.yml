@@ -1,0 +1,101 @@
+name: iOS simulator (Maestro)
+
+# EXPENSIVE: macOS runners bill at 10x. Runs only on demand or on ci/ios-* branches.
+# Builds the app for the iOS Simulator, runs the Maestro flows in expo-app/.maestro,
+# and pushes screenshots + log to the `ci-results` branch (folder ios-sim/<run id>/)
+# so they can be read without opening the Actions UI.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/ios-**']
+
+concurrency:
+  group: ios-sim-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  ios-sim:
+    runs-on: macos-14
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: expo-app
+    env:
+      # Public client keys. Set as repo *variables* (Settings > Secrets and variables > Actions > Variables).
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'anon' }}
+      EXPO_PUBLIC_REVENUECAT_IOS_KEY: ${{ vars.EXPO_PUBLIC_REVENUECAT_IOS_KEY || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: expo-app/package-lock.json
+      - run: npm ci
+      - name: Give @expo/cli its own tar@6
+        # package.json overrides tar to ^7, which breaks `expo prebuild`
+        # ("Cannot read properties of undefined (reading 'extract')").
+        run: |
+          T=$(mktemp -d)
+          (cd "$T" && npm pack tar@6.2.1 --silent >/dev/null && tar xzf tar-6.2.1.tgz)
+          mkdir -p node_modules/@expo/cli/node_modules
+          rm -rf node_modules/@expo/cli/node_modules/tar
+          cp -r "$T/package" node_modules/@expo/cli/node_modules/tar
+          (cd node_modules/@expo/cli/node_modules/tar && npm i --omit=dev --no-audit --no-fund --silent)
+      - name: Prebuild native project
+        run: npx expo prebuild --platform ios --no-install
+      - name: Install pods
+        run: cd ios && pod install
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO | tail -n 40
+          echo "APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1)" >> "$GITHUB_ENV"
+      - name: Boot simulator + install app
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -m1 "iPhone 15 " | grep -oE '[0-9A-F-]{36}')
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          # a receipt image in the photo library for the gallery picker
+          xcrun simctl addmedia "$UDID" .maestro/receipt.png
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Run Maestro flows
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'   # XCTest driver is slow to start on GH runners
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/out"
+          maestro --device "$UDID" test .maestro --format junit --output "$RUNNER_TEMP/out/junit.xml" \
+            --test-output-dir "$RUNNER_TEMP/out/shots" 2>&1 | tee "$RUNNER_TEMP/out/maestro.log"
+      - name: Publish results to ci-results branch
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          DEST="ios-sim/${{ github.run_id }}"
+          REPO_URL="https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git config --global user.name  "github-actions"
+          git config --global user.email "actions@users.noreply.github.com"
+          WORK="$RUNNER_TEMP/results-repo"
+          rm -rf "$WORK"
+          if git ls-remote --exit-code --heads "$REPO_URL" ci-results >/dev/null 2>&1; then
+            git clone --depth 1 --branch ci-results "$REPO_URL" "$WORK"
+          else
+            git init "$WORK" && git -C "$WORK" checkout --orphan ci-results && git -C "$WORK" remote add origin "$REPO_URL"
+          fi
+          mkdir -p "$WORK/$DEST"
+          cp -R "$RUNNER_TEMP/out/." "$WORK/$DEST/" || true
+          echo "source: ${{ github.sha }} (${{ github.ref_name }})" > "$WORK/$DEST/README.txt"
+          cd "$WORK" && git add -A && git commit -m "iOS sim results for ${{ github.sha }}" && git push origin ci-results
