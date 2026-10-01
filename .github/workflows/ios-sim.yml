@@ -37,6 +37,16 @@ jobs:
           cache: npm
           cache-dependency-path: expo-app/package-lock.json
       - run: npm ci
+      - name: Give @expo/cli its own tar@6
+        # package.json overrides tar to ^7, which breaks `expo prebuild`
+        # ("Cannot read properties of undefined (reading 'extract')").
+        run: |
+          T=$(mktemp -d)
+          (cd "$T" && npm pack tar@6.2.1 --silent >/dev/null && tar xzf tar-6.2.1.tgz)
+          mkdir -p node_modules/@expo/cli/node_modules
+          rm -rf node_modules/@expo/cli/node_modules/tar
+          cp -r "$T/package" node_modules/@expo/cli/node_modules/tar
+          (cd node_modules/@expo/cli/node_modules/tar && npm i --omit=dev --no-audit --no-fund --silent)
       - name: Prebuild native project
         run: npx expo prebuild --platform ios --no-install
       - name: Install pods
