@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 15 Pro - iOS 17.0 - E3BBCD6B-A52D-45EF-B6E0-96D3151F472D" tests="1" failures="1" time="84.4" timestamp="2026-10-01T07:55:14">
+    <testcase id="01-guest-scan" name="01-guest-scan" classname="01-guest-scan" file=".maestro/01-guest-scan.yaml" time="84.321" timestamp="2026-10-01T07:55:14" status="ERROR">
+      <failure>Assertion is false: "Kvittering lagret!" is visible</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
