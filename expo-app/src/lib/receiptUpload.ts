@@ -5,19 +5,40 @@
 // drift, and a mismatch here shows up as a receipt whose image fails to load.
 
 import * as FileSystem from 'expo-file-system';
+import { debugLog } from './debugLog';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from './supabase';
 
 export const RECEIPTS_BUCKET = 'receipts';
 
 /** Resize and compress a captured image before upload. */
+const PREPARE_TIMEOUT_MS = 20_000;
+
+/**
+ * Resizes + compresses a picked image. ImageManipulator can fail to ever
+ * resolve for some inputs (seen on the iOS simulator: the scan screen sat on
+ * "Laster opp bilde…" forever with no error), so after a timeout we fall back
+ * to the original image rather than leaving the user stuck.
+ */
 export async function prepareImage(uri: string): Promise<string> {
-  const result = await ImageManipulator.manipulateAsync(
+  const resize = ImageManipulator.manipulateAsync(
     uri,
     [{ resize: { width: 1400 } }],
     { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  return result.uri;
+  ).then((r) => r.uri);
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<string>((resolve) => {
+    timer = setTimeout(() => {
+      debugLog('prepareImage: timed out, using original image', { uri: uri.slice(0, 100) });
+      resolve(uri);
+    }, PREPARE_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([resize, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export function base64ToUint8Array(base64: string): Uint8Array {
