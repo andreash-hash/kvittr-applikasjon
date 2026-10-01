@@ -508,6 +508,9 @@ export default function ScanScreen() {
             <View className="gap-4">
               <TouchableOpacity
                 onPress={pickFromCamera}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Ta bilde"
                 className="bg-primary rounded-2xl p-6 items-center gap-3"
                 activeOpacity={0.8}
               >
@@ -520,6 +523,9 @@ export default function ScanScreen() {
 
               <TouchableOpacity
                 onPress={pickFromLibrary}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Velg fra galleri"
                 className="bg-card dark:bg-slate-800 border border-border dark:border-slate-700 rounded-2xl p-6 items-center gap-3"
                 activeOpacity={0.8}
               >
