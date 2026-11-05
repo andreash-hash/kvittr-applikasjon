@@ -7,12 +7,51 @@ import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
+import { track } from '@/lib/track';
 
 export default function SignupScreen() {
+  const { isAnonymous } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // A person who has already scanned is signed in anonymously. Adding an email
+  // and password to that same user keeps their receipt without moving anything.
+  const handleLinkAccount = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser(
+      { email: email.trim(), password },
+      { emailRedirectTo: 'kvittr://verify-success' },
+    );
+    setLoading(false);
+
+    if (error) {
+      const alreadyUsed =
+        (error as { code?: string }).code === 'email_exists' ||
+        /already|registered|exists/i.test(error.message);
+      if (alreadyUsed) {
+        Toast.show({
+          type: 'info',
+          text1: 'Denne e-posten har allerede en konto',
+          text2: 'Logg inn, så flytter vi kvitteringen over til kontoen din.',
+        });
+        router.push('/(auth)/login');
+      } else {
+        Toast.show({ type: 'error', text1: 'Registrering feilet', text2: error.message });
+      }
+      return;
+    }
+
+    track('signup_completed', { mode: 'link' });
+    Toast.show({
+      type: 'success',
+      text1: 'Sjekk e-posten din',
+      text2: 'Bekreft e-postadressen for å fullføre kontoen. Kvitteringen din er lagret.',
+    });
+    router.replace('/(app)/dashboard');
+  };
 
   const handleSignup = async () => {
     if (!email.trim() || !password) return;
@@ -22,6 +61,11 @@ export default function SignupScreen() {
     }
     if (password.length < 8) {
       Toast.show({ type: 'error', text1: 'Passordet må være minst 8 tegn' });
+      return;
+    }
+
+    if (isAnonymous) {
+      await handleLinkAccount();
       return;
     }
 
@@ -36,6 +80,7 @@ export default function SignupScreen() {
     if (error) {
       Toast.show({ type: 'error', text1: 'Registrering feilet', text2: error.message });
     } else {
+      track('signup_completed', { mode: 'new' });
       Toast.show({
         type: 'success',
         text1: 'Sjekk e-posten din',
@@ -68,7 +113,9 @@ export default function SignupScreen() {
 
             <Text className="text-2xl font-bold text-foreground mb-2">Opprett konto</Text>
             <Text className="text-muted-foreground mb-8">
-              Lagre kvitteringene dine trygt i skyen
+              {isAnonymous
+                ? 'Kvitteringen din følger med. Legg til e-post og passord for å beholde den.'
+                : 'Lagre kvitteringene dine trygt i skyen'}
             </Text>
 
             <View className="gap-4">

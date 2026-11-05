@@ -182,7 +182,7 @@ function DebugLogModal({ visible, onClose }: { visible: boolean; onClose: () => 
 }
 
 export default function SettingsScreen() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isAnonymous } = useAuth();
   const { isPremium } = usePremiumStatus();
   const [signingOut, setSigningOut] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -259,11 +259,20 @@ export default function SettingsScreen() {
         <View className="mx-4 rounded-2xl overflow-hidden border border-border">
           {isAuthenticated ? (
             <>
-              <SettingsRow
-                icon={<User size={20} color="#64748B" />}
-                label={user?.email ?? 'Innlogget'}
-                sublabel="E-postadresse"
-              />
+              {isAnonymous ? (
+                <SettingsRow
+                  icon={<User size={20} color="#64748B" />}
+                  label="Gjest"
+                  sublabel="Lag konto for å beholde kvitteringene dine"
+                  onPress={() => router.push('/(auth)/signup')}
+                />
+              ) : (
+                <SettingsRow
+                  icon={<User size={20} color="#64748B" />}
+                  label={user?.email ?? 'Innlogget'}
+                  sublabel="E-postadresse"
+                />
+              )}
               {isPremium ? (
                 <SettingsRow
                   icon={<Crown size={20} color="#F59E0B" />}

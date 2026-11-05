@@ -16,23 +16,32 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!email.trim() || !password) return;
     setLoading(true);
+
+    // Signing in replaces an anonymous session. Remember its token first, so a
+    // receipt scanned before login can be handed over to this account.
+    const {
+      data: { session: before },
+    } = await supabase.auth.getSession();
+    const anonymousToken = before?.user?.is_anonymous ? before.access_token : null;
+
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       Toast.show({ type: 'error', text1: 'Innlogging feilet', text2: error.message });
       return;
     }
-    if (data.user?.id) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('onboarding_completed')
-        .eq('id', data.user.id)
-        .single();
-      if (profile?.onboarding_completed === false) {
-        router.replace('/(app)/onboarding');
-        return;
+
+    if (anonymousToken && data.user) {
+      try {
+        await supabase.functions.invoke('claim-anonymous-receipts', {
+          body: { anon_access_token: anonymousToken },
+        });
+      } catch {
+        // The receipt stays on the anonymous user; logging in must not fail over it.
       }
     }
+
+    setLoading(false);
     router.replace('/(app)/dashboard');
   };
 

@@ -37,7 +37,7 @@ const TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export default function DashboardScreen() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isAnonymous } = useAuth();
   const { isPremium } = usePremiumStatus();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
@@ -212,11 +212,15 @@ export default function DashboardScreen() {
               </View>
             </TouchableOpacity>
           )}
-          {!isAuthenticated && (
+          {isAnonymous ? (
+            <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
+              <Text className="text-primary text-sm font-medium">Lag konto</Text>
+            </TouchableOpacity>
+          ) : !isAuthenticated ? (
             <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
               <Text className="text-primary text-sm font-medium">Logg inn</Text>
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </View>
 
@@ -325,7 +329,7 @@ export default function DashboardScreen() {
                   : 'Prøv en annen kategori eller skann en ny kvittering.'}
               </Text>
               {activeTab === 'all' && (
-                <Button onPress={() => router.push('/(app)/scan')} className="mt-6">
+                <Button size="lg" onPress={() => router.push('/(app)/scan')} className="mt-6 self-stretch">
                   Skann kvittering
                 </Button>
               )}
