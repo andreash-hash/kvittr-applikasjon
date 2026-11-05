@@ -1,7 +1,7 @@
 // @expo/cli (SDK 52) reads tar's default export, which tar 7 does not have, so
 // `expo prebuild` fails on EAS with "Cannot read properties of undefined (reading 'extract')".
 // package.json pins tar to 7.x (older versions are blocked by Replit's package firewall),
-// so make @expo/cli use tar's named exports. Runs as eas-build-post-install; idempotent.
+// so make @expo/cli use tar's named exports. Runs from npm postinstall (EAS runs eas-build-post-install only after prebuild, too late); idempotent.
 const fs = require('fs');
 const path = require('path');
 
