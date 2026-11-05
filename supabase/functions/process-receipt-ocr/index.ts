@@ -1,5 +1,5 @@
-// Direct Gemini 2.0 Flash OCR — replaces the former n8n proxy.
-// Env vars required: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY
+// Gemini OCR for receipts. Requires a signed-in user (anonymous sessions count).
+// Env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
@@ -143,44 +143,98 @@ Returner KUN gyldig JSON:
 
 Kategoriveiledning: electronics=telefoner/PC/TV/kamera; appliance=hvitevarer; furniture=møbler; tools=verktøy; clothing=klær; shoes=sko; toys=leketøy; books=bøker/media; groceries=mat/drikke; cosmetics=skjønnhet; default=alt annet.`;
 
+
+type ErrorCode =
+  | 'AUTH' | 'FORBIDDEN' | 'NOT_FOUND' | 'BAD_REQUEST'
+  | 'GEMINI_KEY' | 'GEMINI_UPSTREAM' | 'PARSE' | 'IMAGE_FETCH' | 'UNKNOWN';
+
+class OcrError extends Error {
+  constructor(public code: ErrorCode, public detail: string) {
+    super(detail);
+  }
+}
+
+const STATUS_BY_CODE: Record<ErrorCode, number> = {
+  AUTH: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  BAD_REQUEST: 400,
+  GEMINI_KEY: 500,
+  GEMINI_UPSTREAM: 502,
+  PARSE: 422,
+  IMAGE_FETCH: 502,
+  UNKNOWN: 500,
+};
+
+// Clients get a stable code and a short, safe message. Details (Gemini bodies,
+// keys, stack traces) stay in the function logs only.
+function json(body: Record<string, unknown>, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function fail(code: ErrorCode, receiptId: string | null, detail: string): Response {
+  console.error(`[OCR] FAIL code=${code} receipt=${receiptId ?? 'none'} detail=${detail.slice(0, 500)}`);
+  return json(
+    // `status` and `error` stay for clients built before error codes existed.
+    { receipt_id: receiptId, status: 'failed', code, error: code },
+    STATUS_BY_CODE[code],
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
-  if (!GEMINI_API_KEY) {
-    return new Response(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }), {
-      status: 500,
-    });
-  }
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  );
+  // ── Who is calling? The body is never trusted for identity. ───────────────
+  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!jwt) return fail('AUTH', null, 'missing bearer token');
+  const { data: userData, error: userError } = await supabase.auth.getUser(jwt);
+  const userId = userData?.user?.id;
+  if (userError || !userId) return fail('AUTH', null, userError?.message ?? 'no user for token');
 
-  let body: { receipt_id?: string; image_url: string; user_id: string };
+  let body: { receipt_id?: string; image_url?: string };
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 });
+    return fail('BAD_REQUEST', null, 'invalid JSON');
   }
 
-  const { image_url, user_id, receipt_id: incomingId } = body;
-  if (!image_url || !user_id) {
-    return new Response(
-      JSON.stringify({ error: 'image_url and user_id are required' }),
-      { status: 400 },
-    );
+  const { image_url: imageUrl, receipt_id: incomingId } = body;
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    return fail('BAD_REQUEST', null, 'image_url missing');
+  }
+  // Only images in our own receipts bucket; stops the function being used as an open fetch proxy.
+  const allowedPrefix = `${supabaseUrl}/storage/v1/object/`;
+  if (!imageUrl.startsWith(allowedPrefix) || !imageUrl.includes('/receipts/')) {
+    return fail('BAD_REQUEST', null, 'image_url outside receipts bucket');
   }
 
-  let receiptId = incomingId;
-  if (!receiptId) {
+  // ── Resolve or create the receipt row, owned by the caller ────────────────
+  let receiptId: string | null = null;
+  if (incomingId) {
+    const { data: row, error } = await supabase
+      .from('receipts')
+      .select('id, user_id')
+      .eq('id', incomingId)
+      .maybeSingle();
+    if (error) return fail('UNKNOWN', incomingId, error.message);
+    if (!row) return fail('NOT_FOUND', incomingId, 'receipt not found');
+    if (row.user_id !== userId) return fail('FORBIDDEN', incomingId, 'receipt belongs to another user');
+    receiptId = row.id;
+    await supabase.from('receipts').update({ processing_status: 'processing' }).eq('id', receiptId);
+  } else {
     const { data: newRow, error: insertError } = await supabase
       .from('receipts')
       .insert({
-        user_id,
-        image_url,
+        user_id: userId,
+        image_url: imageUrl,
         receipt_type: 'receipt',
         shop_name: '',
         product_name: '',
@@ -191,21 +245,15 @@ Deno.serve(async (req) => {
       })
       .select('id')
       .single();
-
-    if (insertError) {
-      return new Response(JSON.stringify({ error: insertError.message }), { status: 500 });
-    }
+    if (insertError || !newRow) return fail('UNKNOWN', null, insertError?.message ?? 'insert failed');
     receiptId = newRow.id;
-  } else {
-    await supabase
-      .from('receipts')
-      .update({ processing_status: 'processing' })
-      .eq('id', receiptId);
   }
 
   try {
-    const imageResp = await fetch(image_url);
-    if (!imageResp.ok) throw new Error(`Image fetch failed: ${imageResp.status}`);
+    if (!GEMINI_API_KEY) throw new OcrError('GEMINI_KEY', 'GEMINI_API_KEY not configured');
+
+    const imageResp = await fetch(imageUrl);
+    if (!imageResp.ok) throw new OcrError('IMAGE_FETCH', `image fetch ${imageResp.status}`);
     const mimeType = imageResp.headers.get('content-type') ?? 'image/jpeg';
     const imageBase64 = toBase64(await imageResp.arrayBuffer());
 
@@ -228,44 +276,35 @@ Deno.serve(async (req) => {
 
     if (!geminiResp.ok) {
       const errText = await geminiResp.text();
-      throw new Error(`Gemini ${geminiResp.status}: ${errText}`);
+      // 400/403 from Gemini on a valid request means the key is bad, expired or billing is off.
+      const code: ErrorCode =
+        geminiResp.status === 400 || geminiResp.status === 401 || geminiResp.status === 403
+          ? 'GEMINI_KEY'
+          : 'GEMINI_UPSTREAM';
+      throw new OcrError(code, `Gemini ${geminiResp.status}: ${errText.slice(0, 400)}`);
     }
 
     const geminiData = await geminiResp.json();
 
-    // ── Diagnostic logging ─────────────────────────────────────────────────────
     const candidateCount = geminiData?.candidates?.length ?? 0;
-    const promptFeedback = geminiData?.promptFeedback ?? null;
     console.log(
-      `[OCR] mimeType=${mimeType} candidateCount=${candidateCount} ` +
+      `[OCR] user=${userId} mimeType=${mimeType} candidateCount=${candidateCount} ` +
       `finishReason=${geminiData?.candidates?.[0]?.finishReason ?? 'N/A'} ` +
-      `promptFeedback=${JSON.stringify(promptFeedback)}`,
+      `promptFeedback=${JSON.stringify(geminiData?.promptFeedback ?? null)}`,
     );
 
-    const rawJson: string =
-      geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-
-    if (!rawJson) {
-      const summary = JSON.stringify({
-        candidateCount,
-        promptFeedback,
-        usageMetadata: geminiData?.usageMetadata,
-        geminiError: geminiData?.error,
-      });
-      throw new Error(`Gemini empty candidates: ${summary}`);
-    }
-
-    console.log(`[OCR] rawJson first 300: ${rawJson.slice(0, 300)}`);
+    const rawJson: string = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    if (!rawJson) throw new OcrError('PARSE', 'Gemini returned no candidates');
 
     let ocr: OcrResult = {};
     try {
       const parsed = JSON.parse(rawJson);
       ocr = Array.isArray(parsed) ? parsed[0] ?? {} : parsed;
     } catch {
-      throw new Error(`Gemini returned invalid JSON: ${rawJson.slice(0, 200)}`);
+      throw new OcrError('PARSE', `invalid JSON from Gemini: ${rawJson.slice(0, 200)}`);
     }
 
-    // ── Date sanity check ──────────────────────────────────────────────────────
+    // ── Date sanity check ──────────────────────────────────────────────────
     const todayStr = new Date().toISOString().split('T')[0];
     let purchaseDate = ocr.purchase_date ?? todayStr;
     if (purchaseDate > todayStr) {
@@ -279,7 +318,7 @@ Deno.serve(async (req) => {
     const category: Category = ocr.category ?? 'default';
     const receiptType: ReceiptType = ocr.receipt_type ?? 'receipt';
 
-    // ── Warranty computation ───────────────────────────────────────────────────
+    // ── Warranty computation ───────────────────────────────────────────────
     // Prefer Gemini's warranty_assessment over the rule-based fallback.
     let warrantyUntil: string | null = null;
     const assess = ocr.warranty_assessment;
@@ -310,7 +349,7 @@ Deno.serve(async (req) => {
       },
     };
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('receipts')
       .update({
         shop_name: ocr.shop_name ?? '',
@@ -329,22 +368,19 @@ Deno.serve(async (req) => {
         ocr_raw: ocrRaw,
         processing_status: 'completed',
       })
-      .eq('id', receiptId);
+      .eq('id', receiptId)
+      .eq('user_id', userId);
+    if (updateError) throw new OcrError('UNKNOWN', `receipt update: ${updateError.message}`);
 
-    return new Response(
-      JSON.stringify({ receipt_id: receiptId, status: 'completed' }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    );
+    return json({ receipt_id: receiptId, status: 'completed' }, 200);
   } catch (err) {
     await supabase
       .from('receipts')
       .update({ processing_status: 'failed' })
-      .eq('id', receiptId);
+      .eq('id', receiptId)
+      .eq('user_id', userId);
 
-    const message = err instanceof Error ? err.message : String(err);
-    return new Response(
-      JSON.stringify({ receipt_id: receiptId, status: 'failed', error: message }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
-    );
+    if (err instanceof OcrError) return fail(err.code, receiptId, err.detail);
+    return fail('UNKNOWN', receiptId, err instanceof Error ? err.message : String(err));
   }
 });

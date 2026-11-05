@@ -2,21 +2,23 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Image, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { Camera, Image as ImageIcon, RefreshCw, CheckCircle, XCircle, Crown } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { Camera, Image as ImageIcon, RefreshCw, CheckCircle, XCircle, Crown, PencilLine } from 'lucide-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
 import { checkScanLimit, incrementScanCount } from '@/lib/scanLimit';
 import { canGuestScan, saveGuestReceipt } from '@/lib/guestStorage';
-import { prepareImage, base64ToUint8Array } from '@/lib/receiptUpload';
+import { prepareImage, uploadReceiptImage } from '@/lib/receiptUpload';
 import { persistGuestImage } from '@/lib/guestImage';
 import { ScanWalkthrough } from '@/components/ScanWalkthrough';
-import { hasSeenScanWalkthrough } from '@/lib/scanWalkthroughState';
-import { useAuth } from '@/hooks/useAuth';
+import { hasSeenScanWalkthrough, markScanWalkthroughSeen } from '@/lib/scanWalkthroughState';
+import { ensureScanSession } from '@/lib/session';
+import { parseOcrError, failure, type OcrFailure } from '@/lib/ocrErrors';
+import { markScanPromptCompleted } from '@/lib/scanPromptState';
+import { track } from '@/lib/track';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useHaptics } from '@/hooks/useHaptics';
 import { debugLog } from '@/lib/debugLog';
@@ -24,20 +26,32 @@ import type { GuestReceipt } from '@/types/receipt';
 
 type ScanState = 'idle' | 'uploading' | 'processing' | 'waiting' | 'done' | 'error';
 
+/** What is needed to run OCR again on an image that is already uploaded. */
+interface OcrAttempt {
+  imageUrl: string;
+  receiptId: string | null;
+  userId: string;
+}
+
 const OCR_TIMEOUT_MS = 45_000;
 const FUNCTION_TIMEOUT_MS = 30_000;
 
 export default function ScanScreen() {
-  const { user, isAuthenticated } = useAuth();
   const { isPremium } = usePremiumStatus();
+  const { autostart } = useLocalSearchParams<{ autostart?: string }>();
   const [showWalkthrough, setShowWalkthrough] = useState(false);
   const { notification } = useHaptics();
   const queryClient = useQueryClient();
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [failureInfo, setFailureInfo] = useState<OcrFailure | null>(null);
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const ocrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scanStateRef = useRef<ScanState>('idle');
+  const lastAttemptRef = useRef<OcrAttempt | null>(null);
+  // A retry after a timeout must not charge the free quota a second time.
+  const countedReceiptsRef = useRef<Set<string>>(new Set());
+  const autostartedRef = useRef(false);
   useEffect(() => { scanStateRef.current = scanState; }, [scanState]);
 
   useFocusEffect(
@@ -51,6 +65,8 @@ export default function ScanScreen() {
         }
         setScanState('idle');
         setImageUri(null);
+        setFailureInfo(null);
+        lastAttemptRef.current = null;
       }
     }, []),
   );
@@ -62,68 +78,104 @@ export default function ScanScreen() {
     };
   }, []);
 
-  // Coach the very first scan. Scanning is the one action the whole product
-  // depends on, and the first one happens before the user has an account.
+  // Coach the very first scan, unless the user just said "Skann nå": they have
+  // already decided, and the camera opens straight away.
   useEffect(() => {
+    if (autostart || autostartedRef.current) return;
     let cancelled = false;
     hasSeenScanWalkthrough().then((seen) => {
       if (!cancelled && !seen) setShowWalkthrough(true);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [autostart]);
+
+  // "Skann nå" on the first screen lands here with autostart=camera.
+  useEffect(() => {
+    if (autostart !== 'camera' || autostartedRef.current) return;
+    autostartedRef.current = true;
+    markScanWalkthroughSeen().catch(() => null);
+    router.setParams({ autostart: undefined });
+    pickFromCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autostart]);
+
+  const clearWaiting = () => {
+    if (ocrTimeoutRef.current) {
+      clearTimeout(ocrTimeoutRef.current);
+      ocrTimeoutRef.current = null;
+    }
+    realtimeChannel.current?.unsubscribe();
+    realtimeChannel.current = null;
+  };
 
   const finishSuccess = (id: string | null) => {
     debugLog('scan: finishSuccess', { receiptId: id });
-    if (ocrTimeoutRef.current) {
-      clearTimeout(ocrTimeoutRef.current);
-      ocrTimeoutRef.current = null;
-    }
-    realtimeChannel.current?.unsubscribe();
-    realtimeChannel.current = null;
+    clearWaiting();
+    lastAttemptRef.current = null;
     setScanState('done');
     notification('success');
-    Toast.show({ type: 'success', text1: 'Kvittering analysert!' });
+    track('scan_succeeded');
+    markScanPromptCompleted().catch(() => null);
+    // The result screen is the payoff: it shows the warranty date the user came for.
     setTimeout(() => {
       if (id) {
-        router.replace(`/(app)/item/${id}`);
+        router.replace(`/(app)/scan-result?id=${id}`);
       } else {
         router.replace('/(app)/dashboard');
       }
-    }, 800);
+    }, 500);
   };
 
-  const finishError = (msg?: string) => {
-    debugLog('scan: finishError', { msg });
-    if (ocrTimeoutRef.current) {
-      clearTimeout(ocrTimeoutRef.current);
-      ocrTimeoutRef.current = null;
+  const finishError = (info: OcrFailure) => {
+    debugLog('scan: finishError', { kind: info.kind, code: info.code, receiptId: info.receiptId });
+    clearWaiting();
+    // Keep the receipt id so retry and manual entry can reuse the same row.
+    if (info.receiptId && lastAttemptRef.current) {
+      lastAttemptRef.current = { ...lastAttemptRef.current, receiptId: info.receiptId };
     }
-    realtimeChannel.current?.unsubscribe();
-    realtimeChannel.current = null;
+    setFailureInfo(info);
     setScanState('error');
     notification('error');
-    Toast.show({ type: 'error', text1: 'Analyse feilet', text2: msg ?? 'Prøv igjen.' });
+    track('scan_failed', { kind: info.kind, code: info.code ?? null });
+    Toast.show({ type: 'error', text1: 'Analyse feilet', text2: info.message });
   };
 
   const checkCanScan = async (): Promise<boolean> => {
-    if (isPremium) return true;
-    if (isAuthenticated && user) {
-      const scanStatus = await checkScanLimit(user.id);
-      if (!scanStatus.canScan) {
-        router.push('/(app)/premium');
-        return false;
-      }
-    } else {
-      const canScan = await canGuestScan();
-      if (!canScan) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session?.user) {
+      if (isPremium) return true;
+      const status = await checkScanLimit(session.user.id, !!session.user.is_anonymous);
+      if (status.canScan) return true;
+
+      if (status.blockedReason === 'needs_account') {
+        track('signup_prompt_shown', { source: 'scan_limit' });
         Toast.show({
           type: 'info',
           text1: 'Du har brukt din gratis skanning',
-          text2: 'Opprett gratis konto for én til.',
+          text2: 'Lag en gratis konto for å skanne én til.',
         });
         router.push('/(auth)/signup');
-        return false;
+      } else {
+        track('paywall_shown', { source: 'scan_limit' });
+        router.push('/(app)/premium');
       }
+      return false;
+    }
+
+    // No session yet: a new install may scan. Only the legacy local-guest
+    // counter can say no here (an old install that already used its guest scan).
+    if (!(await canGuestScan())) {
+      track('signup_prompt_shown', { source: 'legacy_guest_limit' });
+      Toast.show({
+        type: 'info',
+        text1: 'Du har brukt din gratis skanning',
+        text2: 'Opprett gratis konto for én til.',
+      });
+      router.push('/(auth)/signup');
+      return false;
     }
     return true;
   };
@@ -149,7 +201,7 @@ export default function ScanScreen() {
             queryClient.invalidateQueries({ queryKey: ['receipts'] });
             finishSuccess(receiptId);
           } else if (ps === 'failed') {
-            finishError('OCR-analyse feilet på serveren.');
+            finishError(failure('unreadable', { receiptId }));
           }
         },
       )
@@ -157,210 +209,219 @@ export default function ScanScreen() {
 
     realtimeChannel.current = channel;
 
-    ocrTimeoutRef.current = setTimeout(() => {
-      debugLog('scan: OCR timeout fired — navigating anyway', { receiptId });
-      if (realtimeChannel.current) {
+    // If the realtime event never arrives, look at the row once. Treating a
+    // timeout as success would send the user to an empty receipt.
+    ocrTimeoutRef.current = setTimeout(async () => {
+      debugLog('scan: OCR timeout fired — checking row', { receiptId });
+      const { data } = await supabase
+        .from('receipts')
+        .select('processing_status')
+        .eq('id', receiptId)
+        .single();
+      if (data?.processing_status === 'completed') {
         queryClient.invalidateQueries({ queryKey: ['receipts'] });
         finishSuccess(receiptId);
+      } else {
+        finishError(failure('timeout', { receiptId }));
       }
     }, OCR_TIMEOUT_MS);
   };
 
-  const processImage = async (uri: string) => {
-    // Snapshot auth state immediately — prevent mid-scan changes from affecting flow
-    const authSnapshot = { isAuthenticated, userId: user?.id ?? null };
-    debugLog('scan: processImage called', authSnapshot);
+  /** Runs OCR on an image that is already uploaded. Safe to call again for a retry. */
+  const runOcr = async (imageUrl: string, receiptId: string | null, userId: string) => {
+    lastAttemptRef.current = { imageUrl, receiptId, userId };
+    setScanState('processing');
+    debugLog('scan: invoking OCR edge function', { userId, retry: !!receiptId });
 
-    // Guest branch: save image locally without OCR, no Supabase required
-    if (!isAuthenticated || !user) {
-      debugLog('scan: guest scan — saving locally', authSnapshot);
-      setScanState('uploading');
-      setImageUri(uri);
-      try {
-        // Copy out of the cache dir so the image survives until signup.
-        const compressedUri = await persistGuestImage(await prepareImage(uri));
-        setImageUri(compressedUri);
-        debugLog('scan: guest image compressed', { compressedUri: compressedUri.slice(0, 80) });
-        const guestReceipt: GuestReceipt = {
-          id: `guest-${Date.now()}`,
-          type: 'receipt',
-          shop_name: '',
-          product_name: '',
-          amount: 0,
-          purchase_date: new Date().toISOString(),
-          image_url: compressedUri,
-          status: 'active',
-          processing_status: 'local',
-          created_at: new Date().toISOString(),
-        };
-        await saveGuestReceipt(guestReceipt);
-        debugLog('scan: guest receipt saved locally', { id: guestReceipt.id });
-        queryClient.invalidateQueries({ queryKey: ['receipts'] });
-        setScanState('done');
-        notification('success');
-        Toast.show({
-          type: 'success',
-          text1: 'Kvittering lagret!',
-        });
-        setTimeout(() => {
-          Alert.alert(
-            'Fint! Nå er kvitteringen trygg',
-            'Opprett gratis konto, så leser vi av butikk, beløp og garantitid automatisk – og du får én skanning til.',
-            [
-              {
-                text: 'Senere',
-                style: 'cancel',
-                onPress: () => router.replace('/(app)/dashboard'),
-              },
-              {
-                text: 'Opprett konto',
-                onPress: () => router.replace('/(auth)/signup'),
-              },
-            ],
-          );
-        }, 800);
-      } catch (err: any) {
-        const msg = err instanceof Error ? err.message : String(err);
-        debugLog('scan: guest save error', { msg });
-        finishError(msg);
-      }
+    const abortCtrl = new AbortController();
+    const fnTimeoutId = setTimeout(() => {
+      debugLog('scan: edge function timeout — aborting');
+      abortCtrl.abort();
+    }, FUNCTION_TIMEOUT_MS);
+
+    let fnData: unknown;
+    let fnError: unknown;
+    try {
+      const result = await supabase.functions.invoke('process-receipt-ocr', {
+        body: { image_url: imageUrl, user_id: userId, ...(receiptId ? { receipt_id: receiptId } : {}) },
+        signal: abortCtrl.signal,
+      });
+      fnData = result.data;
+      fnError = result.error;
+    } catch (thrown) {
+      fnError = thrown;
+    } finally {
+      clearTimeout(fnTimeoutId);
+    }
+
+    debugLog('scan: OCR edge function returned', {
+      fnData: JSON.stringify(fnData)?.slice(0, 200),
+      hasError: !!fnError,
+    });
+
+    if (fnError) {
+      finishError(await parseOcrError(fnError));
       return;
     }
 
-    // Authenticated branch: Supabase Storage upload + OCR edge function
-    // Capture userId once so mid-scan auth changes cannot null it out
-    const userId = user.id;
+    const newReceiptId = (fnData as { receipt_id?: string } | null)?.receipt_id ?? receiptId;
+    const ocrStatus = (fnData as { status?: string } | null)?.status;
+    debugLog('scan: OCR result parsed', { receiptId: newReceiptId, ocrStatus });
 
+    if (ocrStatus === 'failed') {
+      finishError(failure('unreadable', { receiptId: newReceiptId }));
+      return;
+    }
+
+    if (lastAttemptRef.current) {
+      lastAttemptRef.current = { ...lastAttemptRef.current, receiptId: newReceiptId };
+    }
+
+    // Only a successful analysis uses up a free scan, and only once per receipt.
+    if (!newReceiptId || !countedReceiptsRef.current.has(newReceiptId)) {
+      await incrementScanCount(userId);
+      if (newReceiptId) countedReceiptsRef.current.add(newReceiptId);
+      debugLog('scan: scan count incremented');
+    }
+
+    if (ocrStatus === 'completed' || !newReceiptId) {
+      await queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      finishSuccess(newReceiptId);
+      return;
+    }
+
+    debugLog('scan: entering waiting state', { receiptId: newReceiptId });
+    setScanState('waiting');
+    subscribeToReceipt(newReceiptId);
+  };
+
+  /**
+   * Fallback for when anonymous sign-in is unavailable: keep the image on the
+   * device and analyse it after signup. This is how every guest scan used to work.
+   */
+  const saveGuestLocally = async (uri: string) => {
+    debugLog('scan: anonymous sign-in unavailable — saving locally');
+    setScanState('uploading');
+    setImageUri(uri);
+    try {
+      const compressedUri = await persistGuestImage(await prepareImage(uri));
+      setImageUri(compressedUri);
+      const guestReceipt: GuestReceipt = {
+        id: `guest-${Date.now()}`,
+        type: 'receipt',
+        shop_name: '',
+        product_name: '',
+        amount: 0,
+        purchase_date: new Date().toISOString(),
+        image_url: compressedUri,
+        status: 'active',
+        processing_status: 'local',
+        created_at: new Date().toISOString(),
+      };
+      await saveGuestReceipt(guestReceipt);
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      setScanState('done');
+      notification('success');
+      Toast.show({ type: 'success', text1: 'Kvittering lagret!' });
+      markScanPromptCompleted().catch(() => null);
+      setTimeout(() => {
+        Alert.alert(
+          'Fint! Nå er kvitteringen trygg',
+          'Opprett gratis konto, så leser vi av butikk, beløp og garantitid automatisk – og du får én skanning til.',
+          [
+            {
+              text: 'Senere',
+              style: 'cancel',
+              onPress: () => router.replace('/(app)/dashboard'),
+            },
+            {
+              text: 'Opprett konto',
+              onPress: () => router.replace('/(auth)/signup'),
+            },
+          ],
+        );
+      }, 800);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      debugLog('scan: guest save error', { msg });
+      finishError(failure('unknown', { message: msg }));
+    }
+  };
+
+  const processImage = async (uri: string) => {
+    track('scan_started');
+    setFailureInfo(null);
     setScanState('uploading');
     setImageUri(uri);
 
     try {
-      // Verify Supabase session is still valid before upload
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      debugLog('scan: session check', {
-        hasSession: !!currentSession,
-        sessionUserId: currentSession?.user?.id ?? null,
-        tokenPrefix: currentSession?.access_token?.slice(0, 12) ?? 'none',
-        expiresAt: currentSession?.expires_at ?? null,
-      });
-
-      if (!currentSession) {
-        throw new Error('Ingen aktiv sesjon — logg inn igjen og prøv på nytt.');
+      // New users have no account yet. Sign them in anonymously so the scan
+      // runs through the same OCR pipeline as everyone else's.
+      const scanSession = await ensureScanSession();
+      if (!scanSession) {
+        await saveGuestLocally(uri);
+        return;
       }
+      const { userId } = scanSession;
+      debugLog('scan: session ready', { userId, anonymous: scanSession.isAnonymous });
 
-      debugLog('scan: image acquired', { uri: uri.slice(0, 80) });
-
-      // Step 1: compress + resize
       const compressedUri = await prepareImage(uri);
       setImageUri(compressedUri);
       debugLog('scan: image compressed', { compressedUri: compressedUri.slice(0, 80) });
 
-      // Step 2: read as base64
-      const base64 = await FileSystem.readAsStringAsync(compressedUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const bytes = base64ToUint8Array(base64);
-      debugLog('scan: file read OK', { bytes: bytes.length });
+      debugLog('scan: upload start', { bucket: 'receipts' });
+      const publicUrl = await uploadReceiptImage(userId, compressedUri);
+      debugLog('scan: upload done', { publicUrl: publicUrl.slice(0, 80) });
 
-      const fileName = `${userId}/${Date.now()}.jpg`;
-
-      // Step 3: upload to Supabase storage
-      debugLog('scan: upload start', { fileName, bucket: 'receipts' });
-      const { error: uploadError } = await supabase.storage
-        .from('receipts')
-        .upload(fileName, bytes, { contentType: 'image/jpeg' });
-
-      if (uploadError) {
-        debugLog('scan: UPLOAD ERROR', {
-          message: uploadError.message,
-          name: (uploadError as any).name,
-          statusCode: (uploadError as any).statusCode,
-          error: (uploadError as any).error,
-          full: JSON.stringify(uploadError),
-        });
-        throw uploadError;
-      }
-
-      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
-      debugLog('scan: upload done', { publicUrl: urlData.publicUrl.slice(0, 80) });
-
-      setScanState('processing');
-
-      // Step 4: invoke edge function
-      debugLog('scan: invoking OCR edge function', { userId });
-      const abortCtrl = new AbortController();
-      const fnTimeoutId = setTimeout(() => {
-        debugLog('scan: edge function timeout — aborting');
-        abortCtrl.abort();
-      }, FUNCTION_TIMEOUT_MS);
-      let fnData: unknown;
-      let fnError: unknown;
-      try {
-        const result = await supabase.functions.invoke('process-receipt-ocr', {
-          body: { image_url: urlData.publicUrl, user_id: userId },
-          signal: abortCtrl.signal,
-        });
-        fnData = result.data;
-        fnError = result.error;
-      } finally {
-        clearTimeout(fnTimeoutId);
-      }
-
-      debugLog('scan: OCR edge function returned', {
-        fnData: JSON.stringify(fnData)?.slice(0, 200),
-        fnError: fnError ? JSON.stringify(fnError) : null,
-      });
-
-      if (fnError) throw fnError as Error;
-
-      const receiptId = (fnData as { receipt_id?: string } | null)?.receipt_id ?? null;
-      const ocrStatus = (fnData as { status?: string } | null)?.status;
-
-      debugLog('scan: OCR result parsed', { receiptId, ocrStatus });
-
-      if (ocrStatus === 'failed') throw new Error('OCR returnerte feil fra serveren');
-
-      await incrementScanCount(userId);
-      debugLog('scan: scan count incremented');
-
-      if (ocrStatus === 'completed' || !receiptId) {
-        await queryClient.invalidateQueries({ queryKey: ['receipts'] });
-        finishSuccess(receiptId);
-        return;
-      }
-
-      // Step 5: wait for realtime update
-      debugLog('scan: entering waiting state', { receiptId });
-      setScanState('waiting');
-      subscribeToReceipt(receiptId);
-
-    } catch (err: any) {
-      const errDetail = {
+      await runOcr(publicUrl, null, userId);
+    } catch (err: unknown) {
+      debugLog('scan: UNCAUGHT ERROR', {
         msg: err instanceof Error ? err.message : String(err),
-        code: err?.code,
-        statusCode: err?.statusCode,
-        name: err?.name,
-        stack: err instanceof Error ? err.stack?.slice(0, 600) : undefined,
-        full: (() => { try { return JSON.stringify(err); } catch { return String(err); } })(),
-      };
-      debugLog('scan: UNCAUGHT ERROR', errDetail);
-      console.error('### SCAN ERROR', JSON.stringify(errDetail));
-      finishError(errDetail.msg);
+        name: (err as { name?: string })?.name,
+      });
+      finishError(await parseOcrError(err));
     }
   };
 
   const reset = () => {
-    realtimeChannel.current?.unsubscribe();
-    realtimeChannel.current = null;
-    if (ocrTimeoutRef.current) clearTimeout(ocrTimeoutRef.current);
-    ocrTimeoutRef.current = null;
+    clearWaiting();
+    lastAttemptRef.current = null;
     setScanState('idle');
     setImageUri(null);
+    setFailureInfo(null);
     debugLog('scan: reset to idle');
   };
 
+  const retry = async () => {
+    const attempt = lastAttemptRef.current;
+    if (!attempt) {
+      reset();
+      return;
+    }
+    // Same uploaded image, same receipt row, no new quota check: the first
+    // attempt already passed it and a failed attempt costs nothing.
+    setFailureInfo(null);
+    track('scan_started', { retry: true });
+    await runOcr(attempt.imageUrl, attempt.receiptId, attempt.userId);
+  };
+
+  const enterManually = () => {
+    const receiptId = failureInfo?.receiptId ?? lastAttemptRef.current?.receiptId ?? null;
+    if (receiptId) {
+      router.replace(`/(app)/item/${receiptId}`);
+    } else {
+      reset();
+    }
+  };
+
+  const pickerFailure = (label: string, err: unknown): OcrFailure => {
+    const msg = err instanceof Error ? err.message : String(err);
+    debugLog(`scan: PICKER ERROR (${label})`, { msg });
+    return failure('unknown', { message: `${label}: ${msg}` });
+  };
+
   const pickFromCamera = async () => {
-    debugLog('scan: pickFromCamera called', { isAuthenticated, userId: user?.id ?? null });
+    debugLog('scan: pickFromCamera called');
     try {
       if (!(await checkCanScan())) {
         debugLog('scan: checkCanScan blocked camera pick');
@@ -374,34 +435,23 @@ export default function ScanScreen() {
         return;
       }
 
-      debugLog('scan: launching camera');
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         quality: 0.85,
       });
 
       if (!result.canceled && result.assets?.[0]) {
-        debugLog('scan: camera image selected', { uri: result.assets[0].uri.slice(0, 60) });
         await processImage(result.assets[0].uri);
       } else {
         debugLog('scan: camera cancelled or no asset', { canceled: result.canceled });
       }
-    } catch (err: any) {
-      const errDetail = {
-        msg: err instanceof Error ? err.message : String(err),
-        code: err?.code,
-        name: err?.name,
-        stack: err instanceof Error ? err.stack?.slice(0, 400) : undefined,
-        full: (() => { try { return JSON.stringify(err); } catch { return String(err); } })(),
-      };
-      debugLog('scan: PICKER ERROR (camera)', errDetail);
-      console.error('### SCAN PICKER ERROR (camera)', JSON.stringify(errDetail));
-      finishError('Kamerafeil: ' + errDetail.msg);
+    } catch (err: unknown) {
+      finishError(pickerFailure('Kamerafeil', err));
     }
   };
 
   const pickFromLibrary = async () => {
-    debugLog('scan: pickFromLibrary called', { isAuthenticated, userId: user?.id ?? null });
+    debugLog('scan: pickFromLibrary called');
     try {
       if (!(await checkCanScan())) {
         debugLog('scan: checkCanScan blocked library pick');
@@ -415,29 +465,18 @@ export default function ScanScreen() {
         return;
       }
 
-      debugLog('scan: launching image library');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 0.85,
       });
 
       if (!result.canceled && result.assets?.[0]) {
-        debugLog('scan: gallery image selected', { uri: result.assets[0].uri.slice(0, 60) });
         await processImage(result.assets[0].uri);
       } else {
         debugLog('scan: gallery cancelled or no asset', { canceled: result.canceled });
       }
-    } catch (err: any) {
-      const errDetail = {
-        msg: err instanceof Error ? err.message : String(err),
-        code: err?.code,
-        name: err?.name,
-        stack: err instanceof Error ? err.stack?.slice(0, 400) : undefined,
-        full: (() => { try { return JSON.stringify(err); } catch { return String(err); } })(),
-      };
-      debugLog('scan: PICKER ERROR (library)', errDetail);
-      console.error('### SCAN PICKER ERROR (library)', JSON.stringify(errDetail));
-      finishError('Galleri-feil: ' + errDetail.msg);
+    } catch (err: unknown) {
+      finishError(pickerFailure('Galleri-feil', err));
     }
   };
 
@@ -497,11 +536,25 @@ export default function ScanScreen() {
               <XCircle size={64} color="#EF4444" />
               <Text className="text-xl font-bold text-foreground dark:text-slate-100">Analyse feilet</Text>
               <Text className="text-muted-foreground dark:text-slate-400 text-center">
-                Vi klarte ikke å lese kvitteringen. Prøv igjen med et klarere bilde.
+                {failureInfo?.message ?? 'Noe gikk galt under analysen. Prøv igjen.'}
               </Text>
-              <Button onPress={reset} variant="outline" className="mt-2">
-                <RefreshCw size={16} color="#6366F1" />
-                <Text className="text-primary font-semibold ml-2">Prøv igjen</Text>
+              <Button onPress={retry} className="mt-2 self-stretch" accessibilityLabel="Prøv igjen">
+                <RefreshCw size={16} color="#fff" />
+                <Text className="text-white font-semibold ml-2">Prøv igjen</Text>
+              </Button>
+              {(failureInfo?.receiptId ?? lastAttemptRef.current?.receiptId) ? (
+                <Button
+                  onPress={enterManually}
+                  variant="outline"
+                  className="self-stretch"
+                  accessibilityLabel="Skriv inn manuelt"
+                >
+                  <PencilLine size={16} color="#6366F1" />
+                  <Text className="text-primary font-semibold ml-2">Skriv inn manuelt</Text>
+                </Button>
+              ) : null}
+              <Button onPress={reset} variant="ghost" accessibilityLabel="Ta nytt bilde">
+                Ta nytt bilde
               </Button>
             </View>
           ) : (

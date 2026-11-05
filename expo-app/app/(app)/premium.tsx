@@ -19,6 +19,7 @@ import { showPaywallUI, handleRevenueCatError, syncSubscriptionStatus } from '@/
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useAuth } from '@/hooks/useAuth';
 import { debugLog } from '@/lib/debugLog';
+import { track } from '@/lib/track';
 
 const FEATURES = [
   { Icon: Camera, title: 'Ubegrenset skanning', body: 'Skann så mange kvitteringer du vil.' },
@@ -30,10 +31,20 @@ const FEATURES = [
 
 export default function PremiumScreen() {
   const { isPremium, loading: premiumLoading } = usePremiumStatus();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isAnonymous, user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const handleUpgrade = async () => {
+    // A purchase has to follow an account the person can sign back in to.
+    if (isAnonymous) {
+      Toast.show({
+        type: 'info',
+        text1: 'Lag en konto først',
+        text2: 'Da følger Premium kontoen din, også hvis du bytter telefon.',
+      });
+      router.push('/(auth)/signup');
+      return;
+    }
     setLoading(true);
     try {
       debugLog('rc: paywall start', { userId: user?.id ?? 'null', isAuthenticated });
@@ -54,6 +65,7 @@ export default function PremiumScreen() {
           rawResult: JSON.stringify(result),
           userId: user?.id ?? 'null',
         });
+        if (purchased) track('purchase_completed');
         if ((purchased || restored) && user?.id) {
           debugLog('rc: sync start', { userId: user.id, trigger: purchased ? 'purchased' : 'restored' });
           await syncSubscriptionStatus(user.id);

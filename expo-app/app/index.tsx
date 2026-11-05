@@ -4,16 +4,26 @@ import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
 import { Logo } from '@/components/Logo';
-import { Onboarding, type OnboardingAction } from '@/components/Onboarding';
+import { ScanNowPrompt } from '@/components/ScanNowPrompt';
 import { supabase } from '@/lib/supabase';
+import { getGuestScanCount } from '@/lib/guestStorage';
+import {
+  shouldShowScanPrompt,
+  recordScanPromptDismissed,
+  markScanPromptCompleted,
+} from '@/lib/scanPromptState';
+import { track } from '@/lib/track';
 
+// Kept in sync for older code paths that still read it.
 const ONBOARDING_KEY = 'kvittr_onboarding_completed';
 const FADE_IN_MS  = 700;
 const HOLD_MS     = 1200;
 const FADE_OUT_MS = 600;
 
+type Destination = 'dashboard' | 'scan-prompt';
+
 export default function IndexScreen() {
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showScanPrompt, setShowScanPrompt] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -34,34 +44,41 @@ export default function IndexScreen() {
       setTimeout(resolve, FADE_IN_MS + HOLD_MS),
     );
 
-    // Auth + onboarding check — always runs unconditionally before any routing
-    const authPromise: Promise<'dashboard' | 'onboarding'> = (async () => {
+    // Decide where to go. Runs unconditionally before any routing so the
+    // destination screen always starts with session state already resolved.
+    const destinationPromise: Promise<Destination> = (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      const uid = session?.user?.id ?? null;
-      if (!cancelled) setUserId(uid);
+      const user = session?.user ?? null;
+      if (!cancelled) setUserId(user?.id ?? null);
 
-      if (uid) {
-        // Logged-in user: check if they completed onboarding in their profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarding_completed')
-          .eq('id', uid)
-          .single();
+      // Already scanned, or dismissed the prompt twice: never show it again.
+      if (!(await shouldShowScanPrompt())) return 'dashboard';
 
-        if (profile?.onboarding_completed === false) return 'onboarding';
-        // Already completed — mark locally too and go straight to dashboard
-        await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+      // Older installs that scanned as a local guest have clearly used the app.
+      if (!user && (await getGuestScanCount()) > 0) {
+        await markScanPromptCompleted();
         return 'dashboard';
       }
 
-      // Guest: check local flag
-      const done = await AsyncStorage.getItem(ONBOARDING_KEY);
-      return done ? 'dashboard' : 'onboarding';
+      // A full account that already has scans does not need the nudge. Anonymous
+      // users and accounts that never scanned still get it.
+      if (user && !user.is_anonymous) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('scans_used_this_month')
+          .eq('id', user.id)
+          .single();
+        if ((profile?.scans_used_this_month ?? 0) > 0) {
+          await markScanPromptCompleted();
+          return 'dashboard';
+        }
+      }
+
+      return 'scan-prompt';
     })();
 
-    // Wait for both: minimum display time AND auth result.
-    // Auth/session/guest-storage state is fully resolved here before we route.
-    Promise.all([minTimePromise, authPromise]).then(([, destination]) => {
+    // Wait for both: minimum display time AND the routing decision.
+    Promise.all([minTimePromise, destinationPromise]).then(([, destination]) => {
       if (cancelled) return;
 
       Animated.timing(fadeAnim, {
@@ -70,10 +87,9 @@ export default function IndexScreen() {
         useNativeDriver: true,
       }).start(() => {
         if (cancelled) return;
-        if (destination === 'onboarding') {
-          // Show onboarding only after full init. Dashboard always arrives
-          // with auth/session state already resolved via supabase.auth.getSession().
-          setShowOnboarding(true);
+        if (destination === 'scan-prompt') {
+          setShowScanPrompt(true);
+          track('scan_prompt_shown');
         } else {
           router.replace('/(app)/dashboard');
         }
@@ -84,37 +100,42 @@ export default function IndexScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleOnboardingComplete = async (action: OnboardingAction) => {
-    // Mark onboarding seen so we skip it on future cold starts
-    await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-
-    if (userId) {
-      // Logged-in user who hadn't completed onboarding yet (rare path)
-      await supabase
-        .from('profiles')
-        .update({ onboarding_completed: true })
-        .eq('id', userId);
-      setShowOnboarding(false);
-      router.replace('/(app)/dashboard');
-      return;
-    }
-
-    // Guest paths
-    setShowOnboarding(false);
-    if (action === 'register') {
-      router.push('/(auth)/signup');
-    } else {
-      // 'guest' or 'skip' — straight into the first scan. An empty dashboard
-      // asks a brand-new user to work out the next step on their own; the
-      // scan screen, with its walkthrough, does not.
-      router.replace('/(app)/scan');
+  // The scan prompt replaces the slide onboarding on cold start. Marking the
+  // old flags keeps profiles.onboarding_completed and the legacy local key
+  // consistent for anything that still reads them.
+  const markOnboardingSeen = async () => {
+    try {
+      await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+      if (userId) {
+        await supabase
+          .from('profiles')
+          .update({ onboarding_completed: true })
+          .eq('id', userId);
+      }
+    } catch {
+      // Non-fatal: the prompt state itself is tracked separately.
     }
   };
 
-  // Onboarding is rendered AFTER init resolves — not as an early return.
-  // Auth/session state is already settled when showOnboarding becomes true.
-  if (showOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+  const handleScanNow = async () => {
+    track('scan_prompt_accepted');
+    await markOnboardingSeen();
+    setShowScanPrompt(false);
+    router.replace({ pathname: '/(app)/scan', params: { autostart: 'camera' } });
+  };
+
+  const handleLater = async () => {
+    track('scan_prompt_dismissed');
+    await recordScanPromptDismissed();
+    await markOnboardingSeen();
+    setShowScanPrompt(false);
+    router.replace('/(app)/dashboard');
+  };
+
+  // Rendered AFTER init resolves, not as an early return, so session state is
+  // already settled when the prompt appears.
+  if (showScanPrompt) {
+    return <ScanNowPrompt onScanNow={handleScanNow} onLater={handleLater} />;
   }
 
   return (

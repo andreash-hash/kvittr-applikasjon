@@ -24,5 +24,14 @@ export const useAuth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  return { session, user, loading, isAuthenticated: !!session };
+  // isAuthenticated means "has a session". That includes anonymous users, who
+  // scan under a real user id but have not added an email yet. Use isAnonymous
+  // to tell them apart from people with a full account.
+  return {
+    session,
+    user,
+    loading,
+    isAuthenticated: !!session,
+    isAnonymous: !!user?.is_anonymous,
+  };
 };
