@@ -1,10 +1,17 @@
 // Gemini OCR for receipts. Requires a signed-in user (anonymous sessions count).
-// Env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY
+// Env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY, GEMINI_MODEL (optional)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
-const GEMINI_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+// Google retires models for new accounts (gemini-2.5-flash already 404s on fresh keys),
+// so the model can be changed with the GEMINI_MODEL secret without a redeploy.
+// Primary = fast Flash-Lite (receipts are simple extraction); fallback = gemini-3.8-flash.
+const GEMINI_MODELS = [
+  Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
+].filter((m, i, a) => a.indexOf(m) === i);
+const geminiUrl = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
 type Category =
   | 'electronics' | 'appliance' | 'furniture' | 'tools'
@@ -257,22 +264,59 @@ Deno.serve(async (req) => {
     const mimeType = imageResp.headers.get('content-type') ?? 'image/jpeg';
     const imageBase64 = toBase64(await imageResp.arrayBuffer());
 
-    const geminiResp = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mimeType, data: imageBase64 } },
-            { text: PROMPT },
-          ],
-        }],
-        generationConfig: {
-          response_mime_type: 'application/json',
-          temperature: 0.1,
-        },
-      }),
+    // Receipts need extraction, not reasoning: low thinking cuts latency.
+    const buildBody = (withThinking: boolean) => JSON.stringify({
+      contents: [{
+        parts: [
+          { inline_data: { mime_type: mimeType, data: imageBase64 } },
+          { text: PROMPT },
+        ],
+      }],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.1,
+        ...(withThinking ? { thinkingConfig: { thinkingLevel: 'low' } } : {}),
+      },
     });
+
+    // Try the fast model first; on 404 (model retired) or a timeout, fall through to the next one.
+    let geminiResp!: Response;
+    const started = Date.now();
+    modelLoop:
+    for (const model of GEMINI_MODELS) {
+      let withThinking = model.includes('flash') && !model.includes('lite');
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        if (Date.now() - started > 40000) break modelLoop;
+        try {
+          geminiResp = await fetch(geminiUrl(model), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: buildBody(withThinking),
+            signal: AbortSignal.timeout(18000),
+          });
+        } catch (e) {
+          console.warn(`[OCR] ${model} attempt ${attempt} failed: ${e instanceof Error ? e.message : e}`);
+          continue modelLoop; // timeout or network: next model
+        }
+        if (geminiResp.ok) {
+          console.log(`[OCR] model=${model} ok in ${Date.now() - started}ms`);
+          break modelLoop;
+        }
+        if (geminiResp.status === 400 && withThinking) {
+          console.warn(`[OCR] ${model} 400 with thinkingConfig, retrying without: ${(await geminiResp.text()).slice(0, 200)}`);
+          withThinking = false;
+          continue;
+        }
+        if (geminiResp.status === 404) {
+          console.warn(`[OCR] ${model} 404, trying next model`);
+          continue modelLoop;
+        }
+        if (![429, 500, 502, 503, 504].includes(geminiResp.status)) break modelLoop;
+        console.warn(`[OCR] ${model} ${geminiResp.status} on attempt ${attempt}, retrying`);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+    if (!geminiResp) throw new OcrError('GEMINI_UPSTREAM', 'all Gemini models timed out');
 
     if (!geminiResp.ok) {
       const errText = await geminiResp.text();
